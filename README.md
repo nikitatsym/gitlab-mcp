@@ -35,6 +35,8 @@ For Claude Code global config: `~/.claude.json` → `"mcpServers"`.
 }
 ```
 
+Or use the interactive **[Setup Page](https://nikitatsym.github.io/gitlab-mcp/)** to generate the config.
+
 The same config works against Heptapod — just point `GITLAB_URL` at your Heptapod instance.
 The server probes `/api/v4/projects/vcs_type_stats` at startup to detect which backend it's
 talking to and registers the right tool set.
