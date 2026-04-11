@@ -15,8 +15,6 @@ Full REST API coverage with VCS-aware helpers — one tool surface, two backends
 - Self-service helpers for SSH/GPG keys, emails, and notification settings (which gitbeaker hides behind URL helpers)
 - Zero-config install via `uvx`
 
-See [`RESEARCH.md`](RESEARCH.md) for the full GitLab↔Heptapod API delta.
-
 ## Quick start
 
 Add the following to your MCP client config (Claude Desktop, Cursor, Claude Code, etc.).

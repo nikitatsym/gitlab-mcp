@@ -30,3 +30,14 @@ markers = [
 ]
 # Run unit tests by default; integration files are opt-in via the marker.
 addopts = "-m 'not integration'"
+
+[tool.ruff]
+extend-exclude = [
+    "src/gitlab_mcp/_generated.py",
+    "src/gitlab_mcp/_generated_groups.py",
+]
+
+[tool.ruff.lint]
+# F541: f-strings without placeholders are common in generated paths
+# F401: unused imports may be intentional re-exports in tests
+ignore = ["F541", "F401"]
