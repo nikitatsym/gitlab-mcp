@@ -11,7 +11,7 @@ from typing import Any, Iterable
 
 from .config import allow_public
 
-_BRIEF_MAX = int(os.environ.get("MCP_GITLAB_BRIEF_MAX", "100"))
+_BRIEF_MAX = int(os.environ.get("MCP_GITLAB_BRIEF_MAX", "200"))
 _DEFAULT_LIST_LIMIT = 20
 
 # Fields we never complain about in _verify_response — the API legitimately

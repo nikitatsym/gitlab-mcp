@@ -270,7 +270,7 @@ class TestSlimNote:
         }
         result = _slim_note(n)
         assert result["body"] is not None
-        assert len(result["body"]) <= 101  # brief cap + ellipsis
+        assert len(result["body"]) <= 201  # brief cap (200) + ellipsis
 
     def test_author_is_username(self):
         n = {"id": 1, "body": "hi", "author": {"username": "ari"}}
