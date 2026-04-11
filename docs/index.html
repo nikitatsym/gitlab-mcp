@@ -178,6 +178,18 @@
     <input type="text" id="backend" value="auto" spellcheck="false">
     <p class="hint"><code>auto</code> probes the instance; set to <code>gitlab</code> or <code>heptapod</code> to skip.</p>
 
+    <div style="display:flex;gap:1rem;margin-bottom:1rem">
+      <div style="flex:1">
+        <label for="timeout">Request timeout (seconds)</label>
+        <input type="text" id="timeout" value="30" spellcheck="false" style="margin-bottom:0">
+      </div>
+      <div style="flex:1">
+        <label for="brief-max">Note brief cap (chars)</label>
+        <input type="text" id="brief-max" value="100" spellcheck="false" style="margin-bottom:0">
+      </div>
+    </div>
+    <p class="hint">Defaults: <code>GITLAB_TIMEOUT=30.0</code>, <code>MCP_GITLAB_BRIEF_MAX=100</code> (0 disables note truncation).</p>
+
     <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;margin-bottom:1rem;color:var(--text);font-size:0.9rem;font-weight:400">
       <input type="checkbox" id="allow-public" style="width:auto;margin:0">
       Allow public <span style="color:var(--muted);font-size:0.82rem">&mdash; permits creating public/internal projects, groups, and snippets (blocked by default)</span>
@@ -233,9 +245,11 @@
 
 <script>
 function generate() {
-  const url     = document.getElementById('gitlab-url').value.trim().replace(/\/+$/, '');
-  const token   = document.getElementById('gitlab-token').value.trim();
-  const backend = document.getElementById('backend').value.trim() || 'auto';
+  const url      = document.getElementById('gitlab-url').value.trim().replace(/\/+$/, '');
+  const token    = document.getElementById('gitlab-token').value.trim();
+  const backend  = document.getElementById('backend').value.trim() || 'auto';
+  const timeout  = document.getElementById('timeout').value.trim();
+  const briefMax = document.getElementById('brief-max').value.trim();
 
   if (!url) { alert('Please enter your GitLab URL.'); return; }
   if (!token) { alert('Please enter your access token.'); return; }
@@ -245,6 +259,8 @@ function generate() {
     GITLAB_TOKEN: token
   };
   if (backend !== 'auto') env.GITLAB_BACKEND = backend;
+  if (timeout && timeout !== '30') env.GITLAB_TIMEOUT = timeout;
+  if (briefMax && briefMax !== '100') env.MCP_GITLAB_BRIEF_MAX = briefMax;
 
   const args = ["--refresh", "--extra-index-url", "https://nikitatsym.github.io/gitlab-mcp/simple", "gitlab-mcp"];
   if (document.getElementById('allow-public').checked) args.push("--allow-public");
