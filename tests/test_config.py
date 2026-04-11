@@ -22,7 +22,7 @@ class TestSettings:
         assert s.gitlab_token == ""
         assert s.gitlab_backend == "auto"
         assert s.gitlab_timeout == 30.0
-        assert s.mcp_gitlab_brief_max == 100
+        assert s.mcp_gitlab_brief_max == 200
 
     def test_from_env(self, monkeypatch):
         monkeypatch.setenv("GITLAB_URL", "https://gitlab.example.com")

@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     gitlab_token: str = ""
     gitlab_backend: Literal["auto", "gitlab", "heptapod"] = "auto"
     gitlab_timeout: float = 30.0
-    mcp_gitlab_brief_max: int = 100
+    mcp_gitlab_brief_max: int = 200
 
     @field_validator("gitlab_url")
     @classmethod
