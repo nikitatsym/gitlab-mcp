@@ -55,21 +55,7 @@ talking to and registers the right tool set.
 |---|---|---|
 | `--allow-public` | off | Permits creating public/internal projects, groups, and snippets. Without it, `visibility` must be `private`. |
 
-## Philosophy
-
-This is **not an HTTP wrapper** for the GitLab API — it's a curated set of typed
-operations grouped by risk:
-
-- **read** — safe to call anytime (list, get, search)
-- **write** — modifies state but reversible (create, update, edit notes/issues/MRs)
-- **execute** — triggers actions (merge, retry, cancel, deploy, cherry-pick, archive)
-- **delete** — irreversible (delete project, delete branch, delete MR)
-- **admin_read** / **admin_write** — instance-level operations gated to admin tokens
-
-Each tool has typed parameters and an unambiguous purpose. The agent never sees a URL
-or HTTP method; it sees `merge_requests_create(project_id, source_branch, target_branch, title)`.
-
-### Heptapod handling
+## Heptapod handling
 
 On a Heptapod instance, the MCP additionally registers four `hg_*` tools:
 
