@@ -1,0 +1,45 @@
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    hostname: gitlab.test
+    ports:
+      - "8929:8929"
+    environment:
+      GITLAB_ROOT_PASSWORD: X9!Zq-Integration-Tkn42
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://localhost:8929'
+        gitlab_rails['initial_root_password'] = 'X9!Zq-Integration-Tkn42'
+        gitlab_rails['monitoring_whitelist'] = ['0.0.0.0/0']
+        prometheus_monitoring['enable'] = false
+        alertmanager['enable'] = false
+        node_exporter['enable'] = false
+        postgres_exporter['enable'] = false
+        redis_exporter['enable'] = false
+        gitlab_exporter['enable'] = false
+        registry['enable'] = false
+        puma['worker_processes'] = 2
+        sidekiq['max_concurrency'] = 5
+    shm_size: "256m"
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8929/-/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 120s
+
+  heptapod:
+    image: octobus/heptapod:latest-stable
+    hostname: heptapod.test
+    ports:
+      - "8930:80"
+    environment:
+      GITLAB_ROOT_EMAIL: admin@example.com
+      GITLAB_ROOT_PASSWORD: X9!Zq-Integration-Tkn42
+    profiles:
+      - heptapod
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost/-/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 300s

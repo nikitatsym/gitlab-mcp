@@ -1,0 +1,252 @@
+"""Unit tests for server.py: _coerce_call validation and _register_tools filter."""
+
+from typing import Literal
+
+import httpx
+import pytest
+
+from gitlab_mcp.backend import InstanceInfo
+from gitlab_mcp.client import GitLabClient, _reset_client
+from gitlab_mcp.config import _reset_settings
+
+
+@pytest.fixture(autouse=True)
+def _reset_state(monkeypatch):
+    monkeypatch.setenv("GITLAB_URL", "https://gitlab.example.com")
+    monkeypatch.setenv("GITLAB_TOKEN", "test-token")
+    _reset_settings()
+    _reset_client()
+    yield
+    _reset_settings()
+    _reset_client()
+
+
+# ── _coerce_call ──────────────────────────────────────────────────────────
+
+
+class TestCoerceCall:
+    def test_rejects_unknown_param(self):
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(a: int):
+            """Test."""
+            return a
+
+        with pytest.raises(ValueError, match="Unknown parameters.*'z'"):
+            _coerce_call(fn, {"a": 1, "z": 99})
+
+    def test_rejects_invalid_literal_value(self):
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(mode: Literal["active", "archived", "all"]):
+            """Test."""
+            return mode
+
+        with pytest.raises(ValueError, match="Invalid value 'pending' for mode"):
+            _coerce_call(fn, {"mode": "pending"})
+
+    def test_accepts_valid_literal_value(self):
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(mode: Literal["active", "archived"]):
+            """Test."""
+            return mode
+
+        assert _coerce_call(fn, {"mode": "active"}) == "active"
+        assert _coerce_call(fn, {"mode": "archived"}) == "archived"
+
+    def test_optional_literal_accepts_none(self):
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(mode: Literal["a", "b"] | None = None):
+            """Test."""
+            return mode
+
+        assert _coerce_call(fn, {"mode": None}) is None
+        assert _coerce_call(fn, {}) is None
+        assert _coerce_call(fn, {"mode": "a"}) == "a"
+
+    def test_optional_literal_rejects_invalid(self):
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(mode: Literal["a", "b"] | None = None):
+            """Test."""
+            return mode
+
+        with pytest.raises(ValueError, match="Invalid value 'c'"):
+            _coerce_call(fn, {"mode": "c"})
+
+    def test_bool_coercion_from_string(self):
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(flag: bool = False):
+            """Test."""
+            return flag
+
+        assert _coerce_call(fn, {"flag": "true"}) is True
+        assert _coerce_call(fn, {"flag": "yes"}) is True
+        assert _coerce_call(fn, {"flag": "1"}) is True
+        assert _coerce_call(fn, {"flag": "false"}) is False
+        assert _coerce_call(fn, {"flag": "no"}) is False
+
+    def test_bool_pass_through(self):
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(flag: bool = False):
+            """Test."""
+            return flag
+
+        assert _coerce_call(fn, {"flag": True}) is True
+        assert _coerce_call(fn, {"flag": False}) is False
+
+    def test_empty_params_uses_defaults(self):
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(a: int = 5, b: str = "hi"):
+            """Test."""
+            return (a, b)
+
+        assert _coerce_call(fn, {}) == (5, "hi")
+
+    def test_var_keyword_accepts_unknown(self):
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(project_id: str, **options):
+            """Test."""
+            return {"project_id": project_id, "options": options}
+
+        # Extra fields should be passed through to **options, not rejected.
+        result = _coerce_call(fn, {"project_id": "myproj", "branch": "feat", "ref": "main"})
+        assert result["project_id"] == "myproj"
+        assert result["options"] == {"branch": "feat", "ref": "main"}
+
+    def test_var_keyword_still_validates_known_literal(self):
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(mode: Literal["a", "b"], **options):
+            """Test."""
+            return (mode, options)
+
+        # Named param with Literal still validated
+        with pytest.raises(ValueError, match="Invalid value 'c' for mode"):
+            _coerce_call(fn, {"mode": "c", "extra": 1})
+
+        # Valid call still works
+        assert _coerce_call(fn, {"mode": "a", "extra": 1}) == ("a", {"extra": 1})
+
+
+# ── _register_tools filter ────────────────────────────────────────────────
+
+
+def _seed_client(backend: str) -> GitLabClient:
+    """Create a GitLabClient with instance pre-populated for the given backend."""
+    transport = httpx.MockTransport(lambda req: httpx.Response(404))
+    client = GitLabClient(transport=transport)
+    client.instance = InstanceInfo(
+        backend=backend,  # type: ignore[arg-type]
+        version="18.6.0",
+        enterprise=False,
+        vcs_types_supported=(
+            {"git", "hg", "hg_git"} if backend == "heptapod" else {"git"}
+        ),
+        url="https://gitlab.example.com",
+    )
+    return client
+
+
+class TestRegisterToolsFilter:
+    def test_heptapod_only_excluded_on_gitlab(self, monkeypatch):
+        import gitlab_mcp.client as client_mod
+        client_mod._client = _seed_client("gitlab")
+
+        from gitlab_mcp import server, tools
+        from gitlab_mcp.registry import _op
+
+        @_op(tools.gitlab_read)
+        def hg_probe_synthetic():
+            """Synthetic hg-only tool."""
+            return "hg"
+
+        hg_probe_synthetic._heptapod_only = True
+        monkeypatch.setattr(tools, "hg_probe_synthetic", hg_probe_synthetic, raising=False)
+
+        server._register_tools()
+        gitlab_read_ops = server._group_ops.get("gitlab_read", {})
+        assert "HgProbeSynthetic" not in gitlab_read_ops
+
+    def test_heptapod_only_included_on_heptapod(self, monkeypatch):
+        import gitlab_mcp.client as client_mod
+        client_mod._client = _seed_client("heptapod")
+
+        from gitlab_mcp import server, tools
+        from gitlab_mcp.registry import _op
+
+        @_op(tools.gitlab_read)
+        def hg_probe_synthetic():
+            """Synthetic hg-only tool."""
+            return "hg"
+
+        hg_probe_synthetic._heptapod_only = True
+        monkeypatch.setattr(tools, "hg_probe_synthetic", hg_probe_synthetic, raising=False)
+
+        server._register_tools()
+        gitlab_read_ops = server._group_ops.get("gitlab_read", {})
+        assert "HgProbeSynthetic" in gitlab_read_ops
+
+    def test_non_heptapod_tools_always_registered(self, monkeypatch):
+        import gitlab_mcp.client as client_mod
+        client_mod._client = _seed_client("gitlab")
+
+        from gitlab_mcp import server, tools
+        from gitlab_mcp.registry import _op
+
+        @_op(tools.gitlab_read)
+        def synthetic_read():
+            """Synthetic regular tool."""
+            return "ok"
+
+        monkeypatch.setattr(tools, "synthetic_read", synthetic_read, raising=False)
+
+        server._register_tools()
+        assert "SyntheticRead" in server._group_ops.get("gitlab_read", {})
+
+
+# ── gitlab_version ROOT tool ──────────────────────────────────────────────
+
+
+class TestGitlabVersion:
+    def test_shape_with_instance(self):
+        import gitlab_mcp.client as client_mod
+        client_mod._client = _seed_client("heptapod")
+
+        from gitlab_mcp.tools import gitlab_version
+
+        result = gitlab_version()
+        assert "mcp" in result
+        assert "service" in result
+        svc = result["service"]
+        assert svc["backend"] == "heptapod"
+        assert svc["version"] == "18.6.0"
+        assert svc["enterprise"] is False
+        assert svc["vcs_types"] == ["git", "hg", "hg_git"]
+        assert svc["url"] == "https://gitlab.example.com"
+
+    def test_shape_without_instance(self):
+        # If called before main() sets up instance, returns empty service dict.
+        import gitlab_mcp.client as client_mod
+        transport = httpx.MockTransport(lambda req: httpx.Response(404))
+        client = GitLabClient(transport=transport)
+        # Don't populate client.instance
+        client_mod._client = client
+
+        from gitlab_mcp.tools import gitlab_version
+
+        result = gitlab_version()
+        assert result["service"] == {}
+        assert "mcp" in result  # version string still populated from package metadata
+
+    def test_is_root_tool(self):
+        from gitlab_mcp.registry import ROOT
+        from gitlab_mcp.tools import gitlab_version
+
+        assert gitlab_version._mcp_group is ROOT
