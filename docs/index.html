@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitLab MCP Server &mdash; Setup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0d1117;
+    --surface:  #161b22;
+    --border:   #30363d;
+    --text:     #e6edf3;
+    --muted:    #8b949e;
+    --accent:   #fc6d26;
+    --accent-h: #ff8c4a;
+    --input-bg: #0d1117;
+    --radius:   8px;
+    --font:     -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono:     "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .container { width: 100%; max-width: 720px; }
+
+  header { text-align: center; margin-bottom: 2.5rem; }
+  header h1 { font-size: 2rem; font-weight: 600; margin-bottom: 0.5rem; }
+  header h1 span { color: var(--accent-h); }
+  header p { color: var(--muted); font-size: 0.95rem; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .card h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; }
+
+  label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+  }
+
+  input[type="text"], input[type="url"], input[type="password"] {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus { border-color: var(--accent); }
+
+  .hint { font-size: 0.8rem; color: var(--muted); margin-top: -0.75rem; margin-bottom: 1rem; }
+
+  .btn-row { display: flex; gap: 0.75rem; margin-top: 0.25rem; }
+
+  button {
+    padding: 0.6rem 1.25rem;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  button:active { transform: scale(0.97); }
+
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-h); }
+
+  .btn-secondary { background: var(--border); color: var(--text); }
+  .btn-secondary:hover { background: #3d444d; }
+  .btn-secondary.copied { background: var(--accent); color: #fff; }
+
+  pre {
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    line-height: 1.55;
+    white-space: pre;
+    color: var(--text);
+  }
+  .placeholder { color: #d29922; }
+
+  .instructions ol { padding-left: 1.25rem; }
+  .instructions li {
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .instructions code {
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    color: var(--text);
+  }
+  .instructions a { color: var(--accent-h); text-decoration: none; }
+  .instructions a:hover { text-decoration: underline; }
+
+  footer {
+    margin-top: 2rem;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  footer a { color: var(--accent-h); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1><span>GitLab</span> MCP Server</h1>
+    <p>Generate an MCP client configuration. Works against GitLab and Heptapod (Mercurial fork).</p>
+  </header>
+
+  <div class="card">
+    <h2>Template Config</h2>
+    <pre id="template-config">{
+  "mcpServers": {
+    "gitlab": {
+      "command": "uvx",
+      "args": ["--refresh", "--extra-index-url", "https://nikitatsym.github.io/gitlab-mcp/simple", "gitlab-mcp"],
+      "env": {
+        "GITLAB_URL": "<span class="placeholder">YOUR_GITLAB_URL</span>",
+        "GITLAB_TOKEN": "<span class="placeholder">YOUR_ACCESS_TOKEN</span>"
+      }
+    }
+  }
+}</pre>
+  </div>
+
+  <div class="card">
+    <h2>Generate Your Config</h2>
+
+    <label for="gitlab-url">GitLab / Heptapod URL</label>
+    <input type="url" id="gitlab-url" placeholder="https://gitlab.example.com" spellcheck="false">
+    <p class="hint">Base URL of your instance. The server will auto-detect whether it's GitLab or Heptapod.</p>
+
+    <label for="gitlab-token">Access Token</label>
+    <input type="password" id="gitlab-token" placeholder="glpat-..." spellcheck="false">
+    <p class="hint">Personal access token, project token, group token, or OAuth2 bearer.</p>
+
+    <label for="backend">Backend (override)</label>
+    <input type="text" id="backend" value="auto" spellcheck="false">
+    <p class="hint"><code>auto</code> probes the instance; set to <code>gitlab</code> or <code>heptapod</code> to skip.</p>
+
+    <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;margin-bottom:1rem;color:var(--text);font-size:0.9rem;font-weight:400">
+      <input type="checkbox" id="allow-public" style="width:auto;margin:0">
+      Allow public <span style="color:var(--muted);font-size:0.82rem">&mdash; permits creating public/internal projects, groups, and snippets (blocked by default)</span>
+    </label>
+
+    <div class="btn-row">
+      <button class="btn-primary" id="btn-generate" onclick="generate()">Generate Config</button>
+      <button class="btn-secondary" id="btn-copy" onclick="copyConfig()" style="display:none">Copy</button>
+    </div>
+
+    <pre id="output" style="display:none; margin-top:1rem"></pre>
+  </div>
+
+  <div class="card instructions">
+    <h2>How to Create a GitLab Access Token</h2>
+    <ol>
+      <li>Log in to your GitLab/Heptapod instance.</li>
+      <li>Go to <strong>User Settings</strong> &rarr; <strong>Access Tokens</strong>.</li>
+      <li>Name the token (e.g. <code>mcp-server</code>) and pick an expiration date.</li>
+      <li>Select scopes &mdash; <code>api</code> for full read/write access, or finer-grained: <code>read_api</code>, <code>read_repository</code>, <code>write_repository</code>.</li>
+      <li>Click <strong>Create personal access token</strong> and copy the value immediately &mdash; it&rsquo;s shown only once.</li>
+      <li>Paste the token above, click <strong>Generate Config</strong>, and put the result into your MCP client.</li>
+    </ol>
+    <p style="font-size:0.85rem;color:var(--muted);margin-top:0.5rem">Project- or group-scoped operations? Use a <strong>project access token</strong> from project Settings &rarr; Access Tokens instead.</p>
+  </div>
+
+  <div class="card instructions">
+    <h2>Heptapod Notes</h2>
+    <ol>
+      <li>The server detects Heptapod automatically by probing <code>/api/v4/projects/vcs_type_stats</code>.</li>
+      <li>On Heptapod, four <code>hg_*</code> tools become available: <code>hg_get_config</code>, <code>hg_set_config</code>, <code>hg_get_raw_hgrc</code>, <code>hg_create_topic_mr</code>.</li>
+      <li>Mercurial branches/topics appear in API responses as <code>branch/&lt;name&gt;</code> and <code>topic/&lt;target&gt;/&lt;name&gt;</code>. The server preserves them verbatim &mdash; pass them as-is when constructing refs.</li>
+      <li>Forks of Mercurial projects are blocked by Heptapod itself; the server raises a clean error before hitting the network.</li>
+      <li>Personal forks, public projects, and merge commits work normally on Git projects hosted on Heptapod.</li>
+    </ol>
+  </div>
+
+  <div class="card instructions">
+    <h2>Where to Put the Config</h2>
+    <ol>
+      <li><strong>Claude Desktop</strong> &mdash; paste into <code>claude_desktop_config.json</code>.</li>
+      <li><strong>Cursor</strong> &mdash; paste into <code>.cursor/mcp.json</code> in your project root.</li>
+      <li><strong>Claude Code</strong> &mdash; paste into <code>.claude/settings.json</code> or run <code>claude mcp add</code>. Global config: <code>~/.claude.json</code> &rarr; <code>"mcpServers"</code>.</li>
+      <li>For other MCP clients, consult their docs on where the server config lives.</li>
+    </ol>
+  </div>
+
+  <footer>
+    <a href="https://github.com/nikitatsym/gitlab-mcp">gitlab-mcp</a> &mdash; 6 risk-graded groups, ~800 operations, full GitLab and Heptapod coverage for autonomous agents.
+  </footer>
+
+</div>
+
+<script>
+function generate() {
+  const url     = document.getElementById('gitlab-url').value.trim().replace(/\/+$/, '');
+  const token   = document.getElementById('gitlab-token').value.trim();
+  const backend = document.getElementById('backend').value.trim() || 'auto';
+
+  if (!url) { alert('Please enter your GitLab URL.'); return; }
+  if (!token) { alert('Please enter your access token.'); return; }
+
+  const env = {
+    GITLAB_URL: url,
+    GITLAB_TOKEN: token
+  };
+  if (backend !== 'auto') env.GITLAB_BACKEND = backend;
+
+  const args = ["--refresh", "--extra-index-url", "https://nikitatsym.github.io/gitlab-mcp/simple", "gitlab-mcp"];
+  if (document.getElementById('allow-public').checked) args.push("--allow-public");
+
+  const config = {
+    mcpServers: {
+      gitlab: {
+        command: "uvx",
+        args: args,
+        env: env
+      }
+    }
+  };
+
+  const output  = document.getElementById('output');
+  const btnCopy = document.getElementById('btn-copy');
+  output.textContent = JSON.stringify(config, null, 2);
+  output.style.display = 'block';
+  btnCopy.style.display = 'inline-block';
+}
+
+function copyConfig() {
+  const text = document.getElementById('output').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    const btn = document.getElementById('btn-copy');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>

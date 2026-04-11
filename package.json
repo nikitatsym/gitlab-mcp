@@ -1,0 +1,21 @@
+{
+  "name": "gitlab-mcp-scripts",
+  "private": true,
+  "description": "Workflow scripts for gitlab-mcp — docker compose lifecycle, bootstrap, tests",
+  "scripts": {
+    "gitlab:up": "docker compose -f tests/docker-compose.yml up -d gitlab && npm run gitlab:bootstrap",
+    "gitlab:bootstrap": "uv run python scripts/bootstrap.py gitlab",
+    "gitlab:down": "docker compose -f tests/docker-compose.yml down -v",
+    "gitlab:logs": "docker compose -f tests/docker-compose.yml logs -f gitlab",
+    "gitlab:status": "docker compose -f tests/docker-compose.yml ps",
+    "heptapod:up": "docker compose -f tests/docker-compose.yml --profile heptapod up -d heptapod && npm run heptapod:bootstrap",
+    "heptapod:bootstrap": "uv run python scripts/bootstrap.py heptapod",
+    "heptapod:down": "docker compose -f tests/docker-compose.yml --profile heptapod down -v",
+    "test": "uv run pytest -m 'not integration'",
+    "test:integration": "uv run pytest -m integration tests/test_integration_gitlab.py",
+    "test:integration:heptapod": "RUN_HEPTAPOD_TESTS=1 uv run pytest -m integration tests/test_integration_heptapod.py",
+    "test:integration:full": "npm run gitlab:up && npm run test:integration; rv=$?; npm run gitlab:down; exit $rv",
+    "codegen": "cd codegen && npx tsx generate.ts",
+    "codegen:check": "cd codegen && npx tsx generate.ts --check"
+  }
+}

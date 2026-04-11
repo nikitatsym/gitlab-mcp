@@ -1,0 +1,109 @@
+name: Build & Publish
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "pyproject.toml"
+      - ".github/workflows/build.yml"
+      - "docs/**"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Calculate version
+        id: version
+        run: |
+          git fetch --tags
+          LATEST=$(git tag -l 'v*' --sort=-v:refname | head -1)
+          if [ -z "$LATEST" ]; then
+            echo "version=0.1.0" >> $GITHUB_OUTPUT
+          else
+            BASE=${LATEST#v}
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE"
+            PATCH=$((PATCH + 1))
+            echo "version=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run unit tests
+        run: |
+          uv sync
+          uv run pytest tests/ -m 'not integration'
+
+      - name: Build wheel
+        run: |
+          sed -i "s/^version = .*/version = \"${{ steps.version.outputs.version }}\"/" pyproject.toml
+          uv build --wheel --out-dir dist/
+
+      - name: Create tag & release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+          gh release create "v${VERSION}" dist/*.whl \
+            --title "v${VERSION}" \
+            --generate-notes \
+            --latest
+
+      - name: Generate PEP 503 index
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG="gitlab-mcp"
+          # gh release create returns before the API reflects the new asset — poll until it appears
+          for i in 1 2 3 4 5; do
+            gh api repos/${{ github.repository }}/releases --paginate \
+              -q '.[].assets[].browser_download_url' | grep -q "${VERSION}" && break
+            sleep 3
+          done
+          mkdir -p _site/simple/${PKG}
+          {
+            echo "<!DOCTYPE html><html><head><meta name=\"pypi:repository-version\" content=\"1.0\"></head><body>"
+            echo "<h1>${PKG}</h1>"
+            gh api repos/${{ github.repository }}/releases --paginate -q '.[].assets[].browser_download_url' | while read URL; do
+              FNAME=$(basename "$URL")
+              echo "<a href=\"${URL}\">${FNAME}</a><br>"
+            done
+            echo "</body></html>"
+          } > _site/simple/${PKG}/index.html
+          # Root /simple/ index listing the package
+          {
+            echo "<!DOCTYPE html><html><body>"
+            echo "<a href=\"${PKG}/\">${PKG}</a>"
+            echo "</body></html>"
+          } > _site/simple/index.html
+
+      - name: Copy docs
+        run: cp docs/index.html _site/
+
+      - name: Configure pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to pages
+        uses: actions/deploy-pages@v4

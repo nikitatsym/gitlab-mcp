@@ -1,0 +1,99 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Literal
+from urllib.parse import quote
+
+if TYPE_CHECKING:
+    from .client import GitLabClient
+
+Backend = Literal["gitlab", "heptapod"]
+VcsType = Literal["git", "hg", "hg_git"]
+
+_VALID_VCS = {"git", "hg", "hg_git"}
+
+
+@dataclass
+class InstanceInfo:
+    """What backend the MCP is talking to, populated once at startup by main()."""
+
+    backend: Backend
+    version: str
+    enterprise: bool
+    revision: str = ""
+    vcs_types_supported: set[str] = field(default_factory=set)
+    url: str = ""
+
+
+def detect_instance(client: "GitLabClient") -> InstanceInfo:
+    """Probe /metadata + /projects/vcs_type_stats to determine the backend.
+
+    GitLab returns 404 on /vcs_type_stats; Heptapod returns a dict with
+    {"git": N, "hg": M, "hg_git": K}. Any other probe error propagates as
+    GitLabError and aborts startup (fail-fast).
+    """
+    from .client import GitLabError
+
+    meta = client.get("/metadata")
+    if not isinstance(meta, dict):
+        raise RuntimeError(f"Unexpected /metadata response shape: {type(meta).__name__}")
+    version = meta.get("version", "unknown")
+    revision = meta.get("revision", "")
+    enterprise = bool(meta.get("enterprise", False))
+
+    try:
+        stats = client.get("/projects/vcs_type_stats")
+        backend: Backend = "heptapod"
+        if isinstance(stats, dict):
+            vcs_types = set(stats.keys())
+        else:
+            vcs_types = {"git", "hg", "hg_git"}
+    except GitLabError as e:
+        if e.status == 404:
+            backend = "gitlab"
+            vcs_types = {"git"}
+        else:
+            raise
+
+    return InstanceInfo(
+        backend=backend,
+        version=version,
+        revision=revision,
+        enterprise=enterprise,
+        vcs_types_supported=vcs_types,
+        url=client._base,
+    )
+
+
+def project_vcs_type(client: "GitLabClient", project_id: str) -> VcsType:
+    """Determine the VCS type of a specific project on a Heptapod instance.
+
+    Tries the `vcs_type` field on /projects/:id first; falls back to probing
+    the /projects/:id/hg_heptapod_config endpoint (200 → hg, 404 → git).
+
+    Should never be called against a vanilla GitLab instance — all GitLab
+    projects are git, and the caller should know this from instance.backend.
+    """
+    from .client import GitLabError
+
+    # URL-encode path-style project IDs ("group/project" -> "group%2Fproject").
+    # Numeric IDs are unaffected.
+    encoded = quote(str(project_id), safe="")
+
+    proj = client.get(f"/projects/{encoded}")
+    if isinstance(proj, dict):
+        vcs = proj.get("vcs_type")
+        if vcs in _VALID_VCS:
+            return vcs  # type: ignore[return-value]
+        if vcs is not None:
+            raise RuntimeError(
+                f"Unknown vcs_type {vcs!r} returned by API for project {project_id}"
+            )
+
+    try:
+        client.get(f"/projects/{encoded}/hg_heptapod_config")
+    except GitLabError as e:
+        if e.status == 404:
+            return "git"
+        raise
+    return "hg"
