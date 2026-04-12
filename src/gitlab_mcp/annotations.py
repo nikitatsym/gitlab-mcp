@@ -110,6 +110,10 @@ ANNOTATIONS: dict[str, str] = {
     "notification_settings_show": "Read notification settings. Pass project_id or group_id to scope, or neither for global.",
     "notification_settings_edit": "Update notification settings.",
 
+    # ── File uploads ─────────────────────────────────────────────────────
+    "projects_upload_avatar": "Upload a project avatar from a LOCAL file path (PNG/JPG/GIF). Agent passes the path, server reads and uploads via multipart.",
+    "groups_upload_avatar": "Upload a group avatar from a LOCAL file path (PNG/JPG/GIF). Agent passes the path, server reads and uploads via multipart.",
+
     # ── Job Token Scopes ────────────────────────────────────────────────
     "project_job_token_scopes_show": "Show the CI_JOB_TOKEN access settings for a project.",
     "project_job_token_scopes_edit": "Enable/disable CI_JOB_TOKEN inbound access for a project. Body field: enabled.",
