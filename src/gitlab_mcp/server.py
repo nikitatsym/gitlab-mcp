@@ -119,16 +119,115 @@ _group_ops: dict[str, dict] = {}    # {group_name: {PascalName: fn}}
 _all_grouped: dict[str, str] = {}   # {PascalName: group_name}
 
 
-def _build_help(group_name: str) -> str:
-    """Build help text from operation functions in a group."""
+# Common verb words used to detect the boundary between class and method in
+# a snake_case op name. Walked from the start; the category is everything
+# BEFORE the first verb. Used by `_category_for_fn` as a fallback when the
+# function's docstring doesn't already start with `ClassName.method`.
+_VERB_WORDS = frozenset({
+    "all", "show", "create", "edit", "update", "remove", "delete", "add",
+    "get", "set", "star", "unstar", "subscribe", "unsubscribe", "fork",
+    "merge", "accept", "approve", "reject", "block", "unblock", "search",
+    "render", "lint", "verify", "run", "play", "cancel", "retry", "erase",
+    "keep", "sync", "promote", "restore", "archive", "unarchive", "transfer",
+    "share", "pick", "revert", "activate", "deactivate", "ban", "unban",
+    "follow", "unfollow", "test", "download", "upload", "import", "export",
+    "schedule", "move", "clone", "reorder", "reset", "take", "trigger",
+    "publish", "disable", "enable", "rotate", "generate", "send", "preview",
+    "register", "unregister", "list",
+})
+
+
+def _category_from_snake(snake_name: str) -> str:
+    """Heuristic: extract the resource-class category from a snake_case op name."""
+    parts = snake_name.split("_")
+    for i, part in enumerate(parts):
+        if i > 0 and part in _VERB_WORDS:
+            return "".join(p.title() for p in parts[:i])
+    return "".join(p.title() for p in parts)
+
+
+def _category_for_fn(fn) -> str:
+    """Resolve a function's resource category.
+
+    Codegen-emitted functions have docstrings starting with `ClassName.method`,
+    so we extract the class name from there. Hand-written overrides fall back
+    to a heuristic on the function name.
+    """
+    import re
+    doc = fn.__doc__ or ""
+    m = re.match(r"(\w+)\.\w+\s*\(", doc)
+    if m:
+        return m.group(1)
+    return _category_from_snake(fn.__name__)
+
+
+def _build_help(
+    group_name: str,
+    category: str | None = None,
+    search: str | None = None,
+) -> str:
+    """Build help text for a group, with progressive disclosure.
+
+    Default (no params): compact category index — one line per resource class
+    with op count. Use this to discover what's available without dumping
+    hundreds of operations.
+
+    With `category="X"`: full signatures of all ops in that category.
+
+    With `search="foo"`: full signatures of all ops whose name contains
+    `foo` (case-insensitive).
+    """
     ops = _group_ops[group_name]
-    lines = []
-    for pascal_name, fn in ops.items():
+
+    # ── Filtered detailed listings ──
+    if search:
+        s = search.lower()
+        matched = {k: v for k, v in ops.items() if s in k.lower()}
+        if not matched:
+            return (
+                f"No ops in {group_name} matching {search!r}. "
+                f"Use operation='help' (no params) for the category index."
+            )
+        return _format_help_full(matched, group_name, f"matching {search!r}")
+
+    if category:
+        matched = {
+            k: v for k, v in ops.items() if _category_for_fn(v) == category
+        }
+        if not matched:
+            return (
+                f"No category {category!r} in {group_name}. "
+                f"Use operation='help' (no params) for the category index."
+            )
+        return _format_help_full(matched, group_name, f"in category {category!r}")
+
+    # ── Compact category index (default) ──
+    by_category: dict[str, int] = {}
+    for fn in ops.values():
+        cat = _category_for_fn(fn)
+        by_category[cat] = by_category.get(cat, 0) + 1
+
+    lines = [
+        f"{len(ops)} operations in {group_name}, grouped by resource.",
+        "Drill down with operation='help' params={'category': 'X'} for full signatures, "
+        "or params={'search': 'foo'} to filter by name.",
+        "",
+    ]
+    for cat in sorted(by_category):
+        lines.append(f"  {cat}: {by_category[cat]} ops")
+    return "\n".join(lines)
+
+
+def _format_help_full(ops: dict, group_name: str, scope_desc: str) -> str:
+    """Render a full signature listing for a filtered set of ops."""
+    lines = [f"{len(ops)} operations in {group_name} {scope_desc}:"]
+    for pascal_name in sorted(ops):
+        fn = ops[pascal_name]
         sig = inspect.signature(fn)
         params = ", ".join(sig.parameters.keys())
         doc = (fn.__doc__ or "").split("\n")[0]
         lines.append(f"  {pascal_name}({params}) — {doc}")
-    return f"{len(lines)} operations available:\n" + "\n".join(lines)
+    return "\n".join(lines)
 
 
 def _dispatch(operation: str, group_name: str, params: dict):
@@ -201,7 +300,11 @@ def _register_tools():
         def _make_tool(gname, gdoc):
             def tool_fn(operation: str, params: dict = {}):
                 if operation == "help":
-                    return _build_help(gname)
+                    return _build_help(
+                        gname,
+                        category=params.get("category") if params else None,
+                        search=params.get("search") if params else None,
+                    )
                 return _dispatch(operation, gname, params)
             tool_fn.__name__ = gname
             tool_fn.__qualname__ = gname

@@ -214,6 +214,93 @@ class TestRegisterToolsFilter:
 # ── gitlab_version ROOT tool ──────────────────────────────────────────────
 
 
+class TestBuildHelp:
+    """Progressive disclosure help: index → category → search."""
+
+    def setup_method(self):
+        # Seed a synthetic group_ops dict so we don't depend on actual generated ops.
+        from gitlab_mcp import server
+
+        def fake_projects_show():
+            """Projects.show (GET projects/${projectId})."""
+        def fake_projects_create():
+            """Projects.create (POST projects)."""
+        def fake_branches_all():
+            """Branches.all (GET projects/${projectId}/repository/branches)."""
+        def fake_hg_get_config():
+            """Read the high-level Mercurial project settings (Heptapod only)."""
+
+        server._group_ops.clear()
+        server._group_ops["fake_read"] = {
+            "ProjectsShow": fake_projects_show,
+            "ProjectsCreate": fake_projects_create,
+            "BranchesAll": fake_branches_all,
+            "HgGetConfig": fake_hg_get_config,
+        }
+
+    def teardown_method(self):
+        from gitlab_mcp import server
+        server._group_ops.clear()
+
+    def test_default_returns_compact_index(self):
+        from gitlab_mcp.server import _build_help
+
+        result = _build_help("fake_read")
+        assert "4 operations in fake_read" in result
+        assert "Projects: 2 ops" in result
+        assert "Branches: 1 ops" in result
+        assert "Hg: 1 ops" in result
+        # Compact form: no signatures
+        assert "(project_id)" not in result
+        assert "GET projects" not in result
+
+    def test_filter_by_category(self):
+        from gitlab_mcp.server import _build_help
+
+        result = _build_help("fake_read", category="Projects")
+        assert "ProjectsShow" in result
+        assert "ProjectsCreate" in result
+        assert "BranchesAll" not in result
+        assert "HgGetConfig" not in result
+
+    def test_filter_by_unknown_category(self):
+        from gitlab_mcp.server import _build_help
+
+        result = _build_help("fake_read", category="Nonexistent")
+        assert "No category 'Nonexistent'" in result
+
+    def test_search_by_name(self):
+        from gitlab_mcp.server import _build_help
+
+        result = _build_help("fake_read", search="hg")
+        assert "HgGetConfig" in result
+        assert "ProjectsShow" not in result
+
+    def test_search_no_match(self):
+        from gitlab_mcp.server import _build_help
+
+        result = _build_help("fake_read", search="qwerty")
+        assert "No ops" in result
+        assert "qwerty" in result
+
+    def test_category_from_snake_heuristic(self):
+        from gitlab_mcp.server import _category_from_snake
+
+        assert _category_from_snake("projects_show") == "Projects"
+        assert _category_from_snake("merge_requests_create") == "MergeRequests"
+        assert _category_from_snake("hg_get_config") == "Hg"
+        assert _category_from_snake("user_ssh_keys_all") == "UserSshKeys"
+        assert _category_from_snake("notification_settings_show") == "NotificationSettings"
+
+    def test_category_from_docstring(self):
+        from gitlab_mcp.server import _category_for_fn
+
+        def fn():
+            """MergeRequests.create (POST projects/${projectId}/merge_requests)."""
+
+        assert _category_for_fn(fn) == "MergeRequests"
+
+
 class TestGitlabVersion:
     def test_shape_with_instance(self):
         import gitlab_mcp.client as client_mod
