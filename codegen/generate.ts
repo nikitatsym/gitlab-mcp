@@ -56,6 +56,11 @@ const IMPL = readFileSync(IMPL_PATH, "utf-8");
 
 // ── Parsing ────────────────────────────────────────────────────────────────
 
+interface BodyField {
+  name: string; // GitLab field name (snake_case on the wire)
+  variable: string; // gitbeaker's variable name (camelCase, matches a positional arg)
+}
+
 interface ParsedMethod {
   klass: string;
   name: string;
@@ -63,6 +68,7 @@ interface ParsedMethod {
   verb: string; // get/post/put/patch/del
   pathTpl: string; // raw template, e.g. "projects/${projectId}/foo"
   isDestructured: boolean; // true if args started with `{` (destructured options)
+  bodyFields: BodyField[]; // explicit body fields from gitbeaker's object literal
 }
 
 const classRe =
@@ -78,6 +84,72 @@ interface Delegation {
 const methods: ParsedMethod[] = [];
 const delegations: Delegation[] = [];
 const skippedMethods: { klass: string; name: string; argsRaw: string }[] = [];
+
+/**
+ * Parse a gitbeaker RequestHelper body object literal.
+ *
+ * Given `{ branch: branchName, ref, ...options }` or `{ ...options, targetProjectId }`,
+ * extracts the named fields (shorthand and renamed) and reports whether an
+ * `...options` spread is present.
+ *
+ * mBody is the method body text; startAfter is the position right after the
+ * opening `(` of the third RequestHelper arg — i.e., typically right after
+ * `endpoint\`...\``. Returns null if the third arg isn't an object literal
+ * (e.g., it's just `options` or a variable).
+ */
+function parseBodyLiteral(
+  mBody: string,
+  startAfter: number,
+): BodyField[] | null {
+  let pos = startAfter;
+  // Skip whitespace and a leading comma (separating endpoint and body arg).
+  while (pos < mBody.length && /\s/.test(mBody[pos])) pos++;
+  if (mBody[pos] !== ",") return null;
+  pos++;
+  while (pos < mBody.length && /\s/.test(mBody[pos])) pos++;
+  if (mBody[pos] !== "{") return null;
+
+  // Balanced-brace extraction of the object content.
+  let depth = 1;
+  const start = pos + 1;
+  pos++;
+  while (pos < mBody.length && depth > 0) {
+    if (mBody[pos] === "{") depth++;
+    else if (mBody[pos] === "}") depth--;
+    if (depth > 0) pos++;
+  }
+  if (depth !== 0) return null;
+  const content = mBody.slice(start, pos);
+
+  const fields: BodyField[] = [];
+  // Split by commas that aren't inside nested structures. Since we already
+  // matched the outer braces, anything left is comma-separated entries.
+  // Simple split works for the common shorthand/renamed patterns.
+  const parts = content
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  for (const part of parts) {
+    if (part.startsWith("...")) continue;  // spread — ignore
+    const renameMatch = part.match(/^(\w+)\s*:\s*(\w+)$/);
+    if (renameMatch) {
+      fields.push({ name: renameMatch[1], variable: renameMatch[2] });
+      continue;
+    }
+    const shorthandMatch = part.match(/^(\w+)$/);
+    if (shorthandMatch) {
+      fields.push({
+        name: shorthandMatch[1],
+        variable: shorthandMatch[1],
+      });
+      continue;
+    }
+    // Anything else (computed keys, method shorthand, nested objects) — skip.
+  }
+
+  return fields;
+}
 const stats = {
   classesFound: 0,
   classesExcluded: 0,
@@ -158,12 +230,17 @@ while ((m = classRe.exec(IMPL)) !== null) {
     let pathTpl: string | null = null;
 
     // Pattern 1a: endpoint-tagged template literal (preferred, most common).
+    let bodyFieldsFromEndpoint: BodyField[] | null = null;
     const pEndpoint = mBody.match(
       /return RequestHelper\.(\w+)\(\)\(\s*this,\s*endpoint`([^`]+)`/
     );
     if (pEndpoint && isSafeTemplate(pEndpoint[2])) {
       verb = pEndpoint[1];
       pathTpl = pEndpoint[2];
+      // Try to parse the body object literal that follows the endpoint template.
+      const afterBacktick =
+        pEndpoint.index! + pEndpoint[0].length;
+      bodyFieldsFromEndpoint = parseBodyLiteral(mBody, afterBacktick);
     }
 
     // Pattern 1b: plain template literal `...${var}...`. Use only when every
@@ -340,6 +417,7 @@ while ((m = classRe.exec(IMPL)) !== null) {
       verb,
       pathTpl,
       isDestructured,
+      bodyFields: bodyFieldsFromEndpoint ?? [],
     });
     stats.methodsParsed++;
   }
@@ -502,6 +580,7 @@ function expandResourceSubclasses(): number {
         verb: bm.verb,
         pathTpl: newPath,
         isDestructured: bm.isDestructured,
+        bodyFields: bm.bodyFields,
       });
       expanded++;
       stats.methodsParsed++;
@@ -531,6 +610,15 @@ function toPascal(snake: string): string {
     .join("");
 }
 
+// Python keywords that cannot be used as function parameter names.
+const PY_KEYWORDS = new Set([
+  "False", "None", "True", "and", "as", "assert", "async", "await",
+  "break", "class", "continue", "def", "del", "elif", "else", "except",
+  "finally", "for", "from", "global", "if", "import", "in", "is",
+  "lambda", "nonlocal", "not", "or", "pass", "raise", "return", "try",
+  "while", "with", "yield",
+]);
+
 // ── Path template → Python f-string ───────────────────────────────────────
 
 function pyPath(tpl: string, argsInPath: Set<string>): string {
@@ -556,37 +644,82 @@ function emitFn(pm: ParsedMethod): Emitted | null {
   const argsInPath = new Set<string>();
   const pathStr = pyPath(pm.pathTpl, argsInPath);
 
-  // Positional Python params = path vars (in the order they appear in the original args).
+  // Path params come from positionalArgs that appear in the URL template.
   const pathArgs = pm.positionalArgs
     .filter((a) => argsInPath.has(a))
     .map(toSnake);
 
-  // If positional args reference vars that aren't in pathArgs (because the
-  // method has non-path positional args like `branchName, ref`), we lose
-  // their names. They become **options body fields instead.
+  // Body params come from gitbeaker's object literal body fields. These get
+  // emitted as explicit Python params so the LLM can discover them without
+  // guessing what's inside `**options`.
+  //
+  // Wire-format note: gitbeaker's middleware snake-cases every key before
+  // sending (`sourceBranch` → `source_branch`, `targetProjectId` →
+  // `target_project_id`). We do the equivalent here by snake-casing the
+  // wire name, so the LLM sees the idiomatic GitLab API field name in the
+  // Python signature.
+  //
+  // Python keyword collision: `from`, `to`, `class`, etc. are reserved. We
+  // append a trailing underscore to the Python param name while keeping the
+  // original wire name for the payload.
+  const bodyParams: { pyName: string; wireName: string }[] = [];
+  const seenBodyNames = new Set<string>();
+  for (const bf of pm.bodyFields) {
+    const wireName = toSnake(bf.name);
+    let pyName = wireName;
+    if (PY_KEYWORDS.has(pyName)) pyName = pyName + "_";
+    if (pathArgs.includes(pyName)) continue; // already a path arg
+    if (seenBodyNames.has(pyName)) continue;
+    // Skip middleware/meta fields that gitbeaker plumbs through options.
+    if (["options", "sudo", "show_expanded"].includes(pyName)) continue;
+    seenBodyNames.add(pyName);
+    bodyParams.push({ pyName, wireName });
+  }
 
   const snakeClass = toSnake(pm.klass);
   const snakeMethod = toSnake(pm.name);
   const fnSnake = `${snakeClass}_${snakeMethod}`;
   const fnPascal = toPascal(fnSnake);
 
-  const httpMethod =
-    pm.verb === "del" ? "DELETE" : pm.verb.toUpperCase();
+  const httpMethod = pm.verb === "del" ? "DELETE" : pm.verb.toUpperCase();
+  const payloadKwarg =
+    httpMethod === "GET" || httpMethod === "DELETE" ? "params" : "json";
 
-  const bodyArg =
-    httpMethod === "GET" || httpMethod === "DELETE"
-      ? "params=options"
-      : "json=options";
-
-  const sigParams = [...pathArgs.map((a) => `${a}: str | int`), "**options"];
+  // Build the Python signature.
+  const sigParams: string[] = [];
+  for (const a of pathArgs) sigParams.push(`${a}: str | int`);
+  for (const bp of bodyParams) sigParams.push(`${bp.pyName}`);
+  sigParams.push("**options");
   const sig = `def ${fnSnake}(${sigParams.join(", ")}):`;
 
+  // Build the function body.
   const lines: string[] = [];
   lines.push(sig);
-  lines.push(`    """${pm.klass}.${pm.name} (${httpMethod} ${pm.pathTpl})."""`);
-  lines.push(
-    `    return _ok(_get_client().request("${httpMethod}", f"${pathStr}", ${bodyArg}))`
-  );
+  const docPath = pm.pathTpl;
+  if (bodyParams.length > 0) {
+    const fieldList = bodyParams.map((b) => b.wireName).join(", ");
+    lines.push(
+      `    """${pm.klass}.${pm.name} (${httpMethod} ${docPath}). Body fields: ${fieldList}."""`
+    );
+  } else {
+    lines.push(`    """${pm.klass}.${pm.name} (${httpMethod} ${docPath})."""`);
+  }
+
+  if (bodyParams.length === 0) {
+    // Simple: pass options directly as params/json.
+    lines.push(
+      `    return _ok(_get_client().request("${httpMethod}", f"${pathStr}", ${payloadKwarg}=options))`
+    );
+  } else {
+    // Merge explicit body params into the payload dict.
+    lines.push(`    payload = {**options}`);
+    for (const bp of bodyParams) {
+      lines.push(`    payload[${JSON.stringify(bp.wireName)}] = ${bp.pyName}`);
+    }
+    lines.push(
+      `    return _ok(_get_client().request("${httpMethod}", f"${pathStr}", ${payloadKwarg}=payload))`
+    );
+  }
 
   return {
     snakeName: fnSnake,

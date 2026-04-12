@@ -32,14 +32,18 @@ def agents_all_tokens(project_id: str | int, agent_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/cluster_agents/{_enc(agent_id)}/tokens", params=options))
 
 
-def agents_create_token(project_id: str | int, agent_id: str | int, **options):
-    """Agents.createToken (GET projects/${projectId}/cluster_agents/${agentId}/tokens)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/cluster_agents/{_enc(agent_id)}/tokens", params=options))
+def agents_create_token(project_id: str | int, agent_id: str | int, name, **options):
+    """Agents.createToken (GET projects/${projectId}/cluster_agents/${agentId}/tokens). Body fields: name."""
+    payload = {**options}
+    payload["name"] = name
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/cluster_agents/{_enc(agent_id)}/tokens", params=payload))
 
 
-def agents_register(project_id: str | int, **options):
-    """Agents.register (POST projects/${projectId}/cluster_agents)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/cluster_agents", json=options))
+def agents_register(project_id: str | int, name, **options):
+    """Agents.register (POST projects/${projectId}/cluster_agents). Body fields: name."""
+    payload = {**options}
+    payload["name"] = name
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/cluster_agents", json=payload))
 
 
 def agents_remove_token(project_id: str | int, agent_id: str | int, token_id: str | int, **options):
@@ -136,9 +140,12 @@ def branches_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/branches", params=options))
 
 
-def branches_create(project_id: str | int, **options):
-    """Branches.create (POST projects/${projectId}/repository/branches)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/branches", json=options))
+def branches_create(project_id: str | int, branch, ref, **options):
+    """Branches.create (POST projects/${projectId}/repository/branches). Body fields: branch, ref."""
+    payload = {**options}
+    payload["branch"] = branch
+    payload["ref"] = ref
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/branches", json=payload))
 
 
 def branches_remove(project_id: str | int, branch_name: str | int, **options):
@@ -185,9 +192,11 @@ def broadcast_messages_show(broadcast_message_id: str | int, **options):
 
 # ── CommitDiscussions ─────────────────────────────────────────────────────
 
-def commit_discussions_add_note(project_id: str | int, repositorycommit_id: str | int, discussion_id: str | int, **options):
-    """CommitDiscussions.addNote (POST projects/${projectId}/repository/commits/${repositorycommitId}/discussions/${discussionId}/notes)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions/{_enc(discussion_id)}/notes", json=options))
+def commit_discussions_add_note(project_id: str | int, repositorycommit_id: str | int, discussion_id: str | int, body, **options):
+    """CommitDiscussions.addNote (POST projects/${projectId}/repository/commits/${repositorycommitId}/discussions/${discussionId}/notes). Body fields: body."""
+    payload = {**options}
+    payload["body"] = body
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions/{_enc(discussion_id)}/notes", json=payload))
 
 
 def commit_discussions_all(project_id: str | int, repositorycommit_id: str | int, **options):
@@ -247,29 +256,41 @@ def commits_all_statuses(project_id: str | int, sha: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/commits/{_enc(sha)}/statuses", params=options))
 
 
-def commits_cherry_pick(project_id: str | int, sha: str | int, **options):
-    """Commits.cherryPick (POST projects/${projectId}/repository/commits/${sha}/cherry_pick)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(sha)}/cherry_pick", json=options))
+def commits_cherry_pick(project_id: str | int, sha: str | int, branch, **options):
+    """Commits.cherryPick (POST projects/${projectId}/repository/commits/${sha}/cherry_pick). Body fields: branch."""
+    payload = {**options}
+    payload["branch"] = branch
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(sha)}/cherry_pick", json=payload))
 
 
-def commits_create(project_id: str | int, **options):
-    """Commits.create (POST projects/${projectId}/repository/commits)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits", json=options))
+def commits_create(project_id: str | int, branch, commit_message, actions, **options):
+    """Commits.create (POST projects/${projectId}/repository/commits). Body fields: branch, commit_message, actions."""
+    payload = {**options}
+    payload["branch"] = branch
+    payload["commit_message"] = commit_message
+    payload["actions"] = actions
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits", json=payload))
 
 
-def commits_create_comment(project_id: str | int, sha: str | int, **options):
-    """Commits.createComment (POST projects/${projectId}/repository/commits/${sha}/comments)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(sha)}/comments", json=options))
+def commits_create_comment(project_id: str | int, sha: str | int, note, **options):
+    """Commits.createComment (POST projects/${projectId}/repository/commits/${sha}/comments). Body fields: note."""
+    payload = {**options}
+    payload["note"] = note
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(sha)}/comments", json=payload))
 
 
-def commits_edit_status(project_id: str | int, sha: str | int, **options):
-    """Commits.editStatus (POST projects/${projectId}/statuses/${sha})."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/statuses/{_enc(sha)}", json=options))
+def commits_edit_status(project_id: str | int, sha: str | int, state, **options):
+    """Commits.editStatus (POST projects/${projectId}/statuses/${sha}). Body fields: state."""
+    payload = {**options}
+    payload["state"] = state
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/statuses/{_enc(sha)}", json=payload))
 
 
-def commits_revert(project_id: str | int, sha: str | int, **options):
-    """Commits.revert (POST projects/${projectId}/repository/commits/${sha}/revert)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(sha)}/revert", json=options))
+def commits_revert(project_id: str | int, sha: str | int, branch, **options):
+    """Commits.revert (POST projects/${projectId}/repository/commits/${sha}/revert). Body fields: branch."""
+    payload = {**options}
+    payload["branch"] = branch
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(sha)}/revert", json=payload))
 
 
 def commits_show(project_id: str | int, sha: str | int, **options):
@@ -319,9 +340,11 @@ def container_registry_remove_tag(project_id: str | int, repository_id: str | in
     return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/registry/repositories/{_enc(repository_id)}/tags/{_enc(tag_name)}", params=options))
 
 
-def container_registry_remove_tags(project_id: str | int, repository_id: str | int, **options):
-    """ContainerRegistry.removeTags (DELETE projects/${projectId}/registry/repositories/${repositoryId}/tags)."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/registry/repositories/{_enc(repository_id)}/tags", params=options))
+def container_registry_remove_tags(project_id: str | int, repository_id: str | int, name_regex_delete, **options):
+    """ContainerRegistry.removeTags (DELETE projects/${projectId}/registry/repositories/${repositoryId}/tags). Body fields: name_regex_delete."""
+    payload = {**options}
+    payload["name_regex_delete"] = name_regex_delete
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/registry/repositories/{_enc(repository_id)}/tags", params=payload))
 
 
 def container_registry_show_repository(repository_id: str | int, **options):
@@ -348,9 +371,12 @@ def deploy_keys_all(**options):
     return _ok(_get_client().request("GET", f"/deploy_keys", params=options))
 
 
-def deploy_keys_create(project_id: str | int, **options):
-    """DeployKeys.create (POST projects/${projectId}/deploy_keys)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/deploy_keys", json=options))
+def deploy_keys_create(project_id: str | int, title, key, **options):
+    """DeployKeys.create (POST projects/${projectId}/deploy_keys). Body fields: title, key."""
+    payload = {**options}
+    payload["title"] = title
+    payload["key"] = key
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/deploy_keys", json=payload))
 
 
 def deploy_keys_edit(project_id: str | int, key_id: str | int, **options):
@@ -385,14 +411,21 @@ def deployments_all_merge_requests(project_id: str | int, deployment_id: str | i
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/deployments/{_enc(deployment_id)}/merge_requests", params=options))
 
 
-def deployments_create(project_id: str | int, **options):
-    """Deployments.create (POST projects/${projectId}/deployments)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/deployments", json=options))
+def deployments_create(project_id: str | int, environment, sha, ref, tag, **options):
+    """Deployments.create (POST projects/${projectId}/deployments). Body fields: environment, sha, ref, tag."""
+    payload = {**options}
+    payload["environment"] = environment
+    payload["sha"] = sha
+    payload["ref"] = ref
+    payload["tag"] = tag
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/deployments", json=payload))
 
 
-def deployments_edit(project_id: str | int, deployment_id: str | int, **options):
-    """Deployments.edit (PUT projects/${projectId}/deployments/${deploymentId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/deployments/{_enc(deployment_id)}", json=options))
+def deployments_edit(project_id: str | int, deployment_id: str | int, status, **options):
+    """Deployments.edit (PUT projects/${projectId}/deployments/${deploymentId}). Body fields: status."""
+    payload = {**options}
+    payload["status"] = status
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/deployments/{_enc(deployment_id)}", json=payload))
 
 
 def deployments_remove(project_id: str | int, deployment_id: str | int, **options):
@@ -400,9 +433,11 @@ def deployments_remove(project_id: str | int, deployment_id: str | int, **option
     return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/deployments/{_enc(deployment_id)}", params=options))
 
 
-def deployments_set_approval(project_id: str | int, deployment_id: str | int, **options):
-    """Deployments.setApproval (POST projects/${projectId}/deployments/${deploymentId}/approval)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/deployments/{_enc(deployment_id)}/approval", json=options))
+def deployments_set_approval(project_id: str | int, deployment_id: str | int, status, **options):
+    """Deployments.setApproval (POST projects/${projectId}/deployments/${deploymentId}/approval). Body fields: status."""
+    payload = {**options}
+    payload["status"] = status
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/deployments/{_enc(deployment_id)}/approval", json=payload))
 
 
 def deployments_show(project_id: str | int, deployment_id: str | int, **options):
@@ -439,9 +474,11 @@ def environments_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/environments", params=options))
 
 
-def environments_create(project_id: str | int, **options):
-    """Environments.create (POST projects/${projectId}/environments)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/environments", json=options))
+def environments_create(project_id: str | int, name, **options):
+    """Environments.create (POST projects/${projectId}/environments). Body fields: name."""
+    payload = {**options}
+    payload["name"] = name
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/environments", json=payload))
 
 
 def environments_edit(project_id: str | int, environment_id: str | int, **options):
@@ -534,9 +571,12 @@ def feature_flags_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/feature_flags", params=options))
 
 
-def feature_flags_create(project_id: str | int, **options):
-    """FeatureFlags.create (POST projects/${projectId}/feature_flags)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/feature_flags", json=options))
+def feature_flags_create(project_id: str | int, name, version, **options):
+    """FeatureFlags.create (POST projects/${projectId}/feature_flags). Body fields: name, version."""
+    payload = {**options}
+    payload["name"] = name
+    payload["version"] = version
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/feature_flags", json=payload))
 
 
 def feature_flags_edit(project_id: str | int, feature_flag_name: str | int, **options):
@@ -561,9 +601,12 @@ def feature_flag_user_lists_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/feature_flags_user_lists", params=options))
 
 
-def feature_flag_user_lists_create(project_id: str | int, **options):
-    """FeatureFlagUserLists.create (POST projects/${projectId}/feature_flags_user_lists)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/feature_flags_user_lists", json=options))
+def feature_flag_user_lists_create(project_id: str | int, name, user_xids, **options):
+    """FeatureFlagUserLists.create (POST projects/${projectId}/feature_flags_user_lists). Body fields: name, user_xids."""
+    payload = {**options}
+    payload["name"] = name
+    payload["user_xids"] = user_xids
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/feature_flags_user_lists", json=payload))
 
 
 def feature_flag_user_lists_edit(project_id: str | int, feature_flag_user_list_iid: str | int, **options):
@@ -644,9 +687,13 @@ def group_access_tokens_all(group_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/access_tokens", params=options))
 
 
-def group_access_tokens_create(group_id: str | int, **options):
-    """GroupAccessTokens.create (POST groups/${groupId}/access_tokens)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/access_tokens", json=options))
+def group_access_tokens_create(group_id: str | int, name, scopes, expires_at, **options):
+    """GroupAccessTokens.create (POST groups/${groupId}/access_tokens). Body fields: name, scopes, expires_at."""
+    payload = {**options}
+    payload["name"] = name
+    payload["scopes"] = scopes
+    payload["expires_at"] = expires_at
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/access_tokens", json=payload))
 
 
 def group_access_tokens_revoke(group_id: str | int, token_id: str | int, **options):
@@ -683,9 +730,12 @@ def group_activity_analytics_show_new_members_count(**options):
 
 # ── GroupBadges ───────────────────────────────────────────────────────────
 
-def group_badges_add(group_id: str | int, **options):
-    """GroupBadges.add (POST groups/${groupId}/badges)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/badges", json=options))
+def group_badges_add(group_id: str | int, link_url, image_url, **options):
+    """GroupBadges.add (POST groups/${groupId}/badges). Body fields: link_url, image_url."""
+    payload = {**options}
+    payload["link_url"] = link_url
+    payload["image_url"] = image_url
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/badges", json=payload))
 
 
 def group_badges_all(group_id: str | int, **options):
@@ -698,9 +748,12 @@ def group_badges_edit(group_id: str | int, badge_id: str | int, **options):
     return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/badges/{_enc(badge_id)}", json=options))
 
 
-def group_badges_preview(group_id: str | int, **options):
-    """GroupBadges.preview (GET groups/${groupId}/badges/render)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/badges/render", params=options))
+def group_badges_preview(group_id: str | int, link_url, image_url, **options):
+    """GroupBadges.preview (GET groups/${groupId}/badges/render). Body fields: link_url, image_url."""
+    payload = {**options}
+    payload["link_url"] = link_url
+    payload["image_url"] = image_url
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/badges/render", params=payload))
 
 
 def group_badges_remove(group_id: str | int, badge_id: str | int, **options):
@@ -725,9 +778,11 @@ def group_custom_attributes_remove(group_id: str | int, custom_attribute_id: str
     return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=options))
 
 
-def group_custom_attributes_set(group_id: str | int, custom_attribute_id: str | int, **options):
-    """GroupCustomAttributes.set (PUT groups/${groupId}/custom_attributes/${customAttributeId})."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/custom_attributes/{_enc(custom_attribute_id)}", json=options))
+def group_custom_attributes_set(group_id: str | int, custom_attribute_id: str | int, value, **options):
+    """GroupCustomAttributes.set (PUT groups/${groupId}/custom_attributes/${customAttributeId}). Body fields: value."""
+    payload = {**options}
+    payload["value"] = value
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/custom_attributes/{_enc(custom_attribute_id)}", json=payload))
 
 
 def group_custom_attributes_show(group_id: str | int, custom_attribute_id: str | int, **options):
@@ -759,9 +814,11 @@ def group_epic_boards_show_list(group_id: str | int, board_id: str | int, list_i
 
 # ── GroupHooks ────────────────────────────────────────────────────────────
 
-def group_hooks_add(group_id: str | int, **options):
-    """GroupHooks.add (POST groups/${groupId}/hooks)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/hooks", json=options))
+def group_hooks_add(group_id: str | int, url, **options):
+    """GroupHooks.add (POST groups/${groupId}/hooks). Body fields: url."""
+    payload = {**options}
+    payload["url"] = url
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/hooks", json=payload))
 
 
 def group_hooks_all(group_id: str | int, **options):
@@ -769,9 +826,11 @@ def group_hooks_all(group_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/hooks", params=options))
 
 
-def group_hooks_edit(group_id: str | int, hook_id: str | int, **options):
-    """GroupHooks.edit (PUT groups/${groupId}/hooks/${hookId})."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/hooks/{_enc(hook_id)}", json=options))
+def group_hooks_edit(group_id: str | int, hook_id: str | int, url, **options):
+    """GroupHooks.edit (PUT groups/${groupId}/hooks/${hookId}). Body fields: url."""
+    payload = {**options}
+    payload["url"] = url
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/hooks/{_enc(hook_id)}", json=payload))
 
 
 def group_hooks_remove(group_id: str | int, hook_id: str | int, **options):
@@ -803,9 +862,11 @@ def group_import_exports_schedule_export(group_id: str | int, **options):
 
 # ── GroupInvitations ──────────────────────────────────────────────────────
 
-def group_invitations_add(group_id: str | int, **options):
-    """GroupInvitations.add (POST groups/${groupId}/invitations)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/invitations", json=options))
+def group_invitations_add(group_id: str | int, access_level, **options):
+    """GroupInvitations.add (POST groups/${groupId}/invitations). Body fields: access_level."""
+    payload = {**options}
+    payload["access_level"] = access_level
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/invitations", json=payload))
 
 
 def group_invitations_all(group_id: str | int, **options):
@@ -835,9 +896,11 @@ def group_issue_boards_all_lists(group_id: str | int, board_id: str | int, **opt
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}/lists", params=options))
 
 
-def group_issue_boards_create(group_id: str | int, **options):
-    """GroupIssueBoards.create (POST groups/${groupId}/boards)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/boards", json=options))
+def group_issue_boards_create(group_id: str | int, name, **options):
+    """GroupIssueBoards.create (POST groups/${groupId}/boards). Body fields: name."""
+    payload = {**options}
+    payload["name"] = name
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/boards", json=payload))
 
 
 def group_issue_boards_create_list(group_id: str | int, board_id: str | int, **options):
@@ -850,9 +913,11 @@ def group_issue_boards_edit(group_id: str | int, board_id: str | int, **options)
     return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}", json=options))
 
 
-def group_issue_boards_edit_list(group_id: str | int, board_id: str | int, list_id: str | int, **options):
-    """GroupIssueBoards.editList (PUT groups/${groupId}/boards/${boardId}/lists/${listId})."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", json=options))
+def group_issue_boards_edit_list(group_id: str | int, board_id: str | int, list_id: str | int, position, **options):
+    """GroupIssueBoards.editList (PUT groups/${groupId}/boards/${boardId}/lists/${listId}). Body fields: position."""
+    payload = {**options}
+    payload["position"] = position
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", json=payload))
 
 
 def group_issue_boards_remove(group_id: str | int, board_id: str | int, **options):
@@ -889,9 +954,12 @@ def group_labels_all(group_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/labels", params=options))
 
 
-def group_labels_create(group_id: str | int, **options):
-    """GroupLabels.create (POST groups/${groupId}/labels)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/labels", json=options))
+def group_labels_create(group_id: str | int, name, color, **options):
+    """GroupLabels.create (POST groups/${groupId}/labels). Body fields: name, color."""
+    payload = {**options}
+    payload["name"] = name
+    payload["color"] = color
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/labels", json=payload))
 
 
 def group_labels_edit(group_id: str | int, label_id: str | int, **options):
@@ -926,9 +994,12 @@ def group_labels_unsubscribe(group_id: str | int, label_id: str | int, **options
 
 # ── GroupLDAPLinks ────────────────────────────────────────────────────────
 
-def group_ldap_links_add(group_id: str | int, **options):
-    """GroupLDAPLinks.add (POST groups/${groupId}/ldap_group_links)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/ldap_group_links", json=options))
+def group_ldap_links_add(group_id: str | int, group_access, provider, **options):
+    """GroupLDAPLinks.add (POST groups/${groupId}/ldap_group_links). Body fields: group_access, provider."""
+    payload = {**options}
+    payload["group_access"] = group_access
+    payload["provider"] = provider
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/ldap_group_links", json=payload))
 
 
 def group_ldap_links_all(group_id: str | int, **options):
@@ -936,9 +1007,11 @@ def group_ldap_links_all(group_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/ldap_group_links", params=options))
 
 
-def group_ldap_links_remove(group_id: str | int, **options):
-    """GroupLDAPLinks.remove (DELETE groups/${groupId}/ldap_group_links)."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/ldap_group_links", params=options))
+def group_ldap_links_remove(group_id: str | int, provider, **options):
+    """GroupLDAPLinks.remove (DELETE groups/${groupId}/ldap_group_links). Body fields: provider."""
+    payload = {**options}
+    payload["provider"] = provider
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/ldap_group_links", params=payload))
 
 
 def group_ldap_links_sync(group_id: str | int, **options):
@@ -965,9 +1038,11 @@ def group_markdown_uploads_remove(group_id: str | int, upload_id_or_secret: str 
 
 # ── GroupMemberRoles ──────────────────────────────────────────────────────
 
-def group_member_roles_add(group_id: str | int, **options):
-    """GroupMemberRoles.add (POST groups/${groupId}/members)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/members", json=options))
+def group_member_roles_add(group_id: str | int, base_access_level, **options):
+    """GroupMemberRoles.add (POST groups/${groupId}/members). Body fields: base_access_level."""
+    payload = {**options}
+    payload["base_access_level"] = base_access_level
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/members", json=payload))
 
 
 def group_member_roles_all(group_id: str | int, **options):
@@ -982,9 +1057,11 @@ def group_member_roles_remove(group_id: str | int, member_role_id: str | int, **
 
 # ── GroupMembers ──────────────────────────────────────────────────────────
 
-def group_members_add(group_id: str | int, **options):
-    """GroupMembers.add (POST groups/${groupId}/members)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/members", json=options))
+def group_members_add(group_id: str | int, access_level, **options):
+    """GroupMembers.add (POST groups/${groupId}/members). Body fields: access_level."""
+    payload = {**options}
+    payload["access_level"] = access_level
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/members", json=payload))
 
 
 def group_members_all(group_id: str | int, **options):
@@ -992,9 +1069,11 @@ def group_members_all(group_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/members", params=options))
 
 
-def group_members_edit(group_id: str | int, user_id: str | int, **options):
-    """GroupMembers.edit (PUT groups/${groupId}/members/${userId})."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/members/{_enc(user_id)}", json=options))
+def group_members_edit(group_id: str | int, user_id: str | int, access_level, **options):
+    """GroupMembers.edit (PUT groups/${groupId}/members/${userId}). Body fields: access_level."""
+    payload = {**options}
+    payload["access_level"] = access_level
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/members/{_enc(user_id)}", json=payload))
 
 
 def group_members_remove(group_id: str | int, user_id: str | int, **options):
@@ -1024,9 +1103,11 @@ def group_milestones_all_burndown_chart_events(group_id: str | int, milestone_id
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}/burndown_events", params=options))
 
 
-def group_milestones_create(group_id: str | int, **options):
-    """GroupMilestones.create (POST groups/${groupId}/milestones)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/milestones", json=options))
+def group_milestones_create(group_id: str | int, title, **options):
+    """GroupMilestones.create (POST groups/${groupId}/milestones). Body fields: title."""
+    payload = {**options}
+    payload["title"] = title
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/milestones", json=payload))
 
 
 def group_milestones_edit(group_id: str | int, milestone_id: str | int, **options):
@@ -1122,9 +1203,11 @@ def groups_download_avatar(group_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/avatar", params=options))
 
 
-def groups_edit(group_id: str | int, **options):
-    """Groups.edit (POST groups/${groupId})."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}", json=options))
+def groups_edit(group_id: str | int, is_form, **options):
+    """Groups.edit (POST groups/${groupId}). Body fields: is_form."""
+    payload = {**options}
+    payload["is_form"] = is_form
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}", json=payload))
 
 
 def groups_remove(group_id: str | int, **options):
@@ -1147,9 +1230,11 @@ def groups_search(**options):
     return _ok(_get_client().request("GET", f"/groups", params=options))
 
 
-def groups_share(group_id: str | int, **options):
-    """Groups.share (POST groups/${groupId}/share)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/share", json=options))
+def groups_share(group_id: str | int, group_access, **options):
+    """Groups.share (POST groups/${groupId}/share). Body fields: group_access."""
+    payload = {**options}
+    payload["group_access"] = group_access
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/share", json=payload))
 
 
 def groups_show(group_id: str | int, **options):
@@ -1172,9 +1257,11 @@ def groups_unshare(group_id: str | int, shared_group_id: str | int, **options):
     return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/share/{_enc(shared_group_id)}", params=options))
 
 
-def groups_upload_avatar(group_id: str | int, **options):
-    """Groups.uploadAvatar (PUT groups/${groupId}/avatar)."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/avatar", json=options))
+def groups_upload_avatar(group_id: str | int, is_form, **options):
+    """Groups.uploadAvatar (PUT groups/${groupId}/avatar). Body fields: is_form."""
+    payload = {**options}
+    payload["is_form"] = is_form
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/avatar", json=payload))
 
 
 # ── GroupSAMLIdentities ───────────────────────────────────────────────────
@@ -1196,9 +1283,12 @@ def group_saml_links_all(group_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/saml_group_links", params=options))
 
 
-def group_saml_links_create(group_id: str | int, **options):
-    """GroupSAMLLinks.create (POST groups/${groupId}/saml_group_links)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/saml_group_links", json=options))
+def group_saml_links_create(group_id: str | int, access_level, saml_group_name, **options):
+    """GroupSAMLLinks.create (POST groups/${groupId}/saml_group_links). Body fields: access_level, saml_group_name."""
+    payload = {**options}
+    payload["access_level"] = access_level
+    payload["saml_group_name"] = saml_group_name
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/saml_group_links", json=payload))
 
 
 def group_saml_links_remove(group_id: str | int, saml_group_name: str | int, **options):
@@ -1252,14 +1342,19 @@ def group_variables_all(group_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/variables", params=options))
 
 
-def group_variables_create(group_id: str | int, **options):
-    """GroupVariables.create (POST groups/${groupId}/variables)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/variables", json=options))
+def group_variables_create(group_id: str | int, key, value, **options):
+    """GroupVariables.create (POST groups/${groupId}/variables). Body fields: key, value."""
+    payload = {**options}
+    payload["key"] = key
+    payload["value"] = value
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/variables", json=payload))
 
 
-def group_variables_edit(group_id: str | int, key: str | int, **options):
-    """GroupVariables.edit (PUT groups/${groupId}/variables/${key})."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/variables/{_enc(key)}", json=options))
+def group_variables_edit(group_id: str | int, key: str | int, value, **options):
+    """GroupVariables.edit (PUT groups/${groupId}/variables/${key}). Body fields: value."""
+    payload = {**options}
+    payload["value"] = value
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/variables/{_enc(key)}", json=payload))
 
 
 def group_variables_remove(group_id: str | int, key: str | int, **options):
@@ -1279,9 +1374,12 @@ def group_wikis_all(group_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/wikis", params=options))
 
 
-def group_wikis_create(group_id: str | int, **options):
-    """GroupWikis.create (POST groups/${groupId}/wikis)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/wikis", json=options))
+def group_wikis_create(group_id: str | int, content, title, **options):
+    """GroupWikis.create (POST groups/${groupId}/wikis). Body fields: content, title."""
+    payload = {**options}
+    payload["content"] = content
+    payload["title"] = title
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/wikis", json=payload))
 
 
 def group_wikis_edit(group_id: str | int, slug: str | int, **options):
@@ -1299,9 +1397,11 @@ def group_wikis_show(group_id: str | int, slug: str | int, **options):
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/wikis/{_enc(slug)}", params=options))
 
 
-def group_wikis_upload_attachment(group_id: str | int, **options):
-    """GroupWikis.uploadAttachment (POST groups/${groupId}/wikis/attachments)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/wikis/attachments", json=options))
+def group_wikis_upload_attachment(group_id: str | int, is_form, **options):
+    """GroupWikis.uploadAttachment (POST groups/${groupId}/wikis/attachments). Body fields: is_form."""
+    payload = {**options}
+    payload["is_form"] = is_form
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/wikis/attachments", json=payload))
 
 
 # ── Import ────────────────────────────────────────────────────────────────
@@ -1338,9 +1438,11 @@ def instance_level_cicd_variables_create(**options):
     return _ok(_get_client().request("POST", f"/admin/ci/variables", json=options))
 
 
-def instance_level_cicd_variables_edit(key_id: str | int, **options):
-    """InstanceLevelCICDVariables.edit (PUT admin/ci/variables/${keyId})."""
-    return _ok(_get_client().request("PUT", f"/admin/ci/variables/{_enc(key_id)}", json=options))
+def instance_level_cicd_variables_edit(key_id: str | int, value, **options):
+    """InstanceLevelCICDVariables.edit (PUT admin/ci/variables/${keyId}). Body fields: value."""
+    payload = {**options}
+    payload["value"] = value
+    return _ok(_get_client().request("PUT", f"/admin/ci/variables/{_enc(key_id)}", json=payload))
 
 
 def instance_level_cicd_variables_remove(key_id: str | int, **options):
@@ -1399,9 +1501,11 @@ def issue_award_emojis_show(project_id: str | int, resource_iid: str | int, awar
 
 # ── IssueDiscussions ──────────────────────────────────────────────────────
 
-def issue_discussions_add_note(project_id: str | int, issue_iid: str | int, discussion_id: str | int, **options):
-    """IssueDiscussions.addNote (POST projects/${projectId}/issues/${issueIid}/discussions/${discussionId}/notes)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions/{_enc(discussion_id)}/notes", json=options))
+def issue_discussions_add_note(project_id: str | int, issue_iid: str | int, discussion_id: str | int, body, **options):
+    """IssueDiscussions.addNote (POST projects/${projectId}/issues/${issueIid}/discussions/${discussionId}/notes). Body fields: body."""
+    payload = {**options}
+    payload["body"] = body
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions/{_enc(discussion_id)}/notes", json=payload))
 
 
 def issue_discussions_all(project_id: str | int, issue_iid: str | int, **options):
@@ -1460,9 +1564,12 @@ def issue_links_all(project_id: str | int, issue_iid: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/links", params=options))
 
 
-def issue_links_create(project_id: str | int, issue_iid: str | int, **options):
-    """IssueLinks.create (POST projects/${projectId}/issues/${issueIId}/links)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/links", json=options))
+def issue_links_create(project_id: str | int, issue_iid: str | int, target_project_id, target_issue_iid, **options):
+    """IssueLinks.create (POST projects/${projectId}/issues/${issueIId}/links). Body fields: target_project_id, target_issue_iid."""
+    payload = {**options}
+    payload["target_project_id"] = target_project_id
+    payload["target_issue_iid"] = target_issue_iid
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/links", json=payload))
 
 
 def issue_links_remove(project_id: str | int, issue_iid: str | int, issue_link_id: str | int, **options):
@@ -1511,9 +1618,11 @@ def issue_notes_all(project_id: str | int, issue_iid: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/notes", params=options))
 
 
-def issue_notes_create(project_id: str | int, issue_iid: str | int, **options):
-    """IssueNotes.create (POST projects/${projectId}/issues/${issueIid}/notes)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/notes", json=options))
+def issue_notes_create(project_id: str | int, issue_iid: str | int, body, **options):
+    """IssueNotes.create (POST projects/${projectId}/issues/${issueIid}/notes). Body fields: body."""
+    payload = {**options}
+    payload["body"] = body
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/notes", json=payload))
 
 
 def issue_notes_edit(project_id: str | int, issue_iid: str | int, note_id: str | int, **options):
@@ -1533,14 +1642,18 @@ def issue_notes_show(project_id: str | int, issue_iid: str | int, note_id: str |
 
 # ── Issues ────────────────────────────────────────────────────────────────
 
-def issues_add_spent_time(project_id: str | int, issue_iid: str | int, **options):
-    """Issues.addSpentTime (POST projects/${projectId}/issues/${issueIId}/add_spent_time)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/add_spent_time", json=options))
+def issues_add_spent_time(project_id: str | int, issue_iid: str | int, duration, **options):
+    """Issues.addSpentTime (POST projects/${projectId}/issues/${issueIId}/add_spent_time). Body fields: duration."""
+    payload = {**options}
+    payload["duration"] = duration
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/add_spent_time", json=payload))
 
 
-def issues_add_time_estimate(project_id: str | int, issue_iid: str | int, **options):
-    """Issues.addTimeEstimate (POST projects/${projectId}/issues/${issueIId}/time_estimate)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/time_estimate", json=options))
+def issues_add_time_estimate(project_id: str | int, issue_iid: str | int, duration, **options):
+    """Issues.addTimeEstimate (POST projects/${projectId}/issues/${issueIId}/time_estimate). Body fields: duration."""
+    payload = {**options}
+    payload["duration"] = duration
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/time_estimate", json=payload))
 
 
 def issues_all(**options):
@@ -1568,14 +1681,18 @@ def issues_all_related_merge_requests(project_id: str | int, issue_iid: str | in
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/related_merge_requests", params=options))
 
 
-def issues_clone(project_id: str | int, issue_iid: str | int, **options):
-    """Issues.clone (POST projects/${projectId}/issues/${issueIId}/clone)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/clone", json=options))
+def issues_clone(project_id: str | int, issue_iid: str | int, to_project_id, **options):
+    """Issues.clone (POST projects/${projectId}/issues/${issueIId}/clone). Body fields: to_project_id."""
+    payload = {**options}
+    payload["to_project_id"] = to_project_id
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/clone", json=payload))
 
 
-def issues_create(project_id: str | int, **options):
-    """Issues.create (POST projects/${projectId}/issues)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues", json=options))
+def issues_create(project_id: str | int, title, **options):
+    """Issues.create (POST projects/${projectId}/issues). Body fields: title."""
+    payload = {**options}
+    payload["title"] = title
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues", json=payload))
 
 
 def issues_create_todo(project_id: str | int, issue_iid: str | int, **options):
@@ -1593,9 +1710,11 @@ def issues_edit_metric_image(project_id: str | int, issue_iid: str | int, image_
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/metric_images/{_enc(image_id)}", json=options))
 
 
-def issues_move(project_id: str | int, issue_iid: str | int, **options):
-    """Issues.move (POST projects/${projectId}/issues/${issueIId}/move)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/move", json=options))
+def issues_move(project_id: str | int, issue_iid: str | int, to_project_id, **options):
+    """Issues.move (POST projects/${projectId}/issues/${issueIId}/move). Body fields: to_project_id."""
+    payload = {**options}
+    payload["to_project_id"] = to_project_id
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/move", json=payload))
 
 
 def issues_promote(project_id: str | int, issue_iid: str | int, **options):
@@ -1653,9 +1772,11 @@ def issues_unsubscribe(project_id: str | int, issue_iid: str | int, **options):
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/unsubscribe", json=options))
 
 
-def issues_upload_metric_image(project_id: str | int, issue_iid: str | int, **options):
-    """Issues.uploadMetricImage (POST projects/${projectId}/issues/${issueIId}/metric_images)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/metric_images", json=options))
+def issues_upload_metric_image(project_id: str | int, issue_iid: str | int, is_form, **options):
+    """Issues.uploadMetricImage (POST projects/${projectId}/issues/${issueIId}/metric_images). Body fields: is_form."""
+    payload = {**options}
+    payload["is_form"] = is_form
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/metric_images", json=payload))
 
 
 # ── IssuesStatistics ──────────────────────────────────────────────────────
@@ -1811,9 +1932,11 @@ def lint_check(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/ci/lint", params=options))
 
 
-def lint_lint(project_id: str | int, **options):
-    """Lint.lint (POST projects/${projectId}/ci/lint)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/ci/lint", json=options))
+def lint_lint(project_id: str | int, content, **options):
+    """Lint.lint (POST projects/${projectId}/ci/lint). Body fields: content."""
+    payload = {**options}
+    payload["content"] = content
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/ci/lint", json=payload))
 
 
 # ── Markdown ──────────────────────────────────────────────────────────────
@@ -1859,9 +1982,11 @@ def merge_request_context_commits_remove(project_id: str | int, mergerequest_iid
 
 # ── MergeRequestDiscussions ───────────────────────────────────────────────
 
-def merge_request_discussions_add_note(project_id: str | int, merge_request_iid: str | int, discussion_id: str | int, **options):
-    """MergeRequestDiscussions.addNote (POST projects/${projectId}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions/{_enc(discussion_id)}/notes", json=options))
+def merge_request_discussions_add_note(project_id: str | int, merge_request_iid: str | int, discussion_id: str | int, body, **options):
+    """MergeRequestDiscussions.addNote (POST projects/${projectId}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes). Body fields: body."""
+    payload = {**options}
+    payload["body"] = body
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions/{_enc(discussion_id)}/notes", json=payload))
 
 
 def merge_request_discussions_all(project_id: str | int, merge_request_iid: str | int, **options):
@@ -1896,9 +2021,11 @@ def merge_request_draft_notes_all(project_id: str | int, mergerequest_iid: str |
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/draft_notes", params=options))
 
 
-def merge_request_draft_notes_create(project_id: str | int, mergerequest_iid: str | int, **options):
-    """MergeRequestDraftNotes.create (POST projects/${projectId}/merge_requests/${mergerequestIId}/draft_notes)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/draft_notes", json=options))
+def merge_request_draft_notes_create(project_id: str | int, mergerequest_iid: str | int, note, **options):
+    """MergeRequestDraftNotes.create (POST projects/${projectId}/merge_requests/${mergerequestIId}/draft_notes). Body fields: note."""
+    payload = {**options}
+    payload["note"] = note
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/draft_notes", json=payload))
 
 
 def merge_request_draft_notes_edit(project_id: str | int, mergerequest_iid: str | int, draft_note_id: str | int, **options):
@@ -1979,9 +2106,11 @@ def merge_request_notes_all(project_id: str | int, merge_request_iid: str | int,
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/notes", params=options))
 
 
-def merge_request_notes_create(project_id: str | int, merge_request_iid: str | int, **options):
-    """MergeRequestNotes.create (POST projects/${projectId}/merge_requests/${mergeRequestIid}/notes)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/notes", json=options))
+def merge_request_notes_create(project_id: str | int, merge_request_iid: str | int, body, **options):
+    """MergeRequestNotes.create (POST projects/${projectId}/merge_requests/${mergeRequestIid}/notes). Body fields: body."""
+    payload = {**options}
+    payload["body"] = body
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/notes", json=payload))
 
 
 def merge_request_notes_edit(project_id: str | int, merge_request_iid: str | int, note_id: str | int, **options):
@@ -2006,9 +2135,11 @@ def merge_requests_accept(project_id, mergerequest_iid, **options):
     return merge_requests_merge(project_id, mergerequest_iid, **options)
 
 
-def merge_requests_add_spent_time(project_id: str | int, mergerequest_iid: str | int, **options):
-    """MergeRequests.addSpentTime (POST projects/${projectId}/merge_requests/${mergerequestIId}/add_spent_time)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/add_spent_time", json=options))
+def merge_requests_add_spent_time(project_id: str | int, mergerequest_iid: str | int, duration, **options):
+    """MergeRequests.addSpentTime (POST projects/${projectId}/merge_requests/${mergerequestIId}/add_spent_time). Body fields: duration."""
+    payload = {**options}
+    payload["duration"] = duration
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/add_spent_time", json=payload))
 
 
 def merge_requests_all(**options):
@@ -2056,9 +2187,13 @@ def merge_requests_cancel_on_pipeline_success(project_id: str | int, mergereques
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/cancel_merge_when_pipeline_succeeds", json=options))
 
 
-def merge_requests_create(project_id: str | int, **options):
-    """MergeRequests.create (POST projects/${projectId}/merge_requests)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests", json=options))
+def merge_requests_create(project_id: str | int, source_branch, target_branch, title, **options):
+    """MergeRequests.create (POST projects/${projectId}/merge_requests). Body fields: source_branch, target_branch, title."""
+    payload = {**options}
+    payload["source_branch"] = source_branch
+    payload["target_branch"] = target_branch
+    payload["title"] = title
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests", json=payload))
 
 
 def merge_requests_create_pipeline(project_id: str | int, mergerequest_iid: str | int, **options):
@@ -2086,9 +2221,11 @@ def merge_requests_merge_to_default(project_id: str | int, mergerequest_iid: str
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/merge_ref", json=options))
 
 
-def merge_requests_rebase(project_id: str | int, mergerequest_iid: str | int, **options):
-    """MergeRequests.rebase (PUT projects/${projectId}/merge_requests/${mergerequestIId}/rebase)."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/rebase", json=options))
+def merge_requests_rebase(project_id: str | int, mergerequest_iid: str | int, skip_ci, **options):
+    """MergeRequests.rebase (PUT projects/${projectId}/merge_requests/${mergerequestIId}/rebase). Body fields: skip_ci."""
+    payload = {**options}
+    payload["skip_ci"] = skip_ci
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/rebase", json=payload))
 
 
 def merge_requests_remove(project_id: str | int, mergerequest_iid: str | int, **options):
@@ -2106,9 +2243,11 @@ def merge_requests_reset_time_estimate(project_id: str | int, mergerequest_iid: 
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/reset_time_estimate", json=options))
 
 
-def merge_requests_set_time_estimate(project_id: str | int, mergerequest_iid: str | int, **options):
-    """MergeRequests.setTimeEstimate (POST projects/${projectId}/merge_requests/${mergerequestIId}/time_estimate)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/time_estimate", json=options))
+def merge_requests_set_time_estimate(project_id: str | int, mergerequest_iid: str | int, duration, **options):
+    """MergeRequests.setTimeEstimate (POST projects/${projectId}/merge_requests/${mergerequestIId}/time_estimate). Body fields: duration."""
+    payload = {**options}
+    payload["duration"] = duration
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/time_estimate", json=payload))
 
 
 def merge_requests_show(project_id: str | int, mergerequest_iid: str | int, **options):
@@ -2253,9 +2392,11 @@ def npm_show_metadata(package_name: str | int, **options):
     return _ok(_get_client().request("GET", f"/{_enc(package_name)}", params=options))
 
 
-def npm_upload_package_file(project_id: str | int, package_name: str | int, **options):
-    """NPM.uploadPackageFile (PUT projects/${projectId}/packages/npm/${packageName})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/packages/npm/{_enc(package_name)}", json=options))
+def npm_upload_package_file(project_id: str | int, package_name: str | int, versions, **options):
+    """NPM.uploadPackageFile (PUT projects/${projectId}/packages/npm/${packageName}). Body fields: versions."""
+    payload = {**options}
+    payload["versions"] = versions
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/packages/npm/{_enc(package_name)}", json=payload))
 
 
 # ── NuGet ─────────────────────────────────────────────────────────────────
@@ -2290,14 +2431,22 @@ def nu_get_show_version_metadata(package_name: str | int, package_version: str |
     return _ok(_get_client().request("GET", f"/metadata/{_enc(package_name)}/{_enc(package_version)}", params=options))
 
 
-def nu_get_upload_package_file(project_id: str | int, **options):
-    """NuGet.uploadPackageFile (PUT projects/${projectId}/packages/nuget)."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/packages/nuget", json=options))
+def nu_get_upload_package_file(project_id: str | int, is_form, package_name, package_version, **options):
+    """NuGet.uploadPackageFile (PUT projects/${projectId}/packages/nuget). Body fields: is_form, package_name, package_version."""
+    payload = {**options}
+    payload["is_form"] = is_form
+    payload["package_name"] = package_name
+    payload["package_version"] = package_version
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/packages/nuget", json=payload))
 
 
-def nu_get_upload_symbol_package(project_id: str | int, **options):
-    """NuGet.uploadSymbolPackage (PUT projects/${projectId}/packages/nuget/symbolpackage)."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/packages/nuget/symbolpackage", json=options))
+def nu_get_upload_symbol_package(project_id: str | int, is_form, package_name, package_version, **options):
+    """NuGet.uploadSymbolPackage (PUT projects/${projectId}/packages/nuget/symbolpackage). Body fields: is_form, package_name, package_version."""
+    payload = {**options}
+    payload["is_form"] = is_form
+    payload["package_name"] = package_name
+    payload["package_version"] = package_version
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/packages/nuget/symbolpackage", json=payload))
 
 
 # ── PackageRegistry ───────────────────────────────────────────────────────
@@ -2341,9 +2490,11 @@ def pages_domains_all(**options):
     return _ok(_get_client().request("GET", f"/pages/domains", params=options))
 
 
-def pages_domains_create(project_id: str | int, **options):
-    """PagesDomains.create (POST projects/${projectId}/pages/domains)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/pages/domains", json=options))
+def pages_domains_create(project_id: str | int, domain, **options):
+    """PagesDomains.create (POST projects/${projectId}/pages/domains). Body fields: domain."""
+    payload = {**options}
+    payload["domain"] = domain
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/pages/domains", json=payload))
 
 
 def pages_domains_edit(project_id: str | int, domain: str | int, **options):
@@ -2368,9 +2519,12 @@ def personal_access_tokens_all(**options):
     return _ok(_get_client().request("GET", f"/personal_access_tokens", params=options))
 
 
-def personal_access_tokens_create(user_id: str | int, **options):
-    """PersonalAccessTokens.create (POST users/${userId}/personal_access_tokens)."""
-    return _ok(_get_client().request("POST", f"/users/{_enc(user_id)}/personal_access_tokens", json=options))
+def personal_access_tokens_create(user_id: str | int, name, scopes, **options):
+    """PersonalAccessTokens.create (POST users/${userId}/personal_access_tokens). Body fields: name, scopes."""
+    payload = {**options}
+    payload["name"] = name
+    payload["scopes"] = scopes
+    return _ok(_get_client().request("POST", f"/users/{_enc(user_id)}/personal_access_tokens", json=payload))
 
 
 def personal_access_tokens_remove(**options):
@@ -2405,9 +2559,11 @@ def pipelines_cancel(project_id: str | int, pipeline_id: str | int, **options):
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/pipelines/{_enc(pipeline_id)}/cancel", json=options))
 
 
-def pipelines_create(project_id: str | int, **options):
-    """Pipelines.create (POST projects/${projectId}/pipeline)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/pipeline", json=options))
+def pipelines_create(project_id: str | int, ref, **options):
+    """Pipelines.create (POST projects/${projectId}/pipeline). Body fields: ref."""
+    payload = {**options}
+    payload["ref"] = ref
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/pipeline", json=payload))
 
 
 def pipelines_remove(project_id: str | int, pipeline_id: str | int, **options):
@@ -2452,9 +2608,13 @@ def pipeline_schedules_all_triggered_pipelines(project_id: str | int, pipeline_s
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/pipeline_schedules/{_enc(pipeline_schedule_id)}/pipelines", params=options))
 
 
-def pipeline_schedules_create(project_id: str | int, **options):
-    """PipelineSchedules.create (POST projects/${projectId}/pipeline_schedules)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/pipeline_schedules", json=options))
+def pipeline_schedules_create(project_id: str | int, description, ref, cron, **options):
+    """PipelineSchedules.create (POST projects/${projectId}/pipeline_schedules). Body fields: description, ref, cron."""
+    payload = {**options}
+    payload["description"] = description
+    payload["ref"] = ref
+    payload["cron"] = cron
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/pipeline_schedules", json=payload))
 
 
 def pipeline_schedules_edit(project_id: str | int, pipeline_schedule_id: str | int, **options):
@@ -2489,14 +2649,19 @@ def pipeline_schedule_variables_all(project_id: str | int, pipeline_schedule_id:
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/pipeline_schedules/{_enc(pipeline_schedule_id)}/variables", params=options))
 
 
-def pipeline_schedule_variables_create(project_id: str | int, pipeline_schedule_id: str | int, **options):
-    """PipelineScheduleVariables.create (POST projects/${projectId}/pipeline_schedules/${pipelineScheduleId}/variables)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/pipeline_schedules/{_enc(pipeline_schedule_id)}/variables", json=options))
+def pipeline_schedule_variables_create(project_id: str | int, pipeline_schedule_id: str | int, key, value, **options):
+    """PipelineScheduleVariables.create (POST projects/${projectId}/pipeline_schedules/${pipelineScheduleId}/variables). Body fields: key, value."""
+    payload = {**options}
+    payload["key"] = key
+    payload["value"] = value
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/pipeline_schedules/{_enc(pipeline_schedule_id)}/variables", json=payload))
 
 
-def pipeline_schedule_variables_edit(project_id: str | int, pipeline_schedule_id: str | int, key: str | int, **options):
-    """PipelineScheduleVariables.edit (PUT projects/${projectId}/pipeline_schedules/${pipelineScheduleId}/variables/${key})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/pipeline_schedules/{_enc(pipeline_schedule_id)}/variables/{_enc(key)}", json=options))
+def pipeline_schedule_variables_edit(project_id: str | int, pipeline_schedule_id: str | int, key: str | int, value, **options):
+    """PipelineScheduleVariables.edit (PUT projects/${projectId}/pipeline_schedules/${pipelineScheduleId}/variables/${key}). Body fields: value."""
+    payload = {**options}
+    payload["value"] = value
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/pipeline_schedules/{_enc(pipeline_schedule_id)}/variables/{_enc(key)}", json=payload))
 
 
 def pipeline_schedule_variables_remove(project_id: str | int, pipeline_schedule_id: str | int, key: str | int, **options):
@@ -2511,9 +2676,11 @@ def pipeline_trigger_tokens_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/triggers", params=options))
 
 
-def pipeline_trigger_tokens_create(project_id: str | int, **options):
-    """PipelineTriggerTokens.create (POST projects/${projectId}/triggers)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/triggers", json=options))
+def pipeline_trigger_tokens_create(project_id: str | int, description, **options):
+    """PipelineTriggerTokens.create (POST projects/${projectId}/triggers). Body fields: description."""
+    payload = {**options}
+    payload["description"] = description
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/triggers", json=payload))
 
 
 def pipeline_trigger_tokens_edit(project_id: str | int, trigger_id: str | int, **options):
@@ -2587,9 +2754,13 @@ def project_access_tokens_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/access_tokens", params=options))
 
 
-def project_access_tokens_create(project_id: str | int, **options):
-    """ProjectAccessTokens.create (POST projects/${projectId}/access_tokens)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/access_tokens", json=options))
+def project_access_tokens_create(project_id: str | int, name, scopes, expires_at, **options):
+    """ProjectAccessTokens.create (POST projects/${projectId}/access_tokens). Body fields: name, scopes, expires_at."""
+    payload = {**options}
+    payload["name"] = name
+    payload["scopes"] = scopes
+    payload["expires_at"] = expires_at
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/access_tokens", json=payload))
 
 
 def project_access_tokens_revoke(project_id: str | int, token_id: str | int, **options):
@@ -2631,9 +2802,12 @@ def project_aliases_remove(name: str | int, **options):
 
 # ── ProjectBadges ─────────────────────────────────────────────────────────
 
-def project_badges_add(project_id: str | int, **options):
-    """ProjectBadges.add (POST projects/${projectId}/badges)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/badges", json=options))
+def project_badges_add(project_id: str | int, link_url, image_url, **options):
+    """ProjectBadges.add (POST projects/${projectId}/badges). Body fields: link_url, image_url."""
+    payload = {**options}
+    payload["link_url"] = link_url
+    payload["image_url"] = image_url
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/badges", json=payload))
 
 
 def project_badges_all(project_id: str | int, **options):
@@ -2646,9 +2820,12 @@ def project_badges_edit(project_id: str | int, badge_id: str | int, **options):
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/badges/{_enc(badge_id)}", json=options))
 
 
-def project_badges_preview(project_id: str | int, **options):
-    """ProjectBadges.preview (GET projects/${projectId}/badges/render)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/badges/render", params=options))
+def project_badges_preview(project_id: str | int, link_url, image_url, **options):
+    """ProjectBadges.preview (GET projects/${projectId}/badges/render). Body fields: link_url, image_url."""
+    payload = {**options}
+    payload["link_url"] = link_url
+    payload["image_url"] = image_url
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/badges/render", params=payload))
 
 
 def project_badges_remove(project_id: str | int, badge_id: str | int, **options):
@@ -2673,9 +2850,11 @@ def project_custom_attributes_remove(project_id: str | int, custom_attribute_id:
     return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=options))
 
 
-def project_custom_attributes_set(project_id: str | int, custom_attribute_id: str | int, **options):
-    """ProjectCustomAttributes.set (PUT projects/${projectId}/custom_attributes/${customAttributeId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/custom_attributes/{_enc(custom_attribute_id)}", json=options))
+def project_custom_attributes_set(project_id: str | int, custom_attribute_id: str | int, value, **options):
+    """ProjectCustomAttributes.set (PUT projects/${projectId}/custom_attributes/${customAttributeId}). Body fields: value."""
+    payload = {**options}
+    payload["value"] = value
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/custom_attributes/{_enc(custom_attribute_id)}", json=payload))
 
 
 def project_custom_attributes_show(project_id: str | int, custom_attribute_id: str | int, **options):
@@ -2685,9 +2864,11 @@ def project_custom_attributes_show(project_id: str | int, custom_attribute_id: s
 
 # ── ProjectHooks ──────────────────────────────────────────────────────────
 
-def project_hooks_add(project_id: str | int, **options):
-    """ProjectHooks.add (POST projects/${projectId}/hooks)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/hooks", json=options))
+def project_hooks_add(project_id: str | int, url, **options):
+    """ProjectHooks.add (POST projects/${projectId}/hooks). Body fields: url."""
+    payload = {**options}
+    payload["url"] = url
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/hooks", json=payload))
 
 
 def project_hooks_all(project_id: str | int, **options):
@@ -2695,9 +2876,11 @@ def project_hooks_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/hooks", params=options))
 
 
-def project_hooks_edit(project_id: str | int, hook_id: str | int, **options):
-    """ProjectHooks.edit (PUT projects/${projectId}/hooks/${hookId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/hooks/{_enc(hook_id)}", json=options))
+def project_hooks_edit(project_id: str | int, hook_id: str | int, url, **options):
+    """ProjectHooks.edit (PUT projects/${projectId}/hooks/${hookId}). Body fields: url."""
+    payload = {**options}
+    payload["url"] = url
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/hooks/{_enc(hook_id)}", json=payload))
 
 
 def project_hooks_remove(project_id: str | int, hook_id: str | int, **options):
@@ -2732,9 +2915,11 @@ def project_import_exports_import_remote_s3(**options):
     return _ok(_get_client().request("POST", f"/projects/remote-import", json=options))
 
 
-def project_import_exports_schedule_export(project_id: str | int, **options):
-    """ProjectImportExports.scheduleExport (POST projects/${projectId}/export)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/export", json=options))
+def project_import_exports_schedule_export(project_id: str | int, upload, **options):
+    """ProjectImportExports.scheduleExport (POST projects/${projectId}/export). Body fields: upload."""
+    payload = {**options}
+    payload["upload"] = upload
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/export", json=payload))
 
 
 def project_import_exports_show_export_status(project_id: str | int, **options):
@@ -2749,9 +2934,11 @@ def project_import_exports_show_import_status(project_id: str | int, **options):
 
 # ── ProjectInvitations ────────────────────────────────────────────────────
 
-def project_invitations_add(project_id: str | int, **options):
-    """ProjectInvitations.add (POST projects/${projectId}/invitations)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/invitations", json=options))
+def project_invitations_add(project_id: str | int, access_level, **options):
+    """ProjectInvitations.add (POST projects/${projectId}/invitations). Body fields: access_level."""
+    payload = {**options}
+    payload["access_level"] = access_level
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/invitations", json=payload))
 
 
 def project_invitations_all(project_id: str | int, **options):
@@ -2781,9 +2968,11 @@ def project_issue_boards_all_lists(project_id: str | int, board_id: str | int, *
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}/lists", params=options))
 
 
-def project_issue_boards_create(project_id: str | int, **options):
-    """ProjectIssueBoards.create (POST projects/${projectId}/boards)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/boards", json=options))
+def project_issue_boards_create(project_id: str | int, name, **options):
+    """ProjectIssueBoards.create (POST projects/${projectId}/boards). Body fields: name."""
+    payload = {**options}
+    payload["name"] = name
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/boards", json=payload))
 
 
 def project_issue_boards_create_list(project_id: str | int, board_id: str | int, **options):
@@ -2796,9 +2985,11 @@ def project_issue_boards_edit(project_id: str | int, board_id: str | int, **opti
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}", json=options))
 
 
-def project_issue_boards_edit_list(project_id: str | int, board_id: str | int, list_id: str | int, **options):
-    """ProjectIssueBoards.editList (PUT projects/${projectId}/boards/${boardId}/lists/${listId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", json=options))
+def project_issue_boards_edit_list(project_id: str | int, board_id: str | int, list_id: str | int, position, **options):
+    """ProjectIssueBoards.editList (PUT projects/${projectId}/boards/${boardId}/lists/${listId}). Body fields: position."""
+    payload = {**options}
+    payload["position"] = position
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", json=payload))
 
 
 def project_issue_boards_remove(project_id: str | int, board_id: str | int, **options):
@@ -2830,19 +3021,25 @@ def project_iterations_all(project_id: str | int, **options):
 
 # ── ProjectJobTokenScopes ─────────────────────────────────────────────────
 
-def project_job_token_scopes_add_to_groups_allow_list(project_id: str | int, **options):
-    """ProjectJobTokenScopes.addToGroupsAllowList (POST projects/${projectId}/job_token_scope/groups_allowlist)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/job_token_scope/groups_allowlist", json=options))
+def project_job_token_scopes_add_to_groups_allow_list(project_id: str | int, target_group_id, **options):
+    """ProjectJobTokenScopes.addToGroupsAllowList (POST projects/${projectId}/job_token_scope/groups_allowlist). Body fields: target_group_id."""
+    payload = {**options}
+    payload["target_group_id"] = target_group_id
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/job_token_scope/groups_allowlist", json=payload))
 
 
-def project_job_token_scopes_add_to_inbound_allow_list(project_id: str | int, **options):
-    """ProjectJobTokenScopes.addToInboundAllowList (POST projects/${projectId}/job_token_scope/allowlist)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/job_token_scope/allowlist", json=options))
+def project_job_token_scopes_add_to_inbound_allow_list(project_id: str | int, target_project_id, **options):
+    """ProjectJobTokenScopes.addToInboundAllowList (POST projects/${projectId}/job_token_scope/allowlist). Body fields: target_project_id."""
+    payload = {**options}
+    payload["target_project_id"] = target_project_id
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/job_token_scope/allowlist", json=payload))
 
 
-def project_job_token_scopes_edit(project_id: str | int, **options):
-    """ProjectJobTokenScopes.edit (PATCH projects/${projectId}/job_token_scope)."""
-    return _ok(_get_client().request("PATCH", f"/projects/{_enc(project_id)}/job_token_scope", json=options))
+def project_job_token_scopes_edit(project_id: str | int, enabled, **options):
+    """ProjectJobTokenScopes.edit (PATCH projects/${projectId}/job_token_scope). Body fields: enabled."""
+    payload = {**options}
+    payload["enabled"] = enabled
+    return _ok(_get_client().request("PATCH", f"/projects/{_enc(project_id)}/job_token_scope", json=payload))
 
 
 def project_job_token_scopes_remove_from_groups_allow_list(project_id: str | int, target_group_id: str | int, **options):
@@ -2877,9 +3074,12 @@ def project_labels_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/labels", params=options))
 
 
-def project_labels_create(project_id: str | int, **options):
-    """ProjectLabels.create (POST projects/${projectId}/labels)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/labels", json=options))
+def project_labels_create(project_id: str | int, name, color, **options):
+    """ProjectLabels.create (POST projects/${projectId}/labels). Body fields: name, color."""
+    payload = {**options}
+    payload["name"] = name
+    payload["color"] = color
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/labels", json=payload))
 
 
 def project_labels_edit(project_id: str | int, label_id: str | int, **options):
@@ -2931,9 +3131,11 @@ def project_markdown_uploads_remove(project_id: str | int, upload_id_or_secret: 
 
 # ── ProjectMembers ────────────────────────────────────────────────────────
 
-def project_members_add(project_id: str | int, **options):
-    """ProjectMembers.add (POST projects/${projectId}/members)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/members", json=options))
+def project_members_add(project_id: str | int, access_level, **options):
+    """ProjectMembers.add (POST projects/${projectId}/members). Body fields: access_level."""
+    payload = {**options}
+    payload["access_level"] = access_level
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/members", json=payload))
 
 
 def project_members_all(project_id: str | int, **options):
@@ -2941,9 +3143,11 @@ def project_members_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/members", params=options))
 
 
-def project_members_edit(project_id: str | int, user_id: str | int, **options):
-    """ProjectMembers.edit (PUT projects/${projectId}/members/${userId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/members/{_enc(user_id)}", json=options))
+def project_members_edit(project_id: str | int, user_id: str | int, access_level, **options):
+    """ProjectMembers.edit (PUT projects/${projectId}/members/${userId}). Body fields: access_level."""
+    payload = {**options}
+    payload["access_level"] = access_level
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/members/{_enc(user_id)}", json=payload))
 
 
 def project_members_remove(project_id: str | int, user_id: str | int, **options):
@@ -2973,9 +3177,11 @@ def project_milestones_all_burndown_chart_events(project_id: str | int, mileston
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}/burndown_events", params=options))
 
 
-def project_milestones_create(project_id: str | int, **options):
-    """ProjectMilestones.create (POST projects/${projectId}/milestones)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/milestones", json=options))
+def project_milestones_create(project_id: str | int, title, **options):
+    """ProjectMilestones.create (POST projects/${projectId}/milestones). Body fields: title."""
+    payload = {**options}
+    payload["title"] = title
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/milestones", json=payload))
 
 
 def project_milestones_edit(project_id: str | int, milestone_id: str | int, **options):
@@ -2995,9 +3201,11 @@ def project_milestones_show(project_id: str | int, milestone_id: str | int, **op
 
 # ── ProjectRelationsExport ────────────────────────────────────────────────
 
-def project_relations_export_download(project_id: str | int, **options):
-    """ProjectRelationsExport.download (GET projects/${projectId}/export_relations/download)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/export_relations/download", params=options))
+def project_relations_export_download(project_id: str | int, relation, **options):
+    """ProjectRelationsExport.download (GET projects/${projectId}/export_relations/download). Body fields: relation."""
+    payload = {**options}
+    payload["relation"] = relation
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/export_relations/download", params=payload))
 
 
 def project_relations_export_schedule_export(project_id: str | int, **options):
@@ -3069,14 +3277,19 @@ def project_remote_mirrors_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/remote_mirrors", params=options))
 
 
-def project_remote_mirrors_create_pull_mirror(project_id: str | int, **options):
-    """ProjectRemoteMirrors.createPullMirror (POST projects/${projectId}/mirror/pull)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/mirror/pull", json=options))
+def project_remote_mirrors_create_pull_mirror(project_id: str | int, import_url, mirror, **options):
+    """ProjectRemoteMirrors.createPullMirror (POST projects/${projectId}/mirror/pull). Body fields: import_url, mirror."""
+    payload = {**options}
+    payload["import_url"] = import_url
+    payload["mirror"] = mirror
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/mirror/pull", json=payload))
 
 
-def project_remote_mirrors_create_push_mirror(project_id: str | int, **options):
-    """ProjectRemoteMirrors.createPushMirror (POST projects/${projectId}/remote_mirrors)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/remote_mirrors", json=options))
+def project_remote_mirrors_create_push_mirror(project_id: str | int, url, **options):
+    """ProjectRemoteMirrors.createPushMirror (POST projects/${projectId}/remote_mirrors). Body fields: url."""
+    payload = {**options}
+    payload["url"] = url
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/remote_mirrors", json=payload))
 
 
 def project_remote_mirrors_edit(project_id: str | int, mirror_id: str | int, **options):
@@ -3168,9 +3381,12 @@ def projects_create_fork_relationship(project_id: str | int, forked_from_id: str
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/fork/{_enc(forked_from_id)}", json=options))
 
 
-def projects_create_pull_mirror(project_id: str | int, **options):
-    """Projects.createPullMirror (POST projects/${projectId}/mirror/pull)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/mirror/pull", json=options))
+def projects_create_pull_mirror(project_id: str | int, import_url, mirror, **options):
+    """Projects.createPullMirror (POST projects/${projectId}/mirror/pull). Body fields: import_url, mirror."""
+    payload = {**options}
+    payload["import_url"] = import_url
+    payload["mirror"] = mirror
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/mirror/pull", json=payload))
 
 
 def projects_download_snapshot(project_id: str | int, **options):
@@ -3223,9 +3439,12 @@ def projects_search(**options):
     return _ok(_get_client().request("GET", f"/projects", params=options))
 
 
-def projects_share(project_id: str | int, **options):
-    """Projects.share (POST projects/${projectId}/share)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/share", json=options))
+def projects_share(project_id: str | int, group_id, group_access, **options):
+    """Projects.share (POST projects/${projectId}/share). Body fields: group_id, group_access."""
+    payload = {**options}
+    payload["group_id"] = group_id
+    payload["group_access"] = group_access
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/share", json=payload))
 
 
 def projects_show(project_id: str | int, **options):
@@ -3248,9 +3467,11 @@ def projects_star(project_id: str | int, **options):
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/star", json=options))
 
 
-def projects_transfer(project_id: str | int, **options):
-    """Projects.transfer (PUT projects/${projectId}/transfer)."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/transfer", json=options))
+def projects_transfer(project_id: str | int, namespace, **options):
+    """Projects.transfer (PUT projects/${projectId}/transfer). Body fields: namespace."""
+    payload = {**options}
+    payload["namespace"] = namespace
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/transfer", json=payload))
 
 
 def projects_unarchive(project_id: str | int, **options):
@@ -3268,14 +3489,18 @@ def projects_unstar(project_id: str | int, **options):
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/unstar", json=options))
 
 
-def projects_upload_avatar(project_id: str | int, **options):
-    """Projects.uploadAvatar (PUT projects/${projectId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}", json=options))
+def projects_upload_avatar(project_id: str | int, is_form, **options):
+    """Projects.uploadAvatar (PUT projects/${projectId}). Body fields: is_form."""
+    payload = {**options}
+    payload["is_form"] = is_form
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}", json=payload))
 
 
-def projects_upload_for_reference(project_id: str | int, **options):
-    """Projects.uploadForReference (POST projects/${projectId}/uploads)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/uploads", json=options))
+def projects_upload_for_reference(project_id: str | int, is_form, **options):
+    """Projects.uploadForReference (POST projects/${projectId}/uploads). Body fields: is_form."""
+    payload = {**options}
+    payload["is_form"] = is_form
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/uploads", json=payload))
 
 
 # ── ProjectSnippetAwardEmojis ─────────────────────────────────────────────
@@ -3302,9 +3527,11 @@ def project_snippet_award_emojis_show(project_id: str | int, resource_iid: str |
 
 # ── ProjectSnippetDiscussions ─────────────────────────────────────────────
 
-def project_snippet_discussions_add_note(project_id: str | int, snippet_id: str | int, discussion_id: str | int, **options):
-    """ProjectSnippetDiscussions.addNote (POST projects/${projectId}/snippets/${snippetId}/discussions/${discussionId}/notes)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions/{_enc(discussion_id)}/notes", json=options))
+def project_snippet_discussions_add_note(project_id: str | int, snippet_id: str | int, discussion_id: str | int, body, **options):
+    """ProjectSnippetDiscussions.addNote (POST projects/${projectId}/snippets/${snippetId}/discussions/${discussionId}/notes). Body fields: body."""
+    payload = {**options}
+    payload["body"] = body
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions/{_enc(discussion_id)}/notes", json=payload))
 
 
 def project_snippet_discussions_all(project_id: str | int, snippet_id: str | int, **options):
@@ -3339,9 +3566,11 @@ def project_snippet_notes_all(project_id: str | int, snippet_id: str | int, **op
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/notes", params=options))
 
 
-def project_snippet_notes_create(project_id: str | int, snippet_id: str | int, **options):
-    """ProjectSnippetNotes.create (POST projects/${projectId}/snippets/${snippetId}/notes)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/notes", json=options))
+def project_snippet_notes_create(project_id: str | int, snippet_id: str | int, body, **options):
+    """ProjectSnippetNotes.create (POST projects/${projectId}/snippets/${snippetId}/notes). Body fields: body."""
+    payload = {**options}
+    payload["body"] = body
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/notes", json=payload))
 
 
 def project_snippet_notes_edit(project_id: str | int, snippet_id: str | int, note_id: str | int, **options):
@@ -3366,9 +3595,11 @@ def project_snippets_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets", params=options))
 
 
-def project_snippets_create(project_id: str | int, **options):
-    """ProjectSnippets.create (POST projects/${projectId}/snippets)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/snippets", json=options))
+def project_snippets_create(project_id: str | int, title, **options):
+    """ProjectSnippets.create (POST projects/${projectId}/snippets). Body fields: title."""
+    payload = {**options}
+    payload["title"] = title
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/snippets", json=payload))
 
 
 def project_snippets_edit(project_id: str | int, snippet_id: str | int, **options):
@@ -3459,14 +3690,19 @@ def project_variables_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/variables", params=options))
 
 
-def project_variables_create(project_id: str | int, **options):
-    """ProjectVariables.create (POST projects/${projectId}/variables)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/variables", json=options))
+def project_variables_create(project_id: str | int, key, value, **options):
+    """ProjectVariables.create (POST projects/${projectId}/variables). Body fields: key, value."""
+    payload = {**options}
+    payload["key"] = key
+    payload["value"] = value
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/variables", json=payload))
 
 
-def project_variables_edit(project_id: str | int, key: str | int, **options):
-    """ProjectVariables.edit (PUT projects/${projectId}/variables/${key})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/variables/{_enc(key)}", json=options))
+def project_variables_edit(project_id: str | int, key: str | int, value, **options):
+    """ProjectVariables.edit (PUT projects/${projectId}/variables/${key}). Body fields: value."""
+    payload = {**options}
+    payload["value"] = value
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/variables/{_enc(key)}", json=payload))
 
 
 def project_variables_remove(project_id: str | int, key: str | int, **options):
@@ -3498,9 +3734,12 @@ def project_wikis_all(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/wikis", params=options))
 
 
-def project_wikis_create(project_id: str | int, **options):
-    """ProjectWikis.create (POST projects/${projectId}/wikis)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/wikis", json=options))
+def project_wikis_create(project_id: str | int, content, title, **options):
+    """ProjectWikis.create (POST projects/${projectId}/wikis). Body fields: content, title."""
+    payload = {**options}
+    payload["content"] = content
+    payload["title"] = title
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/wikis", json=payload))
 
 
 def project_wikis_edit(project_id: str | int, slug: str | int, **options):
@@ -3518,9 +3757,11 @@ def project_wikis_show(project_id: str | int, slug: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/wikis/{_enc(slug)}", params=options))
 
 
-def project_wikis_upload_attachment(project_id: str | int, **options):
-    """ProjectWikis.uploadAttachment (POST projects/${projectId}/wikis/attachments)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/wikis/attachments", json=options))
+def project_wikis_upload_attachment(project_id: str | int, is_form, **options):
+    """ProjectWikis.uploadAttachment (POST projects/${projectId}/wikis/attachments). Body fields: is_form."""
+    payload = {**options}
+    payload["is_form"] = is_form
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/wikis/attachments", json=payload))
 
 
 # ── ProtectedBranches ─────────────────────────────────────────────────────
@@ -3604,9 +3845,11 @@ def py_pi_show_package_descriptor(package_name: str | int, group_id: str | int, 
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/packages/pypi/simple/{_enc(package_name)}", params=options))
 
 
-def py_pi_upload_package_file(project_id: str | int, **options):
-    """PyPI.uploadPackageFile (PUT projects/${projectId}/packages/pypi)."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/packages/pypi", json=options))
+def py_pi_upload_package_file(project_id: str | int, is_form, **options):
+    """PyPI.uploadPackageFile (PUT projects/${projectId}/packages/pypi). Body fields: is_form."""
+    payload = {**options}
+    payload["is_form"] = is_form
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/packages/pypi", json=payload))
 
 
 # ── ReleaseLinks ──────────────────────────────────────────────────────────
@@ -3616,9 +3859,12 @@ def release_links_all(project_id: str | int, tag_name: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/releases/{_enc(tag_name)}/assets/links", params=options))
 
 
-def release_links_create(project_id: str | int, tag_name: str | int, **options):
-    """ReleaseLinks.create (POST projects/${projectId}/releases/${tagName}/assets/links)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/releases/{_enc(tag_name)}/assets/links", json=options))
+def release_links_create(project_id: str | int, tag_name: str | int, name, url, **options):
+    """ReleaseLinks.create (POST projects/${projectId}/releases/${tagName}/assets/links). Body fields: name, url."""
+    payload = {**options}
+    payload["name"] = name
+    payload["url"] = url
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/releases/{_enc(tag_name)}/assets/links", json=payload))
 
 
 def release_links_edit(project_id: str | int, tag_name: str | int, link_id: str | int, **options):
@@ -3648,19 +3894,26 @@ def repositories_all_repository_trees(project_id: str | int, **options):
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/tree", params=options))
 
 
-def repositories_compare(project_id: str | int, **options):
-    """Repositories.compare (GET projects/${projectId}/repository/compare)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/compare", params=options))
+def repositories_compare(project_id: str | int, from_, to, **options):
+    """Repositories.compare (GET projects/${projectId}/repository/compare). Body fields: from, to."""
+    payload = {**options}
+    payload["from"] = from_
+    payload["to"] = to
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/compare", params=payload))
 
 
-def repositories_edit_changelog(project_id: str | int, **options):
-    """Repositories.editChangelog (POST projects/${projectId}/repository/changelog)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/changelog", json=options))
+def repositories_edit_changelog(project_id: str | int, version, **options):
+    """Repositories.editChangelog (POST projects/${projectId}/repository/changelog). Body fields: version."""
+    payload = {**options}
+    payload["version"] = version
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/changelog", json=payload))
 
 
-def repositories_merge_base(project_id: str | int, **options):
-    """Repositories.mergeBase (GET projects/${projectId}/repository/merge_base)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/merge_base", params=options))
+def repositories_merge_base(project_id: str | int, refs, **options):
+    """Repositories.mergeBase (GET projects/${projectId}/repository/merge_base). Body fields: refs."""
+    payload = {**options}
+    payload["refs"] = refs
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/merge_base", params=payload))
 
 
 def repositories_show_archive(project_id: str | int, **options):
@@ -3678,48 +3931,70 @@ def repositories_show_blob_raw(project_id: str | int, sha: str | int, **options)
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/blobs/{_enc(sha)}/raw", params=options))
 
 
-def repositories_show_changelog(project_id: str | int, **options):
-    """Repositories.showChangelog (GET projects/${projectId}/repository/changelog)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/changelog", params=options))
+def repositories_show_changelog(project_id: str | int, version, **options):
+    """Repositories.showChangelog (GET projects/${projectId}/repository/changelog). Body fields: version."""
+    payload = {**options}
+    payload["version"] = version
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/changelog", params=payload))
 
 
 # ── RepositoryFiles ───────────────────────────────────────────────────────
 
-def repository_files_all_file_blames(project_id: str | int, file_path: str | int, **options):
-    """RepositoryFiles.allFileBlames (GET projects/${projectId}/repository/files/${filePath}/blame)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}/blame", params=options))
+def repository_files_all_file_blames(project_id: str | int, file_path: str | int, ref, **options):
+    """RepositoryFiles.allFileBlames (GET projects/${projectId}/repository/files/${filePath}/blame). Body fields: ref."""
+    payload = {**options}
+    payload["ref"] = ref
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}/blame", params=payload))
 
 
-def repository_files_create(project_id: str | int, file_path: str | int, **options):
-    """RepositoryFiles.create (POST projects/${projectId}/repository/files/${filePath})."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}", json=options))
+def repository_files_create(project_id: str | int, file_path: str | int, branch, content, commit_message, **options):
+    """RepositoryFiles.create (POST projects/${projectId}/repository/files/${filePath}). Body fields: branch, content, commit_message."""
+    payload = {**options}
+    payload["branch"] = branch
+    payload["content"] = content
+    payload["commit_message"] = commit_message
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}", json=payload))
 
 
-def repository_files_edit(project_id: str | int, file_path: str | int, **options):
-    """RepositoryFiles.edit (PUT projects/${projectId}/repository/files/${filePath})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}", json=options))
+def repository_files_edit(project_id: str | int, file_path: str | int, branch, content, commit_message, **options):
+    """RepositoryFiles.edit (PUT projects/${projectId}/repository/files/${filePath}). Body fields: branch, content, commit_message."""
+    payload = {**options}
+    payload["branch"] = branch
+    payload["content"] = content
+    payload["commit_message"] = commit_message
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}", json=payload))
 
 
-def repository_files_remove(project_id: str | int, file_path: str | int, **options):
-    """RepositoryFiles.remove (DELETE projects/${projectId}/repository/files/${filePath})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}", params=options))
+def repository_files_remove(project_id: str | int, file_path: str | int, branch, commit_message, **options):
+    """RepositoryFiles.remove (DELETE projects/${projectId}/repository/files/${filePath}). Body fields: branch, commit_message."""
+    payload = {**options}
+    payload["branch"] = branch
+    payload["commit_message"] = commit_message
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}", params=payload))
 
 
-def repository_files_show(project_id: str | int, file_path: str | int, **options):
-    """RepositoryFiles.show (GET projects/${projectId}/repository/files/${filePath})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}", params=options))
+def repository_files_show(project_id: str | int, file_path: str | int, ref, **options):
+    """RepositoryFiles.show (GET projects/${projectId}/repository/files/${filePath}). Body fields: ref."""
+    payload = {**options}
+    payload["ref"] = ref
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}", params=payload))
 
 
-def repository_files_show_raw(project_id: str | int, file_path: str | int, **options):
-    """RepositoryFiles.showRaw (GET projects/${projectId}/repository/files/${filePath}/raw)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}/raw", params=options))
+def repository_files_show_raw(project_id: str | int, file_path: str | int, ref, **options):
+    """RepositoryFiles.showRaw (GET projects/${projectId}/repository/files/${filePath}/raw). Body fields: ref."""
+    payload = {**options}
+    payload["ref"] = ref
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}/raw", params=payload))
 
 
 # ── RepositorySubmodules ──────────────────────────────────────────────────
 
-def repository_submodules_edit(project_id: str | int, submodule: str | int, **options):
-    """RepositorySubmodules.edit (PUT projects/${projectId}/repository/submodules/${submodule})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/repository/submodules/{_enc(submodule)}", json=options))
+def repository_submodules_edit(project_id: str | int, submodule: str | int, branch, commit_sha, **options):
+    """RepositorySubmodules.edit (PUT projects/${projectId}/repository/submodules/${submodule}). Body fields: branch, commit_sha."""
+    payload = {**options}
+    payload["branch"] = branch
+    payload["commit_sha"] = commit_sha
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/repository/submodules/{_enc(submodule)}", json=payload))
 
 
 # ── RubyGems ──────────────────────────────────────────────────────────────
@@ -3766,9 +4041,11 @@ def runners_edit(runner_id: str | int, **options):
     return _ok(_get_client().request("PUT", f"/runners/{_enc(runner_id)}", json=options))
 
 
-def runners_enable(project_id: str | int, **options):
-    """Runners.enable (POST projects/${projectId}/runners)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/runners", json=options))
+def runners_enable(project_id: str | int, runner_id, **options):
+    """Runners.enable (POST projects/${projectId}/runners). Body fields: runner_id."""
+    payload = {**options}
+    payload["runner_id"] = runner_id
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/runners", json=payload))
 
 
 def runners_register(token, **options):
@@ -4071,9 +4348,11 @@ def user_custom_attributes_remove(user_id: str | int, custom_attribute_id: str |
     return _ok(_get_client().request("DELETE", f"/users/{_enc(user_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=options))
 
 
-def user_custom_attributes_set(user_id: str | int, custom_attribute_id: str | int, **options):
-    """UserCustomAttributes.set (PUT users/${userId}/custom_attributes/${customAttributeId})."""
-    return _ok(_get_client().request("PUT", f"/users/{_enc(user_id)}/custom_attributes/{_enc(custom_attribute_id)}", json=options))
+def user_custom_attributes_set(user_id: str | int, custom_attribute_id: str | int, value, **options):
+    """UserCustomAttributes.set (PUT users/${userId}/custom_attributes/${customAttributeId}). Body fields: value."""
+    payload = {**options}
+    payload["value"] = value
+    return _ok(_get_client().request("PUT", f"/users/{_enc(user_id)}/custom_attributes/{_enc(custom_attribute_id)}", json=payload))
 
 
 def user_custom_attributes_show(user_id: str | int, custom_attribute_id: str | int, **options):
@@ -4192,9 +4471,12 @@ def users_create_ci_runner(**options):
     return _ok(_get_client().request("POST", f"/user/runners", json=options))
 
 
-def users_create_personal_access_token(user_id: str | int, **options):
-    """Users.createPersonalAccessToken (POST users/${userId}/personal_access_tokens)."""
-    return _ok(_get_client().request("POST", f"/users/{_enc(user_id)}/personal_access_tokens", json=options))
+def users_create_personal_access_token(user_id: str | int, name, scopes, **options):
+    """Users.createPersonalAccessToken (POST users/${userId}/personal_access_tokens). Body fields: name, scopes."""
+    payload = {**options}
+    payload["name"] = name
+    payload["scopes"] = scopes
+    return _ok(_get_client().request("POST", f"/users/{_enc(user_id)}/personal_access_tokens", json=payload))
 
 
 def users_deactivate(user_id: str | int, **options):
@@ -4289,9 +4571,11 @@ def users_unfollow(user_id: str | int, **options):
 
 # ── UserStarredMetricsDashboard ───────────────────────────────────────────
 
-def user_starred_metrics_dashboard_create(project_id: str | int, **options):
-    """UserStarredMetricsDashboard.create (GET projects/${projectId}/metrics/user_starred_dashboards)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/metrics/user_starred_dashboards", params=options))
+def user_starred_metrics_dashboard_create(project_id: str | int, dashboard_path, **options):
+    """UserStarredMetricsDashboard.create (GET projects/${projectId}/metrics/user_starred_dashboards). Body fields: dashboard_path."""
+    payload = {**options}
+    payload["dashboard_path"] = dashboard_path
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/metrics/user_starred_dashboards", params=payload))
 
 
 def user_starred_metrics_dashboard_remove(project_id: str | int, **options):
