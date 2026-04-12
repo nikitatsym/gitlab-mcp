@@ -372,14 +372,10 @@ _register_generated()
 # Annotations override the codegen-emitted first line ("ClassName.method (VERB
 # path).") with a human-written description. This runs AFTER registration so
 # the docstring is visible in help output.
-import inspect as _inspect
-
 for _ann_name, _ann_doc in ANNOTATIONS.items():
     _fn = getattr(_generated, _ann_name, None)
     if _fn is not None and callable(_fn):
         _fn.__doc__ = _ann_doc
-
-del _inspect
 
 
 # ── List-view overrides with brief=True default ────────────────────────────
