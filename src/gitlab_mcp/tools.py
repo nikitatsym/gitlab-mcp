@@ -673,6 +673,57 @@ def projects_fork(project_id: str | int, **options):
 # (Claude Desktop), use curl or the GitLab web UI.
 
 @_op(gitlab_write)
+def repository_files_upload(
+    project_id: str | int,
+    file_path: str,
+    local_path: str,
+    branch: str,
+    commit_message: str,
+    **options,
+):
+    """Create or update a file in a repo from a LOCAL file path.
+
+    Reads the file from the local filesystem, base64-encodes it, and commits
+    via the repository files API. Works for both text and binary (PNG, PDF, etc.).
+    If the file already exists in the repo, updates it; otherwise creates it.
+    """
+    import base64
+
+    p = _Path(local_path).expanduser()
+    if not p.exists():
+        raise ValueError(f"File not found: {local_path}")
+    encoded = base64.b64encode(p.read_bytes()).decode("ascii")
+    client = get_client()
+    # Try edit first (update existing), fall back to create.
+    from .client import GitLabError
+
+    try:
+        return client.put(
+            f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}",
+            json={
+                "branch": branch,
+                "content": encoded,
+                "encoding": "base64",
+                "commit_message": commit_message,
+                **options,
+            },
+        )
+    except GitLabError as e:
+        if e.status == 400 and "does not exist" in str(e.body):
+            return client.post(
+                f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}",
+                json={
+                    "branch": branch,
+                    "content": encoded,
+                    "encoding": "base64",
+                    "commit_message": commit_message,
+                    **options,
+                },
+            )
+        raise
+
+
+@_op(gitlab_write)
 def projects_upload_avatar(project_id: str | int, file_path: str):
     """Upload an avatar image for a project from a local file path.
 
