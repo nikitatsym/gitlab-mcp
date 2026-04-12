@@ -43,56 +43,58 @@ def _ok(data):
 
 # ── Groups ──────────────────────────────────────────────────────────────────
 
+_HELP_HOWTO = (
+    "Discovery uses progressive disclosure (mcp-abstract.md):\n"
+    "  operation=\"help\"                              → compact category index\n"
+    "  operation=\"help\" params={\"category\": \"X\"}    → full signatures in category X\n"
+    "  operation=\"help\" params={\"search\": \"foo\"}    → ops whose name contains foo\n"
+    "Otherwise call with operation=\"OpName\" params={...} to invoke an op."
+)
+
 gitlab_read = Group(
     "gitlab_read",
     "Query GitLab / Heptapod resources (safe, read-only).\n\n"
-    "Call with operation=\"help\" to list all available read operations.\n"
-    "Otherwise pass the operation name and a JSON object with parameters.\n\n"
-    "Example: gitlab_read(operation=\"GetProject\", "
-    "params={\"project\": \"mygroup/myproject\"})",
+    + _HELP_HOWTO + "\n\n"
+    "Example: gitlab_read(operation=\"ProjectsShow\", "
+    "params={\"project_id\": \"mygroup/myproject\"})",
 )
 
 gitlab_write = Group(
     "gitlab_write",
     "Create, update, or modify GitLab / Heptapod resources.\n\n"
-    "Call with operation=\"help\" to list all available write operations.\n"
-    "Otherwise pass the operation name and a JSON object with parameters.\n\n"
-    "Example: gitlab_write(operation=\"CreateIssue\", "
-    "params={\"project\": \"mygroup/myproject\", \"title\": \"Bug X\"})",
+    + _HELP_HOWTO + "\n\n"
+    "Example: gitlab_write(operation=\"IssuesCreate\", "
+    "params={\"project_id\": \"mygroup/myproject\", \"title\": \"Bug X\"})",
 )
 
 gitlab_execute = Group(
     "gitlab_execute",
     "Trigger actions on GitLab / Heptapod: merge MRs, run pipelines, retry jobs.\n\n"
-    "Call with operation=\"help\" to list all available execute operations.\n"
-    "Otherwise pass the operation name and a JSON object with parameters.\n\n"
-    "Example: gitlab_execute(operation=\"AcceptMergeRequest\", "
-    "params={\"project\": \"mygroup/myproject\", \"merge_request_iid\": 42})",
+    + _HELP_HOWTO + "\n\n"
+    "Example: gitlab_execute(operation=\"MergeRequestsAccept\", "
+    "params={\"project_id\": \"mygroup/myproject\", \"mergerequest_iid\": 42})",
 )
 
 gitlab_delete = Group(
     "gitlab_delete",
     "Delete GitLab / Heptapod resources (destructive, irreversible).\n\n"
-    "Call with operation=\"help\" to list all available delete operations.\n"
-    "Otherwise pass the operation name and a JSON object with parameters.\n\n"
-    "Example: gitlab_delete(operation=\"DeleteBranch\", "
-    "params={\"project\": \"mygroup/myproject\", \"branch\": \"feature/old\"})",
+    + _HELP_HOWTO + "\n\n"
+    "Example: gitlab_delete(operation=\"BranchesRemove\", "
+    "params={\"project_id\": \"mygroup/myproject\", \"branch_name\": \"feature/old\"})",
 )
 
 gitlab_admin_read = Group(
     "gitlab_admin_read",
     "Query instance-level admin data: users, runners, hooks, settings.\n\n"
-    "Call with operation=\"help\" to list all available admin read operations.\n"
-    "Otherwise pass the operation name and a JSON object with parameters.\n\n"
-    "Example: gitlab_admin_read(operation=\"ListUsers\")",
+    + _HELP_HOWTO + "\n\n"
+    "Example: gitlab_admin_read(operation=\"ApplicationSettingsShow\")",
 )
 
 gitlab_admin_write = Group(
     "gitlab_admin_write",
     "Manage users, runners, system hooks, and instance settings (admin).\n\n"
-    "Call with operation=\"help\" to list all available admin write operations.\n"
-    "Otherwise pass the operation name and a JSON object with parameters.\n\n"
-    "Example: gitlab_admin_write(operation=\"BlockUser\", "
+    + _HELP_HOWTO + "\n\n"
+    "Example: gitlab_admin_write(operation=\"UsersBlock\", "
     "params={\"user_id\": 42})",
 )
 
