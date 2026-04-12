@@ -549,6 +549,81 @@ def _project_is_hg(project_id) -> bool:
     return vcs in ("hg", "hg_git")
 
 
+def _resolve_file_content(
+    content: str | None, local_path: str | None
+) -> tuple[str, dict]:
+    """Return (content_str, extra_opts) from either content or local_path.
+
+    Exactly one must be provided. local_path reads the file and base64-encodes it.
+    """
+    import base64
+
+    if content is not None and local_path is not None:
+        raise ValueError("Pass content OR local_path, not both.")
+    if content is None and local_path is None:
+        raise ValueError("Either content (text) or local_path (file on disk) is required.")
+    if local_path is not None:
+        p = _Path(local_path).expanduser()
+        if not p.exists():
+            raise ValueError(f"File not found: {local_path}")
+        return base64.b64encode(p.read_bytes()).decode("ascii"), {"encoding": "base64"}
+    return content, {}  # type: ignore[return-value]
+
+
+@_op(gitlab_write)
+def repository_files_create(
+    project_id: str | int,
+    file_path: str,
+    branch: str,
+    commit_message: str,
+    content: str | None = None,
+    local_path: str | None = None,
+    **options,
+):
+    """Create a new file in a branch.
+
+    Pass `content` for text, or `local_path` for a file on disk (binary or text).
+    local_path auto-reads and base64-encodes. Exactly one of the two is required.
+    """
+    resolved, extra = _resolve_file_content(content, local_path)
+    return _generated.repository_files_create(
+        project_id=project_id,
+        file_path=file_path,
+        branch=branch,
+        content=resolved,
+        commit_message=commit_message,
+        **extra,
+        **options,
+    )
+
+
+@_op(gitlab_write)
+def repository_files_edit(
+    project_id: str | int,
+    file_path: str,
+    branch: str,
+    commit_message: str,
+    content: str | None = None,
+    local_path: str | None = None,
+    **options,
+):
+    """Update an existing file in a branch.
+
+    Pass `content` for text, or `local_path` for a file on disk (binary or text).
+    local_path auto-reads and base64-encodes. Exactly one of the two is required.
+    """
+    resolved, extra = _resolve_file_content(content, local_path)
+    return _generated.repository_files_edit(
+        project_id=project_id,
+        file_path=file_path,
+        branch=branch,
+        content=resolved,
+        commit_message=commit_message,
+        **extra,
+        **options,
+    )
+
+
 @_op(gitlab_read)
 def repository_files_show(
     project_id: str | int,
@@ -671,57 +746,6 @@ def projects_fork(project_id: str | int, **options):
 # `files=` parameter. This works when the MCP server runs on the same
 # machine as the files (Claude Code, local dev). For remote MCP setups
 # (Claude Desktop), use curl or the GitLab web UI.
-
-@_op(gitlab_write)
-def repository_files_upload(
-    project_id: str | int,
-    file_path: str,
-    local_path: str,
-    branch: str,
-    commit_message: str,
-    **options,
-):
-    """Create or update a file in a repo from a LOCAL file path.
-
-    Reads the file from the local filesystem, base64-encodes it, and commits
-    via the repository files API. Works for both text and binary (PNG, PDF, etc.).
-    If the file already exists in the repo, updates it; otherwise creates it.
-    """
-    import base64
-
-    p = _Path(local_path).expanduser()
-    if not p.exists():
-        raise ValueError(f"File not found: {local_path}")
-    encoded = base64.b64encode(p.read_bytes()).decode("ascii")
-    client = get_client()
-    # Try edit first (update existing), fall back to create.
-    from .client import GitLabError
-
-    try:
-        return client.put(
-            f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}",
-            json={
-                "branch": branch,
-                "content": encoded,
-                "encoding": "base64",
-                "commit_message": commit_message,
-                **options,
-            },
-        )
-    except GitLabError as e:
-        if e.status == 400 and "does not exist" in str(e.body):
-            return client.post(
-                f"/projects/{_enc(project_id)}/repository/files/{_enc(file_path)}",
-                json={
-                    "branch": branch,
-                    "content": encoded,
-                    "encoding": "base64",
-                    "commit_message": commit_message,
-                    **options,
-                },
-            )
-        raise
-
 
 @_op(gitlab_write)
 def projects_upload_avatar(project_id: str | int, file_path: str):
