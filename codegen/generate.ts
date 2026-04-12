@@ -688,7 +688,7 @@ function emitFn(pm: ParsedMethod): Emitted | null {
   // Build the Python signature.
   const sigParams: string[] = [];
   for (const a of pathArgs) sigParams.push(`${a}: str | int`);
-  for (const bp of bodyParams) sigParams.push(`${bp.pyName}`);
+  for (const bp of bodyParams) sigParams.push(`${bp.pyName}: str | int`);
   sigParams.push("**options");
   const sig = `def ${fnSnake}(${sigParams.join(", ")}):`;
 
