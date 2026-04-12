@@ -21,12 +21,16 @@ _MAX_PAGINATE_PAGES = 50
 class GitLabError(Exception):
     """GitLab/Heptapod API error with full context."""
 
-    def __init__(self, status: int, method: str, path: str, body: Any):
+    def __init__(self, status: int, method: str, path: str, body: Any, *, hint: str = ""):
         self.status = status
         self.method = method
         self.path = path
         self.body = body
-        super().__init__(f"GitLab API {status} {method} {path}: {body}")
+        self.hint = hint
+        msg = f"GitLab API {status} {method} {path}: {body}"
+        if hint:
+            msg += hint
+        super().__init__(msg)
 
 
 class GitLabClient:
@@ -78,7 +82,25 @@ class GitLabClient:
                 body = r.json()
             except Exception:
                 body = r.text
-            raise GitLabError(status, method, path, body)
+            # Hint for a common pitfall: some GitLab endpoints declare
+            # `requires :id, type: Integer` and reject URL-encoded path-style
+            # project IDs like "group%2Fproject".
+            hint = ""
+            if status == 400:
+                err_str = str(body)
+                if "id is invalid" in err_str:
+                    hint = (
+                        " Hint: this endpoint may require a numeric project ID"
+                        " (integer). Try passing the project's numeric ID"
+                        " instead of the path-style 'group/project' form."
+                    )
+                elif "is missing" in err_str and "is empty" in err_str:
+                    hint = (
+                        " Hint: a required body field is missing. Check the"
+                        " operation's 'Body fields' in the help output and"
+                        " pass them as top-level params, not nested in 'options'."
+                    )
+            raise GitLabError(status, method, path, body, hint=hint)
         return r
 
     def _json(self, method: str, path: str, **kwargs):

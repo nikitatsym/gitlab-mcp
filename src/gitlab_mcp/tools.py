@@ -16,6 +16,7 @@ from urllib.parse import quote as _quote
 from . import _generated
 from ._generated import *  # noqa: F401,F403 — re-export all generated ops
 from ._generated_groups import DEFAULT_GROUPS
+from .annotations import ANNOTATIONS
 from .client import get_client
 from .prepare import (
     _categorize_branches,
@@ -365,6 +366,20 @@ def _register_generated() -> None:
 
 
 _register_generated()
+
+
+# ── Apply manual annotations to docstrings ─────────────────────────────────
+# Annotations override the codegen-emitted first line ("ClassName.method (VERB
+# path).") with a human-written description. This runs AFTER registration so
+# the docstring is visible in help output.
+import inspect as _inspect
+
+for _ann_name, _ann_doc in ANNOTATIONS.items():
+    _fn = getattr(_generated, _ann_name, None)
+    if _fn is not None and callable(_fn):
+        _fn.__doc__ = _ann_doc
+
+del _inspect
 
 
 # ── List-view overrides with brief=True default ────────────────────────────
