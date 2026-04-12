@@ -59,8 +59,9 @@ ANNOTATIONS: dict[str, str] = {
     # ── Files ───────────────────────────────────────────────────────────
     "repository_files_show": "Get a file's metadata + base64-encoded content. Pass ref (branch/tag/SHA) as opaque string.",
     "repository_files_show_raw": "Get a file's raw content as plain text.",
-    "repository_files_create": "Create a new file in a branch. Required: branch, content, commit_message.",
-    "repository_files_edit": "Update an existing file. Required: branch, content, commit_message.",
+    "repository_files_create": "Create a new file in a branch. Required: branch, content, commit_message. For binary: pass encoding='base64'. Or use RepositoryFilesUpload with a local file path.",
+    "repository_files_edit": "Update an existing file. Required: branch, content, commit_message. For binary: pass encoding='base64'. Or use RepositoryFilesUpload.",
+    "repository_files_upload": "Create or update a repo file from a LOCAL file path. Handles base64 encoding and create-vs-update automatically. Works for text and binary (PNG, PDF, etc.).",
     "repository_files_remove": "Delete a file from a branch. Required: branch, commit_message.",
     "repositories_all_repository_trees": "List the file/directory tree of a repository. Pass ref and path for filtering.",
     "repositories_compare": "Compare two refs (branches, tags, SHAs). Returns commits and diffs between from_ and to.",
