@@ -11,6 +11,7 @@ Layout:
 
 import re
 from importlib.metadata import version as _pkg_version
+from pathlib import Path as _Path
 from urllib.parse import quote as _quote
 
 from . import _generated
@@ -660,6 +661,47 @@ def projects_fork(project_id: str | int, **options):
             "See RESEARCH.md §11 (Other things that are limited or absent on Heptapod)."
         )
     return _generated.projects_fork(project_id=project_id, **options)
+
+
+# ── File upload overrides (multipart/form-data) ────────────────────────────
+#
+# MCP tools communicate via JSON — no binary file transfer. For endpoints
+# that require multipart upload (avatars, attachments), we accept a LOCAL
+# FILE PATH from the agent, read it server-side, and upload via httpx's
+# `files=` parameter. This works when the MCP server runs on the same
+# machine as the files (Claude Code, local dev). For remote MCP setups
+# (Claude Desktop), use curl or the GitLab web UI.
+
+@_op(gitlab_write)
+def projects_upload_avatar(project_id: str | int, file_path: str):
+    """Upload an avatar image for a project from a local file path.
+
+    Accepts PNG, JPG, or GIF. Max 200KB per GitLab defaults.
+    The file is read from the local filesystem and uploaded as multipart form data.
+    """
+    p = _Path(file_path).expanduser()
+    if not p.exists():
+        raise ValueError(f"File not found: {file_path}")
+    client = get_client()
+    files = {"avatar": (p.name, p.read_bytes(), "application/octet-stream")}
+    r = client._request("PUT", f"/projects/{_enc(project_id)}", files=files)
+    if r.status_code == 204 or not r.content:
+        return {"status": "ok"}
+    return r.json()
+
+
+@_op(gitlab_write)
+def groups_upload_avatar(group_id: str | int, file_path: str):
+    """Upload an avatar image for a group from a local file path."""
+    p = _Path(file_path).expanduser()
+    if not p.exists():
+        raise ValueError(f"File not found: {file_path}")
+    client = get_client()
+    files = {"avatar": (p.name, p.read_bytes(), "application/octet-stream")}
+    r = client._request("PUT", f"/groups/{_enc(group_id)}", files=files)
+    if r.status_code == 204 or not r.content:
+        return {"status": "ok"}
+    return r.json()
 
 
 # ── Visibility guards (default: private only) ─────────────────────────────
