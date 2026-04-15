@@ -24,7 +24,9 @@ export const EE_EXCLUDED_CLASSES: Set<string> = new Set([
   "RequirementsManagement",
   "PushRules",
   "GroupPushRules",
-  "MergeRequestApprovals",
+  // MergeRequestApprovals — approve/unapprove are CE but approval RULES are EE.
+  // Keep the class (approve/unapprove are useful), only skip rule-management
+  // methods via codegen if needed.
   "GroupMergeRequestApprovals",
   "ProtectedEnvironments",
   "ResourceProtectedEnvironments",

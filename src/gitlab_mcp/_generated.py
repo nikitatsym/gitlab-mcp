@@ -1946,6 +1946,58 @@ def markdown_render(**options):
     return _ok(_get_client().request("POST", f"/markdown", json=options))
 
 
+# ── MergeRequestApprovals ─────────────────────────────────────────────────
+
+def merge_request_approvals_all_approval_rules(project_id: str | int, **options):
+    """MergeRequestApprovals.allApprovalRules (GET projects/${projectId}/approval_rules)."""
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/approval_rules", params=options))
+
+
+def merge_request_approvals_approve(project_id: str | int, mergerequest_iid: str | int, **options):
+    """MergeRequestApprovals.approve (POST projects/${projectId}/merge_requests/${mergerequestIId}/approve)."""
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/approve", json=options))
+
+
+def merge_request_approvals_create_approval_rule(project_id: str | int, **options):
+    """MergeRequestApprovals.createApprovalRule (POST projects/${projectId}/approval_rules)."""
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/approval_rules", json=options))
+
+
+def merge_request_approvals_edit_approval_rule(project_id: str | int, approval_rule_id: str | int, **options):
+    """MergeRequestApprovals.editApprovalRule (PUT projects/${projectId}/approval_rules/${approvalRuleId})."""
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/approval_rules/{_enc(approval_rule_id)}", json=options))
+
+
+def merge_request_approvals_edit_configuration(project_id: str | int, **options):
+    """MergeRequestApprovals.editConfiguration (POST projects/${projectId}/approvals)."""
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/approvals", json=options))
+
+
+def merge_request_approvals_remove_approval_rule(project_id: str | int, approval_rule_id: str | int, **options):
+    """MergeRequestApprovals.removeApprovalRule (DELETE projects/${projectId}/approval_rules/${approvalRuleId})."""
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/approval_rules/{_enc(approval_rule_id)}", params=options))
+
+
+def merge_request_approvals_show_approval_rule(project_id: str | int, approval_rule_id: str | int, **options):
+    """MergeRequestApprovals.showApprovalRule (GET projects/${projectId}/approval_rules/${approvalRuleId})."""
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/approval_rules/{_enc(approval_rule_id)}", params=options))
+
+
+def merge_request_approvals_show_approval_state(project_id: str | int, mergerequest_iid: str | int, **options):
+    """MergeRequestApprovals.showApprovalState (GET projects/${projectId}/merge_requests/${mergerequestIId}/approval_state)."""
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/approval_state", params=options))
+
+
+def merge_request_approvals_show_configuration(project_id: str | int, **options):
+    """MergeRequestApprovals.showConfiguration (GET projects/${projectId}/approvals)."""
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/approvals", params=options))
+
+
+def merge_request_approvals_unapprove(project_id: str | int, mergerequest_iid: str | int, **options):
+    """MergeRequestApprovals.unapprove (POST projects/${projectId}/merge_requests/${mergerequestIId}/unapprove)."""
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/unapprove", json=options))
+
+
 # ── MergeRequestAwardEmojis ───────────────────────────────────────────────
 
 def merge_request_award_emojis_all(project_id: str | int, resource_iid: str | int, **options):
