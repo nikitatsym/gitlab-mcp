@@ -202,12 +202,29 @@ def _build_help(
     if search:
         s = search.lower()
         matched = {k: v for k, v in ops.items() if s in k.lower()}
+        elsewhere: dict[str, list[str]] = {}
+        for op_name, other_group in _all_grouped.items():
+            if other_group == group_name:
+                continue
+            if s in op_name.lower():
+                elsewhere.setdefault(other_group, []).append(op_name)
         if not matched:
-            return (
-                f"No ops in {group_name} matching {search!r}. "
-                f"Use operation='help' (no params) for the category index."
+            msg = f"No ops in {group_name} matching {search!r}."
+            if elsewhere:
+                msg += " Found in other groups: " + "; ".join(
+                    f"{g}: {', '.join(sorted(names))}"
+                    for g, names in sorted(elsewhere.items())
+                )
+            else:
+                msg += " Use operation='help' (no params) for the category index."
+            return msg
+        out = _format_help_full(matched, group_name, f"matching {search!r}")
+        if elsewhere:
+            out += "\n\nAlso matching in other groups: " + "; ".join(
+                f"{g}: {', '.join(sorted(names))}"
+                for g, names in sorted(elsewhere.items())
             )
-        return _format_help_full(matched, group_name, f"matching {search!r}")
+        return out
 
     if category:
         matched = {
