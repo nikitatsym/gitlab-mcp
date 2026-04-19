@@ -1,14 +1,9 @@
-name: Build & Publish
+name: CI
 
 on:
-  workflow_dispatch:
+  pull_request:
   push:
     branches: [main]
-    paths:
-      - "src/**"
-      - "pyproject.toml"
-      - ".github/workflows/build.yml"
-      - "docs/**"
 
 permissions:
   contents: write
@@ -20,7 +15,55 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install
+        run: uv sync
+      - name: Lint (ruff)
+        run: |
+          uv tool install ruff
+          uv tool run ruff check src/ tests/ scripts/
+      - name: Unit tests
+        run: uv run pytest tests/ -m 'not integration' -v
+
+  codegen-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install codegen deps
+        working-directory: codegen
+        run: npm ci
+      - name: Drift check
+        working-directory: codegen
+        run: npx tsx generate.ts --check
+
+  integration-gitlab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install
+        run: uv sync
+      - name: Start GitLab
+        run: docker compose -f tests/docker-compose.yml up -d gitlab
+      - name: Bootstrap PAT
+        run: uv run python scripts/bootstrap.py gitlab
+      - name: Integration tests
+        run: uv run pytest -m integration tests/test_integration_gitlab.py -v
+      - name: Tear down
+        if: always()
+        run: docker compose -f tests/docker-compose.yml down -v
+
+  release:
+    needs: [unit, codegen-drift, integration-gitlab]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,11 +85,6 @@ jobs:
             PATCH=$((PATCH + 1))
             echo "version=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
           fi
-
-      - name: Run unit tests
-        run: |
-          uv sync
-          uv run pytest tests/ -m 'not integration'
 
       - name: Build wheel
         run: |
@@ -71,7 +109,6 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           PKG="gitlab-mcp"
-          # gh release create returns before the API reflects the new asset — poll until it appears
           for i in 1 2 3 4 5; do
             gh api repos/${{ github.repository }}/releases --paginate \
               -q '.[].assets[].browser_download_url' | grep -q "${VERSION}" && break
@@ -87,7 +124,6 @@ jobs:
             done
             echo "</body></html>"
           } > _site/simple/${PKG}/index.html
-          # Root /simple/ index listing the package
           {
             echo "<!DOCTYPE html><html><body>"
             echo "<a href=\"${PKG}/\">${PKG}</a>"
