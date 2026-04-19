@@ -134,6 +134,32 @@ class TestCoerceCall:
         # Valid call still works
         assert _coerce_call(fn, {"mode": "a", "extra": 1}) == ("a", {"extra": 1})
 
+    def test_rejects_dict_nested_under_var_keyword_name(self):
+        """LLMs sometimes pass body fields wrapped under 'options': reject loudly."""
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(project_id: str, **options):
+            """Test."""
+            return (project_id, options)
+
+        with pytest.raises(ValueError, match="Do not nest body fields under 'options'"):
+            _coerce_call(fn, {
+                "project_id": "p",
+                "options": {"description": "text"},
+            })
+
+    def test_scalar_value_for_var_keyword_name_passes_through(self):
+        """Only dict-valued 'options' is the footgun; scalar 'options' is fine."""
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(project_id: str, **options):
+            """Test."""
+            return (project_id, options)
+
+        # e.g. a literal field named 'options' that's a string — not our concern
+        result = _coerce_call(fn, {"project_id": "p", "options": "some-string"})
+        assert result == ("p", {"options": "some-string"})
+
 
 # ── _register_tools filter ────────────────────────────────────────────────
 

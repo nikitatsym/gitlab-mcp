@@ -26,8 +26,8 @@ ANNOTATIONS: dict[str, str] = {
     # ── Merge Requests ──────────────────────────────────────────────────
     "merge_requests_all": "List merge requests. Pass project_id for project-scoped, group_id for group, or neither for global (current user).",
     "merge_requests_show": "Get full details of a single merge request by project_id and mergerequest_iid.",
-    "merge_requests_create": "Create a merge request. On Heptapod hg projects, target_branch must start with 'branch/'.",
-    "merge_requests_edit": "Update a merge request (title, description, labels, assignees, state_event, etc.).",
+    "merge_requests_create": "Create a merge request. Required: project_id, source_branch, target_branch, title. Optional body fields (pass as top-level params): description, assignee_id, assignee_ids, reviewer_ids, labels, milestone_id, remove_source_branch, squash, target_project_id. On Heptapod hg projects target_branch must start with 'branch/'.",
+    "merge_requests_edit": "Update a merge request. Optional body fields (pass as top-level params, not nested): title, description, labels, add_labels, remove_labels, assignee_id, assignee_ids, reviewer_ids, milestone_id, target_branch, state_event ('close'/'reopen'), remove_source_branch, squash, discussion_locked.",
     "merge_requests_merge": "Merge the merge request. Only works if it's mergeable (no conflicts, pipeline passed).",
     "merge_requests_accept": "Accept (merge) the merge request. Alias for merge.",
     "merge_requests_rebase": "Rebase the source branch onto the target. Returns rebase status.",
@@ -41,8 +41,8 @@ ANNOTATIONS: dict[str, str] = {
     # ── Issues ──────────────────────────────────────────────────────────
     "issues_all": "List issues. Pass project_id for project-scoped, group_id for group, or neither for global (current user).",
     "issues_show": "Get full details of a single issue by global issue_id.",
-    "issues_create": "Create a new issue in a project. Required: project_id, title.",
-    "issues_edit": "Update an issue (title, description, labels, state_event='close'/'reopen', etc.).",
+    "issues_create": "Create a new issue. Required: project_id, title. Optional body fields (pass as top-level params): description, assignee_ids, confidential, labels, milestone_id, due_date, issue_type ('issue'/'incident'/'test_case'/'task'), weight, discussion_to_resolve, merge_request_to_resolve_discussions_of.",
+    "issues_edit": "Update an issue. Optional body fields (pass as top-level params, not nested): title, description, labels, add_labels, remove_labels, assignee_ids, milestone_id, state_event ('close'/'reopen'), due_date, confidential, discussion_locked, issue_type, weight.",
 
     # ── Branches / Tags / Commits ───────────────────────────────────────
     "branches_all": "List branches. Returns {branches, categories} where categories counts git/hg_named/hg_topic.",

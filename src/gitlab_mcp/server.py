@@ -75,13 +75,32 @@ def _coerce_call(fn, params: dict):
     sig = inspect.signature(fn)
     hints = typing.get_type_hints(fn)
 
-    has_var_keyword = any(
-        p.kind is inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
-    )
+    var_keyword_name: str | None = None
+    for p in sig.parameters.values():
+        if p.kind is inspect.Parameter.VAR_KEYWORD:
+            var_keyword_name = p.name
+            break
+    has_var_keyword = var_keyword_name is not None
     named_params = {
         n: p for n, p in sig.parameters.items()
         if p.kind is not inspect.Parameter.VAR_KEYWORD
     }
+
+    # Reject the common mistake of wrapping extra body fields under the
+    # var-keyword name (e.g. options={"description": "..."}). Those are
+    # meant to be passed flat as top-level params.
+    if (
+        has_var_keyword
+        and var_keyword_name in params
+        and isinstance(params[var_keyword_name], dict)
+    ):
+        raise ValueError(
+            f"Do not nest body fields under {var_keyword_name!r}. "
+            f"Pass additional body fields as top-level params instead "
+            f"(e.g. description='text', labels='bug,ux'), "
+            f"not {var_keyword_name}={{'description':'text'}}. "
+            f"See this op's docstring for the supported body fields."
+        )
 
     if not has_var_keyword:
         unknown = set(params.keys()) - set(named_params.keys())
@@ -220,11 +239,24 @@ def _build_help(
 
 def _format_help_full(ops: dict, group_name: str, scope_desc: str) -> str:
     """Render a full signature listing for a filtered set of ops."""
-    lines = [f"{len(ops)} operations in {group_name} {scope_desc}:"]
+    lines = [
+        f"{len(ops)} operations in {group_name} {scope_desc}:",
+        "",
+        "NOTE: `**options` in a signature means the op accepts additional "
+        "body fields (e.g. description, labels, assignee_ids). Pass them as "
+        "TOP-LEVEL params; do NOT nest them under an 'options' key.",
+        "",
+    ]
     for pascal_name in sorted(ops):
         fn = ops[pascal_name]
         sig = inspect.signature(fn)
-        params = ", ".join(sig.parameters.keys())
+        parts = []
+        for name, p in sig.parameters.items():
+            if p.kind is inspect.Parameter.VAR_KEYWORD:
+                parts.append(f"**{name}")
+            else:
+                parts.append(name)
+        params = ", ".join(parts)
         doc = (fn.__doc__ or "").split("\n")[0]
         lines.append(f"  {pascal_name}({params}) — {doc}")
     return "\n".join(lines)
