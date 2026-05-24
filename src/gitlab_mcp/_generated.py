@@ -277,10 +277,10 @@ def branches_all(project_id: str | int, search: str = _UNSET, regex: str = _UNSE
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/branches", params=payload))
 
 
-def branches_create(project_id: str | int, branch_name: str, ref: str, sudo: str | int = _UNSET):
-    """Branches.create (POST projects/${projectId}/repository/branches). Body fields: branch_name, ref, sudo."""
+def branches_create(project_id: str | int, branch: str, ref: str, sudo: str | int = _UNSET):
+    """Branches.create (POST projects/${projectId}/repository/branches). Body fields: branch, ref, sudo."""
     payload: dict = {}
-    payload["branch_name"] = branch_name
+    payload["branch"] = branch
     payload["ref"] = ref
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -568,11 +568,11 @@ def commits_cherry_pick(project_id: str | int, sha: str | int, branch: str, dry_
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(sha)}/cherry_pick", json=payload))
 
 
-def commits_create(project_id: str | int, branch: str, message: str, actions: list[dict], start_branch: str = _UNSET, start_sha: str = _UNSET, start_project: str | int = _UNSET, author_email: str = _UNSET, author_name: str = _UNSET, stats: bool = _UNSET, force: bool = _UNSET, sudo: str | int = _UNSET):
-    """Commits.create (POST projects/${projectId}/repository/commits). Body fields: branch, message, actions, start_branch, start_sha, start_project, author_email, author_name, stats, force, sudo."""
+def commits_create(project_id: str | int, branch: str, commit_message: str, actions: list[dict], start_branch: str = _UNSET, start_sha: str = _UNSET, start_project: str | int = _UNSET, author_email: str = _UNSET, author_name: str = _UNSET, stats: bool = _UNSET, force: bool = _UNSET, sudo: str | int = _UNSET):
+    """Commits.create (POST projects/${projectId}/repository/commits). Body fields: branch, commit_message, actions, start_branch, start_sha, start_project, author_email, author_name, stats, force, sudo."""
     payload: dict = {}
     payload["branch"] = branch
-    payload["message"] = message
+    payload["commit_message"] = commit_message
     payload["actions"] = actions
     if start_branch is not _UNSET:
         payload["start_branch"] = start_branch
@@ -1273,10 +1273,10 @@ def feature_flags_all(project_id: str | int, scope: Literal["enabled", "disabled
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/feature_flags", params=payload))
 
 
-def feature_flags_create(project_id: str | int, flag_name: str, version: str, description: str = _UNSET, active: bool = _UNSET, strategies: dict = _UNSET, sudo: str | int = _UNSET):
-    """FeatureFlags.create (POST projects/${projectId}/feature_flags). Body fields: flag_name, version, description, active, strategies, sudo."""
+def feature_flags_create(project_id: str | int, name: str, version: str, description: str = _UNSET, active: bool = _UNSET, strategies: dict = _UNSET, sudo: str | int = _UNSET):
+    """FeatureFlags.create (POST projects/${projectId}/feature_flags). Body fields: name, version, description, active, strategies, sudo."""
     payload: dict = {}
-    payload["flag_name"] = flag_name
+    payload["name"] = name
     payload["version"] = version
     if description is not _UNSET:
         payload["description"] = description
@@ -2486,10 +2486,9 @@ def groups_search(name_or_path: str, sudo: str | int = _UNSET):
     return _ok(_get_client().request("GET", f"/groups", params=payload))
 
 
-def groups_share(group_id: str | int, shared_group_id: str | int, group_access: int, expires_at: str = _UNSET, sudo: str | int = _UNSET):
-    """Groups.share (POST groups/${groupId}/share). Body fields: shared_group_id, group_access, expires_at, sudo."""
+def groups_share(group_id: str | int, group_access: int, expires_at: str = _UNSET, sudo: str | int = _UNSET):
+    """Groups.share (POST groups/${groupId}/share). Body fields: group_access, expires_at, sudo."""
     payload: dict = {}
-    payload["shared_group_id"] = shared_group_id
     payload["group_access"] = group_access
     if expires_at is not _UNSET:
         payload["expires_at"] = expires_at
@@ -3151,10 +3150,10 @@ def issues_all_related_merge_requests(project_id: str | int, issue_iid: str | in
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/related_merge_requests", params=payload))
 
 
-def issues_clone(project_id: str | int, issue_iid: str | int, destination_project_id: str | int, with_notes: bool = _UNSET, sudo: str | int = _UNSET):
-    """Issues.clone (POST projects/${projectId}/issues/${issueIId}/clone). Body fields: destination_project_id, with_notes, sudo."""
+def issues_clone(project_id: str | int, issue_iid: str | int, to_project_id: str | int, with_notes: bool = _UNSET, sudo: str | int = _UNSET):
+    """Issues.clone (POST projects/${projectId}/issues/${issueIId}/clone). Body fields: to_project_id, with_notes, sudo."""
     payload: dict = {}
-    payload["destination_project_id"] = destination_project_id
+    payload["to_project_id"] = to_project_id
     if with_notes is not _UNSET:
         payload["with_notes"] = with_notes
     if sudo is not _UNSET:
@@ -3263,10 +3262,10 @@ def issues_edit_metric_image(project_id: str | int, issue_iid: str | int, image_
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/metric_images/{_enc(image_id)}", json=payload))
 
 
-def issues_move(project_id: str | int, issue_iid: str | int, destination_project_id: str | int, sudo: str | int = _UNSET):
-    """Issues.move (POST projects/${projectId}/issues/${issueIId}/move). Body fields: destination_project_id, sudo."""
+def issues_move(project_id: str | int, issue_iid: str | int, to_project_id: str | int, sudo: str | int = _UNSET):
+    """Issues.move (POST projects/${projectId}/issues/${issueIId}/move). Body fields: to_project_id, sudo."""
     payload: dict = {}
-    payload["destination_project_id"] = destination_project_id
+    payload["to_project_id"] = to_project_id
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/move", json=payload))
@@ -5545,10 +5544,10 @@ def project_import_exports_import_remote_s3(access_key_id: str, bucket_name: str
     return _ok(_get_client().request("POST", f"/projects/remote-import", json=payload))
 
 
-def project_import_exports_schedule_export(project_id: str | int, upload_config: dict, description: str = _UNSET, sudo: str | int = _UNSET):
-    """ProjectImportExports.scheduleExport (POST projects/${projectId}/export). Body fields: upload_config, description, sudo."""
+def project_import_exports_schedule_export(project_id: str | int, upload: dict, description: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectImportExports.scheduleExport (POST projects/${projectId}/export). Body fields: upload, description, sudo."""
     payload: dict = {}
-    payload["upload_config"] = upload_config
+    payload["upload"] = upload
     if description is not _UNSET:
         payload["description"] = description
     if sudo is not _UNSET:
@@ -6708,10 +6707,10 @@ def projects_star(project_id: str | int, sudo: str | int = _UNSET):
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/star", json=payload))
 
 
-def projects_transfer(project_id: str | int, namespace_id: str | int, sudo: str | int = _UNSET):
-    """Projects.transfer (PUT projects/${projectId}/transfer). Body fields: namespace_id, sudo."""
+def projects_transfer(project_id: str | int, namespace: str | int, sudo: str | int = _UNSET):
+    """Projects.transfer (PUT projects/${projectId}/transfer). Body fields: namespace, sudo."""
     payload: dict = {}
-    payload["namespace_id"] = namespace_id
+    payload["namespace"] = namespace
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/transfer", json=payload))
