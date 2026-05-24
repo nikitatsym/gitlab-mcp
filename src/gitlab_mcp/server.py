@@ -101,6 +101,28 @@ def _build_params_model(fn) -> type[BaseModel]:
     )
 
 
+def _format_validation_error(err: ValidationError, fn) -> str:
+    """Pydantic ValidationError → readable multi-line message.
+
+    Falls back to deriving the op name from the function name so callers of
+    `_coerce_call` that don't know the PascalCase op (tests, direct dispatch)
+    still get a sensible hint pointing at `operation='schema'`.
+    """
+    op_name = _to_pascal(fn.__name__)
+    lines = [f"Invalid params for {op_name}:"]
+    for e in err.errors():
+        loc = ".".join(str(x) for x in e["loc"]) or "<root>"
+        msg = e["msg"]
+        got = repr(e.get("input"))
+        if len(got) > 80:
+            got = got[:77] + "..."
+        lines.append(f"  - {loc}: {msg} (got {got})")
+    lines.append(
+        f"Call operation='schema', params={{'op': {op_name!r}}} for full parameter spec."
+    )
+    return "\n".join(lines)
+
+
 def _coerce_call(fn, params: dict, ctx: Context | None = None):
     """Validate `params` via the cached Pydantic model and invoke `fn`.
 
@@ -133,7 +155,7 @@ def _coerce_call(fn, params: dict, ctx: Context | None = None):
     try:
         validated = model.model_validate(params)
     except ValidationError as e:
-        raise ValueError(str(e)) from None
+        raise ValueError(_format_validation_error(e, fn)) from None
     kwargs = validated.model_dump(exclude_unset=True)
     if validated.model_extra:
         kwargs.update(validated.model_extra)
@@ -339,8 +361,12 @@ def _format_help_full(ops: dict, group_name: str, scope_desc: str) -> str:
                     if desc:
                         descs.append((name, desc))
         params = ", ".join(parts)
-        doc = (fn.__doc__ or "").split("\n")[0]
-        lines.append(f"  {pascal_name}({params}) — {doc}")
+        doc = inspect.getdoc(fn) or ""
+        head, _, body = doc.partition("\n\n")
+        head = " ".join(head.split())  # collapse any wrapping in the head line
+        lines.append(f"  {pascal_name}({params}) — {head}")
+        for body_line in body.rstrip().splitlines():
+            lines.append(f"      {body_line}" if body_line else "")
         for name, desc in descs:
             lines.append(f"      {name}: {desc}")
     return "\n".join(lines)
@@ -359,14 +385,14 @@ def _dispatch(operation: str, group_name: str, params: dict, ctx: Context | None
     if operation not in ops:
         if operation in _all_grouped:
             correct = _all_grouped[operation]
-            return {
-                "error": f"{operation} belongs to {correct}. "
-                         f"Use {correct}() instead."
-            }
-        return {
-            "error": f"Unknown operation: {operation}. "
-                     "Use operation=\"help\" to list available operations."
-        }
+            raise ValueError(
+                f"{operation!r} belongs to {correct!r}, not {group_name!r}. "
+                f"Call {correct}(operation={operation!r}, ...) instead."
+            )
+        raise ValueError(
+            f"Unknown operation {operation!r} in {group_name!r}. "
+            "Use operation='help' to list available operations."
+        )
 
     fn = ops[operation]
     return _coerce_call(fn, params, ctx)
