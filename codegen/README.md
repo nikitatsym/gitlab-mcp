@@ -1,11 +1,95 @@
 # gitlab-mcp codegen
 
 Walks `@gitbeaker/core`'s implementation file (`node_modules/@gitbeaker/core/dist/index.js`)
-and emits Python wrappers under `src/gitlab_mcp/_generated.py` plus a default
-group assignment map under `src/gitlab_mcp/_generated_groups.py`.
+plus the type declarations (`dist/index.d.ts`, via the TypeScript Compiler API
+in `typeResolver.ts`) and emits Python wrappers under `src/gitlab_mcp/_generated.py`
+plus a default group assignment map under `src/gitlab_mcp/_generated_groups.py`.
 
 `@gitbeaker/rest` is the canonical TypeScript GitLab client; we use it as the
 source of truth instead of GitLab's incomplete OpenAPI spec.
+
+## Typed body params
+
+Each method's `options` parameter is resolved through the TS Compiler API and
+expanded into typed, flat Python params on the generated wrapper. Example:
+
+```python
+def issues_create(
+    project_id: str | int,
+    title: str,
+    assignee_id: int = _UNSET,
+    labels: str = _UNSET,
+    confidential: bool = _UNSET,
+    due_date: str = _UNSET,
+    weight: int = _UNSET,
+    ...
+):
+```
+
+Mapping (TS → Python):
+
+| TS                       | Python                          |
+|--------------------------|---------------------------------|
+| `string`                 | `str`                           |
+| `number`                 | `int`                           |
+| `boolean`                | `bool`                          |
+| `'a' \| 'b'`             | `Literal["a", "b"]`             |
+| `string[]` / `number[]`  | `list[str]` / `list[int]`       |
+| `Date`                   | `str` (ISO)                     |
+| nested `{...}`           | `dict`                          |
+| `unknown` / `any`        | `Any`                           |
+| `[key: string]: any`     | sentinel → emit `**options`     |
+
+### Optional vs nullable
+
+Codegen distinguishes three TS shapes per spec ([[mcp-server-v2.md]]):
+
+- `foo: T`        — required.
+- `foo?: T`       — **optional** (caller may omit). Emitted as `foo: T = _UNSET`.
+- `foo: T | null` — **nullable** (caller MUST pass; may pass `null`). Emitted as `foo: T | None`.
+- `foo?: T | null`— **both**.
+
+The `_UNSET` sentinel lives in `src/gitlab_mcp/registry.py`. Payload construction
+checks `is not _UNSET` so explicit `None` lands as JSON `null` on the wire
+(e.g. `assignee_id=null` to un-assign), while omitted params don't appear in
+the request body.
+
+### `**options` fallback
+
+When TS resolution can't pin down the options type (complex generics, missing
+declaration), codegen falls back to the legacy `str | int` + `**options`
+shape so callers can still forward arbitrary fields. Methods whose options
+type has an index signature (`[key: string]: any`) keep `**options` too.
+
+### Conditional dispatch
+
+Some gitbeaker methods pick a URL based on which option is set
+(`DeployKeys.all` → `/projects/{id}/deploy_keys` vs
+`/users/{id}/project_deploy_keys` vs `/deploy_keys`). The JS parser detects
+the `let url; if (sel1) ... else if (sel2) ... else ...; return ...(this, url, …)`
+pattern and emits a Python dispatch chain typed on the selector vars:
+
+```python
+def deploy_keys_all(
+    project_id: str | int = _UNSET,
+    user_id: str | int = _UNSET,
+    **options,
+):
+    payload = {**options}
+    if project_id is not _UNSET:
+        return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/deploy_keys", params=payload))
+    if user_id is not _UNSET:
+        return _ok(_get_client().request("GET", f"/users/{_enc(user_id)}/project_deploy_keys", params=payload))
+    return _ok(_get_client().request("GET", f"/deploy_keys", params=payload))
+```
+
+Selector vars are typed but optional; pass exactly one to pick a URL, omit
+all to hit the unconditional fallback. Methods without a `else` branch
+raise `ValueError` if no selector matches.
+
+`sudo` (a real GitLab API param) stays as a typed optional; only the
+gitbeaker-internal middleware (`showExpanded`, `asAdmin`, `asStream`,
+`isForm`) is filtered out at the codegen layer.
 
 ## Regenerating
 
@@ -47,7 +131,7 @@ The parser walks gitbeaker's class definitions and tries five patterns in order:
 
 1. **`endpoint\`...\``** — the most common form, used by ~85% of methods.
 2. **Plain template literal** with method-arg interpolation: `` \`broadcast_messages/${id}\` ``.
-3. **Variable form** — `let uri; if (...) uri = ...; else uri = ...; return RequestHelper.get()(this, uri, ...)`. Traces the variable to its last assignment (the fallback branch). Handles ternary `const url = cond ? A : B` too.
+3. **Variable form** — `let uri; if (...) uri = ...; else uri = ...; return RequestHelper.get()(this, uri, ...)`. Traces the variable to its last assignment (the fallback branch). Handles ternary `const url = cond ? A : B` too. When the same variable has 2+ distinct URL assignments, the method is also flagged as **conditional-path**: codegen emits a Python dispatch chain typed on the selector vars (see "Conditional dispatch" below).
 4. **Inline template with leading local var** — `` \`${prefix}rest_of_path\` ``. Strips the leading var, uses the trailing literal.
 5. **`url4` / `url5` helpers** — gitbeaker's award-emoji URL builders. Special-cased because they take `(resourceId, this.resourceTypeN, resourceId2, [awardId])` and produce a fixed shape.
 6. **Delegations** — `return this.create(args)` aliases. Resolved post-pass into Python aliases that call the target snake-name function.
@@ -81,12 +165,27 @@ After exclusions and parser misses, ~10 truly missing operations remain, all rep
 
 ```
 Classes found:     154
-Classes excluded:  21 (EE/packages)
-Methods total:     717
-Methods parsed:    ~903 (includes 210 expansions, 9 delegation aliases)
-Methods skipped:   ~19  (helper-resolved URLs, hand-written in tools.py)
-Emitted ops:       ~793
-  gitlab_read:    ~379
-  gitlab_write:   ~301
-  gitlab_delete:  ~113
+Classes excluded:  20 (EE/packages/mixins)
+Methods total:     727
+Methods parsed:    913 (includes 230 expansions, 9 delegation aliases)
+Methods skipped:   19  (helper-resolved URLs, hand-written in tools.py)
+Emitted ops:       803
+  gitlab_read:    383
+  gitlab_write:   306
+  gitlab_delete:  114
+
+Methods with typed body params:    520
+Methods kept **options (index sig): 14
+Type-resolution fallback:          234
+Conditional-path dispatch:         26
 ```
+
+The fallback bucket should shrink over time as gitbeaker tightens its types.
+Watch it after bumping `@gitbeaker/core` — a sudden jump means the new
+declarations leak into shapes our resolver doesn't handle yet.
+
+The conditional-path bucket covers methods like `DeployKeys.all` and
+`Search.all` where gitbeaker picks a URL based on which option is set
+(e.g. projectId vs groupId). Codegen parses the if/else chain and emits a
+Python dispatch chain so the selector fields hit the right path — they're
+typed optional params, not query strings on a wrong URL.

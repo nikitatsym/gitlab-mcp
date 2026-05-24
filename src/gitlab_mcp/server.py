@@ -9,13 +9,23 @@ Adapted from komodo-mcp's server.py with two extensions:
 """
 
 import inspect
+import types as _types
 import typing
+from typing import Annotated, Any
 
 from mcp.server.fastmcp import FastMCP
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    create_model,
+    field_validator,
+)
 
 from . import tools as _tools_module
 from .client import get_client
-from .registry import ROOT
+from .registry import ROOT, _UNSET, _Unset
 
 mcp = FastMCP("gitlab")
 
@@ -28,107 +38,93 @@ def _to_pascal(name: str) -> str:
     return "".join(w.capitalize() for w in name.split("_"))
 
 
-def _parse_bool(val, default: bool) -> bool:
-    if val is None:
-        return default
-    if isinstance(val, bool):
-        return val
-    if isinstance(val, str):
-        return val.lower() in ("1", "true", "yes")
-    return bool(val)
+def _build_params_model(fn) -> type[BaseModel]:
+    """Build a Pydantic model that validates the params for one tool function.
 
-
-def _is_bool_hint(hint) -> bool:
-    """Check if a type hint is bool or Optional[bool]."""
-    if hint is bool:
-        return True
-    args = typing.get_args(hint)
-    return bool in args if args else False
-
-
-def _get_literal_values(hint) -> tuple | None:
-    """Extract Literal values from a type hint.
-
-    Handles direct Literal[...] and union-wrapped variants like
-    Optional[Literal[...]] / Literal[...] | None.
+    - Required signature args → required fields.
+    - Args defaulting to `_UNSET` → optional via `default_factory` (Pydantic v2
+      omits `default` from JSON schema in this case, so introspection doesn't
+      lie about field defaults).
+    - Other defaults are reused as-is.
+    - `**kwargs` in the signature → `extra='allow'`; otherwise `extra='forbid'`.
+    - Loose string→bool coercion ("True"/"yes"/"0") preserved via a
+      before-validator on every field.
     """
-    if hint is None:
-        return None
-    if typing.get_origin(hint) is typing.Literal:
-        return typing.get_args(hint)
-    for arg in typing.get_args(hint):
-        if typing.get_origin(arg) is typing.Literal:
-            return typing.get_args(arg)
-    return None
+    hints = typing.get_type_hints(fn, include_extras=True)
+    sig = inspect.signature(fn)
+    fields: dict[str, tuple] = {}
+    has_var_keyword = False
+    for name, p in sig.parameters.items():
+        if p.kind is inspect.Parameter.VAR_KEYWORD:
+            has_var_keyword = True
+            continue
+        ann = hints.get(name, Any)
+        if p.default is inspect.Parameter.empty:
+            field_spec: Any = ...
+        elif isinstance(p.default, _Unset):
+            field_spec = Field(default_factory=lambda: _UNSET)
+        else:
+            field_spec = p.default
+        fields[name] = (ann, field_spec)
+    extra = "allow" if has_var_keyword else "forbid"
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def _coerce_string_bool(cls, v, info):
+        if not isinstance(v, str):
+            return v
+        ann = cls.model_fields[info.field_name].annotation
+        types_in_ann = (ann,) + typing.get_args(ann)
+        if bool not in types_in_ann:
+            return v
+        lower = v.lower()
+        if lower in ("true", "1", "yes"):
+            return True
+        if lower in ("false", "0", "no"):
+            return False
+        return v
+
+    return create_model(
+        f"{_to_pascal(fn.__name__)}Params",
+        __config__=ConfigDict(extra=extra, arbitrary_types_allowed=True),
+        __validators__={"_coerce_string_bool": _coerce_string_bool},
+        **fields,
+    )
 
 
 def _coerce_call(fn, params: dict):
-    """Validate and coerce JSON-parsed params to match function signature.
+    """Validate `params` via the cached Pydantic model and invoke `fn`.
 
-    Raises ValueError on:
-      - Unknown parameter names (unless the function declares **kwargs,
-        in which case unknown params are passed through as keyword args)
-      - Invalid values for Literal[...] params
-    Coerces:
-      - Strings to bool for bool-typed params ("true"/"yes"/"1" → True).
+    - Caller-omitted fields (sentinel `_UNSET` defaults) are filtered via
+      `exclude_unset=True` so the function still sees its own default.
+    - Extras land in `model_extra` and are forwarded as **kwargs.
+    - Pre-flight check still rejects body-fields-nested-under-`**options`
+      with a friendly hint (Pydantic's "extra not permitted" error wouldn't
+      flag this since the var-keyword name IS a valid key).
     """
-    sig = inspect.signature(fn)
-    hints = typing.get_type_hints(fn)
-
-    var_keyword_name: str | None = None
-    for p in sig.parameters.values():
-        if p.kind is inspect.Parameter.VAR_KEYWORD:
-            var_keyword_name = p.name
-            break
-    has_var_keyword = var_keyword_name is not None
-    named_params = {
-        n: p for n, p in sig.parameters.items()
-        if p.kind is not inspect.Parameter.VAR_KEYWORD
-    }
-
-    # Reject the common mistake of wrapping extra body fields under the
-    # var-keyword name (e.g. options={"description": "..."}). Those are
-    # meant to be passed flat as top-level params.
-    if (
-        has_var_keyword
-        and var_keyword_name in params
-        and isinstance(params[var_keyword_name], dict)
-    ):
+    sig_params = inspect.signature(fn).parameters
+    var_kw = next(
+        (p.name for p in sig_params.values()
+         if p.kind is inspect.Parameter.VAR_KEYWORD),
+        None,
+    )
+    if var_kw and var_kw in params and isinstance(params[var_kw], dict):
         raise ValueError(
-            f"Do not nest body fields under {var_keyword_name!r}. "
+            f"Do not nest body fields under {var_kw!r}. "
             f"Pass additional body fields as top-level params instead "
             f"(e.g. description='text', labels='bug,ux'), "
-            f"not {var_keyword_name}={{'description':'text'}}. "
+            f"not {var_kw}={{'description':'text'}}. "
             f"See this op's docstring for the supported body fields."
         )
 
-    if not has_var_keyword:
-        unknown = set(params.keys()) - set(named_params.keys())
-        if unknown:
-            valid = sorted(named_params.keys())
-            raise ValueError(
-                f"Unknown parameters: {sorted(unknown)}. Valid: {valid}"
-            )
-
-    kwargs = {}
-    for key, val in params.items():
-        param = named_params.get(key)
-        hint = hints.get(key) if param is not None else None
-
-        if param is not None and hint and _is_bool_hint(hint) and not isinstance(val, bool):
-            default = param.default
-            if default is inspect.Parameter.empty or default is None:
-                default = False
-            val = _parse_bool(val, default)
-
-        if param is not None:
-            lit_vals = _get_literal_values(hint)
-            if lit_vals is not None and val is not None and val not in lit_vals:
-                raise ValueError(
-                    f"Invalid value {val!r} for {key}. Accepted: {list(lit_vals)}"
-                )
-
-        kwargs[key] = val
+    model = getattr(fn, "_mcp_params_model", None) or _build_params_model(fn)
+    try:
+        validated = model.model_validate(params)
+    except ValidationError as e:
+        raise ValueError(str(e)) from None
+    kwargs = validated.model_dump(exclude_unset=True)
+    if validated.model_extra:
+        kwargs.update(validated.model_extra)
     return fn(**kwargs)
 
 
@@ -254,8 +250,43 @@ def _build_help(
     return "\n".join(lines)
 
 
+def _render_type(hint) -> str:
+    """Render a type hint for help display.
+
+    - Strips Annotated wrappers.
+    - Formats Literal as 'a|b|c' (no quotes for str literals).
+    - Unions render as 'T | None', list[T] / dict canonical.
+    """
+    if hint is None or hint is type(None):
+        return "None"
+    if typing.get_origin(hint) is Annotated:
+        hint = typing.get_args(hint)[0]
+    origin = typing.get_origin(hint)
+    args = typing.get_args(hint)
+    if origin in (typing.Union, _types.UnionType):
+        return " | ".join(_render_type(a) for a in args)
+    if origin is typing.Literal:
+        return "|".join(a if isinstance(a, str) else repr(a) for a in args)
+    if origin in (list, tuple, set):
+        inner = ", ".join(_render_type(a) for a in args) or "Any"
+        return f"{origin.__name__}[{inner}]"
+    if origin is dict:
+        return "dict"
+    return getattr(hint, "__name__", repr(hint))
+
+
 def _format_help_full(ops: dict, group_name: str, scope_desc: str) -> str:
-    """Render a full signature listing for a filtered set of ops."""
+    """Render a full signature listing for a filtered set of ops.
+
+    Signature conventions:
+      - `name: T`        — required.
+      - `name?: T`       — optional (caller may omit). Signalled by _UNSET default.
+      - `name: T | None` — nullable (caller MUST pass; may pass null).
+      - `name?: T | None`— both.
+
+    Per-param descriptions from PARAM_ANNOTATIONS render as indented bullets
+    under the signature.
+    """
     lines = [
         f"{len(ops)} operations in {group_name} {scope_desc}:",
         "",
@@ -267,15 +298,35 @@ def _format_help_full(ops: dict, group_name: str, scope_desc: str) -> str:
     for pascal_name in sorted(ops):
         fn = ops[pascal_name]
         sig = inspect.signature(fn)
-        parts = []
+        hints = getattr(fn, "_mcp_hints", None) or typing.get_type_hints(
+            fn, include_extras=True
+        )
+        parts: list[str] = []
+        descs: list[tuple[str, str]] = []
         for name, p in sig.parameters.items():
             if p.kind is inspect.Parameter.VAR_KEYWORD:
                 parts.append(f"**{name}")
+                continue
+            hint = hints.get(name)
+            type_str = _render_type(hint) if hint is not None else "Any"
+            if p.default is inspect.Parameter.empty:
+                parts.append(f"{name}: {type_str}")
+            elif isinstance(p.default, _Unset):
+                parts.append(f"{name}?: {type_str}")
+            elif p.default is None:
+                parts.append(f"{name}: {type_str} = None")
             else:
-                parts.append(name)
+                parts.append(f"{name}: {type_str} = {p.default!r}")
+            if typing.get_origin(hint) is Annotated:
+                for meta in typing.get_args(hint)[1:]:
+                    desc = getattr(meta, "description", None)
+                    if desc:
+                        descs.append((name, desc))
         params = ", ".join(parts)
         doc = (fn.__doc__ or "").split("\n")[0]
         lines.append(f"  {pascal_name}({params}) — {doc}")
+        for name, desc in descs:
+            lines.append(f"      {name}: {desc}")
     return "\n".join(lines)
 
 
@@ -299,6 +350,28 @@ def _dispatch(operation: str, group_name: str, params: dict):
 
 
 # ── Registration ─────────────────────────────────────────────────────────
+
+
+def _make_tool(group_name: str, group_doc: str):
+    """Build the meta-tool function for a group.
+
+    Lifted to module level so tests can construct meta-tools without going
+    through `_register_tools()`, and so the `params` default isn't a shared
+    mutable dict across calls.
+    """
+    def tool_fn(operation: str, params: dict | None = None):
+        params = params or {}
+        if operation == "help":
+            return _build_help(
+                group_name,
+                category=params.get("category"),
+                search=params.get("search"),
+            )
+        return _dispatch(operation, group_name, params)
+    tool_fn.__name__ = group_name
+    tool_fn.__qualname__ = group_name
+    tool_fn.__doc__ = group_doc
+    return tool_fn
 
 
 def _should_include(fn) -> bool:
@@ -346,18 +419,11 @@ def _register_tools():
         for pascal_name in ops:
             _all_grouped[pascal_name] = group_name
 
-        def _make_tool(gname, gdoc):
-            def tool_fn(operation: str, params: dict = {}):
-                if operation == "help":
-                    return _build_help(
-                        gname,
-                        category=params.get("category") if params else None,
-                        search=params.get("search") if params else None,
-                    )
-                return _dispatch(operation, gname, params)
-            tool_fn.__name__ = gname
-            tool_fn.__qualname__ = gname
-            tool_fn.__doc__ = gdoc
-            return tool_fn
-
         mcp.tool()(_make_tool(group_name, group.doc))
+
+    # Eager: build params models + cache type hints on each op function. Done
+    # once at startup so dispatch is hint/model-free. ~100-150ms for ~800 ops.
+    for ops in _group_ops.values():
+        for fn in ops.values():
+            fn._mcp_hints = typing.get_type_hints(fn, include_extras=True)
+            fn._mcp_params_model = _build_params_model(fn)

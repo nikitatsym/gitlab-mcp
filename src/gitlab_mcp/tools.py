@@ -10,15 +10,20 @@ Layout:
 """
 
 import re
+import typing
 from importlib.metadata import version as _pkg_version
 from pathlib import Path as _Path
+from typing import Annotated
 from urllib.parse import quote as _quote
+
+from pydantic import Field
 
 from . import _generated
 from ._generated import *  # noqa: F401,F403 — re-export all generated ops
 from ._generated_groups import DEFAULT_GROUPS
 from .annotations import ANNOTATIONS
 from .client import get_client
+from .param_annotations import PARAM_ANNOTATIONS
 from .prepare import (
     _categorize_branches,
     _enforce_visibility,
@@ -952,3 +957,33 @@ def hg_create_topic_mr(
 
 
 hg_create_topic_mr._heptapod_only = True
+
+
+# ── Per-param descriptions ─────────────────────────────────────────────────
+# Run at the very bottom so every override (generated wrapper or hand-written
+# module-level fn) is in `globals()` before we walk PARAM_ANNOTATIONS.
+
+
+def _wrap_param_annotations() -> None:
+    """Attach Annotated[T, Field(description=…)] to params listed in PARAM_ANNOTATIONS.
+
+    Idempotent: if a hint is already Annotated, the underlying type is unwrapped
+    before re-wrapping so descriptions can be edited without doubling up.
+    """
+    for fn_name, params in PARAM_ANNOTATIONS.items():
+        fn = globals().get(fn_name) or getattr(_generated, fn_name, None)
+        if fn is None or not callable(fn):
+            continue
+        hints = typing.get_type_hints(fn, include_extras=True)
+        for param_name, description in params.items():
+            if param_name not in hints:
+                continue
+            original = hints[param_name]
+            if typing.get_origin(original) is Annotated:
+                original = typing.get_args(original)[0]
+            fn.__annotations__[param_name] = Annotated[
+                original, Field(description=description)
+            ]
+
+
+_wrap_param_annotations()

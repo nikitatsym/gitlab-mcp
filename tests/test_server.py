@@ -1,5 +1,6 @@
 """Unit tests for server.py: _coerce_call validation and _register_tools filter."""
 
+import inspect
 from typing import Literal
 
 import httpx
@@ -32,7 +33,7 @@ class TestCoerceCall:
             """Test."""
             return a
 
-        with pytest.raises(ValueError, match="Unknown parameters.*'z'"):
+        with pytest.raises(ValueError, match="Extra inputs are not permitted"):
             _coerce_call(fn, {"a": 1, "z": 99})
 
     def test_rejects_invalid_literal_value(self):
@@ -42,7 +43,7 @@ class TestCoerceCall:
             """Test."""
             return mode
 
-        with pytest.raises(ValueError, match="Invalid value 'pending' for mode"):
+        with pytest.raises(ValueError, match="Input should be 'active', 'archived' or 'all'"):
             _coerce_call(fn, {"mode": "pending"})
 
     def test_accepts_valid_literal_value(self):
@@ -73,7 +74,7 @@ class TestCoerceCall:
             """Test."""
             return mode
 
-        with pytest.raises(ValueError, match="Invalid value 'c'"):
+        with pytest.raises(ValueError, match="Input should be 'a' or 'b'"):
             _coerce_call(fn, {"mode": "c"})
 
     def test_bool_coercion_from_string(self):
@@ -88,6 +89,9 @@ class TestCoerceCall:
         assert _coerce_call(fn, {"flag": "1"}) is True
         assert _coerce_call(fn, {"flag": "false"}) is False
         assert _coerce_call(fn, {"flag": "no"}) is False
+        # Case-insensitive
+        assert _coerce_call(fn, {"flag": "True"}) is True
+        assert _coerce_call(fn, {"flag": "FALSE"}) is False
 
     def test_bool_pass_through(self):
         from gitlab_mcp.server import _coerce_call
@@ -107,6 +111,31 @@ class TestCoerceCall:
             return (a, b)
 
         assert _coerce_call(fn, {}) == (5, "hi")
+
+    def test_field_level_validation_error_includes_path(self):
+        """Pydantic surfaces the offending field name in the error."""
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(labels: list[str]):
+            """Test."""
+            return labels
+
+        with pytest.raises(ValueError, match="labels.1"):
+            _coerce_call(fn, {"labels": ["bug", 42]})
+
+    def test_unset_default_preserved_when_caller_omits(self):
+        """Sentinel-default params: omitted by caller → fn sees its own default."""
+        from gitlab_mcp.registry import _UNSET
+        from gitlab_mcp.server import _coerce_call
+
+        def fn(name: str = _UNSET, description: str = _UNSET):
+            """Test."""
+            return (name, description)
+
+        # Neither passed → both _UNSET preserved
+        assert _coerce_call(fn, {}) == (_UNSET, _UNSET)
+        # One passed → other still _UNSET
+        assert _coerce_call(fn, {"name": "x"}) == ("x", _UNSET)
 
     def test_var_keyword_accepts_unknown(self):
         from gitlab_mcp.server import _coerce_call
@@ -128,7 +157,7 @@ class TestCoerceCall:
             return (mode, options)
 
         # Named param with Literal still validated
-        with pytest.raises(ValueError, match="Invalid value 'c' for mode"):
+        with pytest.raises(ValueError, match="Input should be 'a' or 'b'"):
             _coerce_call(fn, {"mode": "c", "extra": 1})
 
         # Valid call still works
@@ -159,6 +188,38 @@ class TestCoerceCall:
         # e.g. a literal field named 'options' that's a string — not our concern
         result = _coerce_call(fn, {"project_id": "p", "options": "some-string"})
         assert result == ("p", {"options": "some-string"})
+
+
+# ── _make_tool: mutable-default regression ────────────────────────────────
+
+
+class TestMakeTool:
+    def test_params_default_is_none(self):
+        from gitlab_mcp.server import _make_tool
+
+        tool_fn = _make_tool("test_group", "doc")
+        assert inspect.signature(tool_fn).parameters["params"].default is None
+
+    def test_no_dict_leak_across_calls(self, monkeypatch):
+        """Each call without a `params` arg must receive a fresh dict.
+
+        Pre-fix bug: `params: dict = {}` shared one dict across all calls,
+        so mutations from earlier calls leaked into later ones.
+        """
+        from gitlab_mcp import server
+
+        captured: list[int] = []
+
+        def fake_dispatch(operation, group_name, params):
+            captured.append(len(params))
+            params["leaked"] = "mutation"
+            return None
+
+        monkeypatch.setattr(server, "_dispatch", fake_dispatch)
+        tool_fn = server._make_tool("test_group", "doc")
+        tool_fn(operation="MyOp")
+        tool_fn(operation="MyOp")
+        assert captured == [0, 0]
 
 
 # ── _register_tools filter ────────────────────────────────────────────────
