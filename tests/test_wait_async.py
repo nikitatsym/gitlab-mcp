@@ -629,10 +629,11 @@ class TestWaitDispatch:
         _seed(_handler({}))
         from gitlab_mcp import server
         server._register_tools()
-        result = server._dispatch(
-            "PipelinesWaitStart", "gitlab_read", {"project_id": 1, "pipeline_id": 42},
-        )
-        assert "belongs to gitlab_execute" in result["error"]
+        with pytest.raises(ValueError, match="belongs to 'gitlab_execute'"):
+            server._dispatch(
+                "PipelinesWaitStart", "gitlab_read",
+                {"project_id": 1, "pipeline_id": 42},
+            )
 
     def test_waits_list_is_synchronous(self):
         """waits_list isn't async; dispatch must return its value directly,

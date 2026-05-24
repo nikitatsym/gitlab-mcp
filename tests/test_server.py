@@ -123,6 +123,29 @@ class TestCoerceCall:
         with pytest.raises(ValueError, match="labels.1"):
             _coerce_call(fn, {"labels": ["bug", 42]})
 
+    def test_validation_error_is_multi_line_with_schema_hint(self):
+        """`_format_validation_error` turns the ValidationError into a readable
+        multi-line message and points at `operation='schema'` so the agent
+        knows where to find the full parameter spec."""
+        from gitlab_mcp.server import _coerce_call
+
+        def my_op(name: str, count: int):
+            """Test."""
+            return (name, count)
+
+        with pytest.raises(ValueError) as exc:
+            _coerce_call(my_op, {"count": "not-an-int"})
+        msg = str(exc.value)
+        # Header names the op (derived from fn.__name__ → PascalCase).
+        assert msg.startswith("Invalid params for MyOp:")
+        # Field-level lines start with `  - <loc>:` so multiple errors are
+        # each surfaced separately.
+        assert "  - name:" in msg
+        assert "  - count:" in msg
+        # Closes with a schema hint that uses the same PascalCase op name.
+        assert "operation='schema'" in msg
+        assert "'op': 'MyOp'" in msg
+
     def test_unset_default_preserved_when_caller_omits(self):
         """Sentinel-default params: omitted by caller → fn sees its own default."""
         from gitlab_mcp.registry import _UNSET
@@ -374,6 +397,65 @@ class TestBuildHelp:
         result = _build_help("fake_read", search="qwerty")
         assert "No ops" in result
         assert "qwerty" in result
+
+    def test_help_includes_docstring_body(self):
+        """The detail view shows the head on the signature line AND the
+        docstring body indented underneath — agents shouldn't need a
+        separate `schema` call for body-level guidance like format hints."""
+        from gitlab_mcp import server
+
+        def fake_with_body():
+            """Head line summarising what this op does.
+
+            Longer body with context: pass labels as IDs from list_repo_labels,
+            not strings. The body is what carries this kind of caller-facing
+            constraint, so it needs to land in help.
+            """
+
+        server._group_ops["fake_read"] = {"FakeWithBody": fake_with_body}
+        try:
+            result = server._build_help("fake_read", search="FakeWithBody")
+            # Head present on the signature line.
+            assert "FakeWithBody() — Head line summarising" in result
+            # Body lines appear, indented (four spaces under the signature).
+            assert "    Longer body with context" in result
+            assert "    not strings" in result
+        finally:
+            server._group_ops.clear()
+
+
+# ── _dispatch wrong-group error path ───────────────────────────────────────
+
+
+class TestDispatchWrongGroup:
+    """Per v2 spec: surface errors as exceptions, not `{"error": ...}` dicts."""
+
+    def test_op_in_wrong_group_raises_value_error(self, monkeypatch):
+        from gitlab_mcp import server
+
+        server._group_ops.clear()
+        server._all_grouped.clear()
+        server._group_ops["fake_read"] = {"Existing": lambda: None}
+        server._group_ops["fake_write"] = {"OnlyHere": lambda: None}
+        server._all_grouped["Existing"] = "fake_read"
+        server._all_grouped["OnlyHere"] = "fake_write"
+        try:
+            with pytest.raises(ValueError, match="belongs to 'fake_write'"):
+                server._dispatch("OnlyHere", "fake_read", {})
+        finally:
+            server._group_ops.clear()
+            server._all_grouped.clear()
+
+    def test_unknown_op_raises_value_error(self):
+        from gitlab_mcp import server
+
+        server._group_ops.clear()
+        server._group_ops["fake_read"] = {"Existing": lambda: None}
+        try:
+            with pytest.raises(ValueError, match="Unknown operation 'Mystery'"):
+                server._dispatch("Mystery", "fake_read", {})
+        finally:
+            server._group_ops.clear()
 
     def test_category_from_snake_heuristic(self):
         from gitlab_mcp.server import _category_from_snake

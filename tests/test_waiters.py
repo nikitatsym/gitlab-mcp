@@ -629,8 +629,14 @@ class TestWaitViaDispatch:
         server._register_tools()
         help_text = server._build_help("gitlab_execute", search="PipelinesWait")
         assert "PipelinesWait" in help_text
-        # `ctx` is an internal injection point, never shown to callers.
-        assert "ctx" not in help_text
+        # `ctx` is an internal injection point, never shown to callers. Search
+        # for the parameter-syntax form (`ctx:` or `, ctx,`) rather than the
+        # bare word, since the rendered docstring body itself can mention
+        # `ctx.report_progress(...)` etc.
+        assert "ctx:" not in help_text
+        assert ", ctx," not in help_text
+        assert "(ctx," not in help_text
+        assert "ctx)" not in help_text
 
     def test_ctx_param_rejected_when_passed_via_params(self):
         """Callers must not be able to inject `ctx` themselves through params."""
