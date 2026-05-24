@@ -38,14 +38,20 @@
  */
 
 import { readFileSync, writeFileSync } from "fs";
+import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { EE_EXCLUDED_CLASSES } from "./ee_exclusions.ts";
+import { loadChecker, resolveMethod } from "./typeResolver.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const IMPL_PATH = join(
   __dirname,
   "node_modules/@gitbeaker/core/dist/index.js"
+);
+const TYPES_PATH = join(
+  __dirname,
+  "node_modules/@gitbeaker/core/dist/index.d.ts"
 );
 const OUT_PY = join(__dirname, "../src/gitlab_mcp/_generated.py");
 const OUT_GROUPS = join(__dirname, "../src/gitlab_mcp/_generated_groups.py");
@@ -53,6 +59,9 @@ const OUT_GROUPS = join(__dirname, "../src/gitlab_mcp/_generated_groups.py");
 const CHECK_MODE = process.argv.includes("--check");
 
 const IMPL = readFileSync(IMPL_PATH, "utf-8");
+
+// Load the TS Compiler API once; resolveMethod() walks it per method.
+const { checker, source: tsSource } = loadChecker(TYPES_PATH);
 
 // ── Parsing ────────────────────────────────────────────────────────────────
 
@@ -69,6 +78,15 @@ interface ParsedMethod {
   pathTpl: string; // raw template, e.g. "projects/${projectId}/foo"
   isDestructured: boolean; // true if args started with `{` (destructured options)
   bodyFields: BodyField[]; // explicit body fields from gitbeaker's object literal
+  conditionalPath: boolean; // gitbeaker switches URLs based on options (selector fields)
+  conditionalBranches: ConditionalBranch[] | null; // parsed branches for dispatch
+  conditionalSuffix: string; // appended after each branch path (Search.all: 'search')
+  conditionalBodyFields: BodyField[]; // explicit fields in the return-call body literal
+}
+
+interface ConditionalBranch {
+  selectorVar: string | null; // camelCase JS name, null for `else` fallback
+  pathTpl: string;            // raw template like "projects/${projectId}/deploy_keys"
 }
 
 const classRe =
@@ -156,6 +174,10 @@ const stats = {
   methodsTotal: 0,
   methodsParsed: 0,
   methodsSkipped: 0,
+  methodsTyped: 0,           // resolved via TS + emitted with typed params
+  methodsKeptOptions: 0,     // resolved but options has [k:string]:any → kept **options
+  methodsTypeFallback: 0,    // typeResolver returned null/!resolved → legacy shape
+  methodsConditionalPath: 0, // JS impl selects URL based on selector field → forced **options
 };
 
 let m: RegExpExecArray | null;
@@ -410,6 +432,24 @@ while ((m = classRe.exec(IMPL)) !== null) {
       continue;
     }
 
+    // Detect methods where gitbeaker conditionally selects between distinct
+    // URLs based on an option/destructured arg (e.g. DeployKeys.all picks
+    // /projects/{id}/deploy_keys vs /users/{id}/project_deploy_keys vs
+    // /deploy_keys). For these, emit a Python dispatch chain so the right
+    // URL is hit instead of forwarding the selector as a query param.
+    const conditionalPath = hasConditionalUrl(mBody);
+    let conditionalBranches: ConditionalBranch[] | null = null;
+    let conditionalSuffix = "";
+    let conditionalBodyFields: BodyField[] = [];
+    if (conditionalPath) {
+      const parsed = parseConditional(mBody);
+      if (parsed) {
+        conditionalBranches = parsed.branches;
+        conditionalSuffix = parsed.suffix;
+        conditionalBodyFields = parsed.bodyFields;
+      }
+    }
+
     methods.push({
       klass,
       name,
@@ -418,9 +458,148 @@ while ((m = classRe.exec(IMPL)) !== null) {
       pathTpl,
       isDestructured,
       bodyFields: bodyFieldsFromEndpoint ?? [],
+      conditionalPath,
+      conditionalBranches,
+      conditionalSuffix,
+      conditionalBodyFields,
     });
     stats.methodsParsed++;
   }
+}
+
+/**
+ * Parse a gitbeaker conditional-URL method into branches.
+ *
+ * Returns the URL variable's assignment chain in declaration order and any
+ * suffix concatenated to it in the RequestHelper call. Walks tokens left-
+ * to-right tracking the most-recent `if (X)` / `else if (X)` / `else`, then
+ * pairs each assignment with the condition immediately preceding it.
+ *
+ * Returns null if the body doesn't fit the pattern (no `let URL` decl, no
+ * RequestHelper call referencing the var, or no branches).
+ */
+function parseConditional(mBody: string): {
+  branches: ConditionalBranch[];
+  suffix: string;
+  bodyFields: BodyField[];
+} | null {
+  const letMatch = mBody.match(/\blet\s+(\w+)\b/);
+  if (!letMatch) return null;
+  const urlVar = letMatch[1];
+
+  // `[^'"]*` (not `+`) so empty fallbacks like `url12 = ""` get captured —
+  // they concatenate with the suffix in the return form.
+  const tokenRe = new RegExp(
+    `(?:\\b(if|else\\s+if|else)\\b\\s*(?:\\(\\s*(\\w+)\\s*\\))?|\\b${urlVar}\\s*=\\s*(?:endpoint\`([^\`]+)\`|\`([^\`]+)\`|['"]([^'"]*)['"]))`,
+    "g",
+  );
+
+  const branches: ConditionalBranch[] = [];
+  let pendingVar: string | null = null;
+  let pendingIsElse = false;
+  let m: RegExpExecArray | null;
+  while ((m = tokenRe.exec(mBody)) !== null) {
+    if (m[1]) {
+      const kind = m[1].trim().replace(/\s+/g, " ");
+      if (kind === "if" || kind === "else if") {
+        pendingVar = m[2] ?? null;
+        pendingIsElse = false;
+      } else {
+        pendingVar = null;
+        pendingIsElse = true;
+      }
+    } else {
+      const path = m[3] ?? m[4] ?? m[5] ?? "";
+      if (pendingVar !== null || pendingIsElse) {
+        branches.push({
+          selectorVar: pendingVar,
+          pathTpl: path,
+        });
+      }
+      pendingVar = null;
+      pendingIsElse = false;
+    }
+  }
+
+  if (branches.length < 2) return null;
+
+  // RequestHelper call form: direct `(this, urlVar, …)` OR concat
+  // `(this, \`${urlVar}suffix\`, …)`. The suffix gets appended to every branch.
+  // Also captures the end position of the URL arg so we can parse the body
+  // literal that follows.
+  let suffix = "";
+  let urlArgEnd = -1;
+  const directRe = new RegExp(
+    `RequestHelper\\.\\w+\\(\\)\\(\\s*this,\\s*${urlVar}\\b`,
+  );
+  const concatRe = new RegExp(
+    `RequestHelper\\.\\w+\\(\\)\\(\\s*this,\\s*\`\\$\\{${urlVar}\\}([^\`]*)\``,
+  );
+  const directMatch = mBody.match(directRe);
+  if (directMatch && directMatch.index !== undefined) {
+    suffix = "";
+    urlArgEnd = directMatch.index + directMatch[0].length;
+  } else {
+    const c = mBody.match(concatRe);
+    if (!c || c.index === undefined) return null;
+    suffix = c[1];
+    urlArgEnd = c.index + c[0].length;
+  }
+
+  for (const b of branches) {
+    if (!isSafeTemplate(b.pathTpl + suffix)) return null;
+  }
+
+  // Body literal in the return call: `(this, url, {token, ...options})`.
+  // Reuse parseBodyLiteral, which expects to start right after the URL arg
+  // (so it sees the `, {…}`).
+  const bodyFields = parseBodyLiteral(mBody, urlArgEnd) ?? [];
+  return { branches, suffix, bodyFields };
+}
+
+/**
+ * True if the method body assigns 2+ distinct URL strings to the same local
+ * variable — the gitbeaker pattern for path-selector options.
+ *
+ *   let url12;
+ *   if (projectId) url12 = endpoint`projects/${projectId}/deploy_keys`;
+ *   else if (userId) url12 = endpoint`users/${userId}/project_deploy_keys`;
+ *   else url12 = "deploy_keys";
+ *
+ * We don't try to recover the selector — the JS parser picks one path (the
+ * unconditional fallback) and the caller-facing surface drops to **options
+ * so we don't claim e.g. `project_id` is a query param when it's actually a
+ * path selector.
+ */
+function hasConditionalUrl(mBody: string): boolean {
+  // Identify the URL var (or vars) by walking RequestHelper.X()(this, V, …)
+  // calls. Bare endpoint strings like `url = "runners"` are valid URLs but
+  // wouldn't look like one to a naive content check — anchoring on
+  // RequestHelper avoids false positives from unrelated local vars instead.
+  const urlVars = new Set<string>();
+  const urlVarRe = /RequestHelper\.\w+\(\)\(\s*this,\s*(?:(\w+)\b|`\$\{(\w+)\})/g;
+  let um: RegExpExecArray | null;
+  while ((um = urlVarRe.exec(mBody)) !== null) {
+    if (um[1]) urlVars.add(um[1]);
+    if (um[2]) urlVars.add(um[2]);
+  }
+  if (urlVars.size === 0) return false;
+
+  // Count distinct assignments per URL var. `[^'"]*` (not `+`) captures empty
+  // fallbacks like `url12 = ""` (Search.all's global path).
+  const seenByVar = new Map<string, Set<string>>();
+  const re = /\b(\w+)\s*=\s*(?:endpoint`([^`]+)`|`([^`]+)`|['"]([^'"]*)['"])/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(mBody)) !== null) {
+    if (!urlVars.has(m[1])) continue;
+    const val = m[2] ?? m[3] ?? m[4] ?? "";
+    if (!seenByVar.has(m[1])) seenByVar.set(m[1], new Set());
+    seenByVar.get(m[1])!.add(val);
+  }
+  for (const vals of seenByVar.values()) {
+    if (vals.size >= 2) return true;
+  }
+  return false;
 }
 
 // ── Template safety check ─────────────────────────────────────────────────
@@ -581,6 +760,14 @@ function expandResourceSubclasses(): number {
         pathTpl: newPath,
         isDestructured: bm.isDestructured,
         bodyFields: bm.bodyFields,
+        conditionalPath: bm.conditionalPath,
+        // Conditional branches were parsed against the BASE class's path
+        // template, which the expansion above rewrites. Re-parsing per
+        // subclass is overkill — drop the branches so emitFn falls back to
+        // `**options`-only for any (rare) selector-driven Resource* method.
+        conditionalBranches: null,
+        conditionalSuffix: "",
+        conditionalBodyFields: [],
       });
       expanded++;
       stats.methodsParsed++;
@@ -630,6 +817,28 @@ function pyPath(tpl: string, argsInPath: Set<string>): string {
   return "/" + out.replace(/^\/+/, "");
 }
 
+/**
+ * Split `path?key=${var}&key2=${var2}` into a clean path and a list of
+ * (wire-key, JS-var) query pairs. Used by conditional-dispatch emission so
+ * embedded query vars become payload entries instead of staying baked into
+ * the URL (where httpx + `params=` would conflict).
+ */
+function splitPathQuery(tpl: string): {
+  pathTpl: string;
+  queryVars: { wire: string; jsVar: string }[];
+} {
+  const q = tpl.indexOf("?");
+  if (q === -1) return { pathTpl: tpl, queryVars: [] };
+  const pathTpl = tpl.slice(0, q);
+  const queryPart = tpl.slice(q + 1);
+  const queryVars: { wire: string; jsVar: string }[] = [];
+  for (const part of queryPart.split("&")) {
+    const m = part.match(/^(\w+)=\$\{(\w+)\}$/);
+    if (m) queryVars.push({ wire: m[1], jsVar: m[2] });
+  }
+  return { pathTpl, queryVars };
+}
+
 // ── Generate Python wrapper function ──────────────────────────────────────
 
 interface Emitted {
@@ -638,6 +847,232 @@ interface Emitted {
   klass: string;
   verb: string; // lowercase
   pyLines: string[];
+}
+
+interface BodyParam {
+  pyName: string;
+  wireName: string;
+  pyType: string;       // already includes ` | None` when nullable
+}
+
+function emitConditionalDispatch(
+  pm: ParsedMethod,
+  typeInfo: ReturnType<typeof resolveMethod>,
+): Emitted | null {
+  if (!pm.conditionalBranches) return null;
+
+  // 1. Per-branch: split `path?key=${var}` into path + query vars. The query
+  //    part can't stay in the URL — httpx's `params=` doesn't reliably merge
+  //    with an embedded query string (`keys?fingerprint=…` + params=… loses
+  //    the embedded field). Move query vars into payload via a branch-local
+  //    set so they only land on the right URL.
+  const branchPaths: {
+    selectorVar: string | null;
+    pyPath: string;
+    pathVars: Set<string>;
+    queryVars: { wire: string; jsVar: string; pyName: string }[];
+  }[] = [];
+  for (const b of pm.conditionalBranches) {
+    const fullTpl = b.pathTpl + pm.conditionalSuffix;
+    const { pathTpl, queryVars: rawQv } = splitPathQuery(fullTpl);
+    const argsSet = new Set<string>();
+    const py = pyPath(pathTpl, argsSet);
+    const queryVars = rawQv.map((qv) => {
+      const snake = toSnake(qv.jsVar);
+      return {
+        wire: qv.wire,
+        jsVar: qv.jsVar,
+        pyName: PY_KEYWORDS.has(snake) ? snake + "_" : snake,
+      };
+    });
+    branchPaths.push({
+      selectorVar: b.selectorVar,
+      pyPath: py,
+      pathVars: argsSet,
+      queryVars,
+    });
+  }
+
+  // Union of every var that appears in ANY branch path — these go in the URL
+  // and MUST NOT be re-sent as query/body, even when TS declares them as
+  // positional args.
+  const allPathVars = new Set<string>();
+  for (const bp of branchPaths) {
+    for (const v of bp.pathVars) allPathVars.add(v);
+  }
+
+  // 2. Unique selector vars, ordered by first appearance.
+  const selectorVars: string[] = [];
+  for (const b of pm.conditionalBranches) {
+    if (b.selectorVar && !selectorVars.includes(b.selectorVar)) {
+      selectorVars.push(b.selectorVar);
+    }
+  }
+
+  // 3. Selectors that gitbeaker ALSO sends in the request body literal
+  //    (e.g. Runners.resetRegistrationToken sends `{ token, ...options }`).
+  //    Those selectors stay in payload even when they're a selector.
+  const bodyFieldVars = new Set<string>(
+    pm.conditionalBodyFields.map((bf) => bf.variable),
+  );
+
+  const seenPy = new Set<string>();
+  const SKIP_PROPS = new Set([
+    "options", "show_expanded", "as_admin", "as_stream", "is_form",
+  ]);
+
+  type SigArg = { pyName: string; pyType: string };
+
+  // 4. Path-only typed positional args: in EVERY branch's URL, never in body.
+  const pathOnlyArgs: SigArg[] = [];
+  // 5. Required typed body args: typed positionals NOT in any branch path,
+  //    NOT selectors (selectors are handled separately).
+  const requiredBody: BodyParam[] = [];
+
+  if (typeInfo) {
+    for (const pa of typeInfo.positionalArgs) {
+      if (SKIP_PROPS.has(pa.pyName)) continue;
+      if (selectorVars.includes(pa.name)) continue;
+      if (seenPy.has(pa.pyName)) continue;
+      seenPy.add(pa.pyName);
+      if (allPathVars.has(pa.name)) {
+        pathOnlyArgs.push({ pyName: pa.pyName, pyType: pa.pyType });
+      } else {
+        requiredBody.push({
+          pyName: pa.pyName,
+          wireName: toSnake(pa.name),
+          pyType: pa.pyType,
+        });
+      }
+    }
+  }
+
+  // 6. Selectors as typed-optional params. Type pulled from TS options
+  //    properties when available, else `str | int`.
+  type SelectorArg = SigArg & { jsName: string; alsoBody: boolean };
+  const selectors: SelectorArg[] = [];
+  for (const sv of selectorVars) {
+    const py = toSnake(sv);
+    if (seenPy.has(py)) continue;
+    seenPy.add(py);
+    let pyType = "str | int";
+    if (typeInfo) {
+      const prop = typeInfo.options.properties.find(
+        (p) => p.pyName === py || p.name === py,
+      );
+      if (prop) {
+        pyType = prop.nullable ? `${prop.pyType} | None` : prop.pyType;
+      }
+    }
+    selectors.push({
+      pyName: py,
+      pyType,
+      jsName: sv,
+      alsoBody: bodyFieldVars.has(sv),
+    });
+  }
+
+  // 7. Query vars (from `?key=${var}` in any branch) not already in the
+  //    signature → add as typed-optional. Type pulled from TS options when
+  //    available, else `str | int`.
+  const queryOnlyArgs: SigArg[] = [];
+  for (const bp of branchPaths) {
+    for (const qv of bp.queryVars) {
+      if (seenPy.has(qv.pyName)) continue;
+      seenPy.add(qv.pyName);
+      let pyType = "str | int";
+      if (typeInfo) {
+        const prop = typeInfo.options.properties.find(
+          (p) => p.pyName === qv.pyName || p.name === qv.pyName,
+        );
+        if (prop) {
+          pyType = prop.nullable ? `${prop.pyType} | None` : prop.pyType;
+        }
+      }
+      queryOnlyArgs.push({ pyName: qv.pyName, pyType });
+    }
+  }
+
+  const fnSnake = `${toSnake(pm.klass)}_${toSnake(pm.name)}`;
+  const fnPascal = toPascal(fnSnake);
+  const httpMethod = pm.verb === "del" ? "DELETE" : pm.verb.toUpperCase();
+  const payloadKwarg =
+    httpMethod === "GET" || httpMethod === "DELETE" ? "params" : "json";
+
+  // Signature: path-only → required body → selectors → query-only → **options.
+  const sigParts: string[] = [];
+  for (const a of pathOnlyArgs) sigParts.push(`${a.pyName}: ${a.pyType}`);
+  for (const b of requiredBody) sigParts.push(`${b.pyName}: ${b.pyType}`);
+  for (const s of selectors) sigParts.push(`${s.pyName}: ${s.pyType} = _UNSET`);
+  for (const a of queryOnlyArgs) sigParts.push(`${a.pyName}: ${a.pyType} = _UNSET`);
+  sigParts.push("**options");
+
+  const docBranches = pm.conditionalBranches
+    .map((b) => (b.selectorVar ? `if ${toSnake(b.selectorVar)}: ` : "else: ") + b.pathTpl + pm.conditionalSuffix)
+    .join("; ");
+  const lines: string[] = [];
+  lines.push(`def ${fnSnake}(${sigParts.join(", ")}):`);
+  lines.push(
+    `    """${pm.klass}.${pm.name} (${httpMethod}; selector-driven path: ${docBranches})."""`,
+  );
+
+  // Payload: **options first; explicit typed body fields next; selectors
+  // that ALSO appear in gitbeaker's body literal go in payload when set.
+  lines.push(`    payload = {**options}`);
+  for (const b of requiredBody) {
+    lines.push(`    payload[${JSON.stringify(b.wireName)}] = ${b.pyName}`);
+  }
+  for (const s of selectors) {
+    if (!s.alsoBody) continue;
+    lines.push(`    if ${s.pyName} is not _UNSET:`);
+    lines.push(`        payload[${JSON.stringify(toSnake(s.jsName))}] = ${s.pyName}`);
+  }
+
+  // Branch predicates mirror JS truthiness (`if (owned)`), not "was provided"
+  // — `RunnersAll(owned=False)` must fall through to /runners/all the same
+  // way JS `else if (owned)` does. _UNSET defines __bool__ False, so omitted
+  // selectors also fall through. Body inclusion (above) is separate and
+  // keeps `is not _UNSET` semantics.
+  const fallback = branchPaths.find((bp) => bp.selectorVar === null);
+  const emitBranchPayload = (bp: typeof branchPaths[number]): string[] => {
+    const out: string[] = [];
+    for (const qv of bp.queryVars) {
+      out.push(`        if ${qv.pyName} is not _UNSET:`);
+      out.push(`            payload[${JSON.stringify(qv.wire)}] = ${qv.pyName}`);
+    }
+    return out;
+  };
+  for (const bp of branchPaths) {
+    if (bp.selectorVar === null) continue;
+    const py = toSnake(bp.selectorVar);
+    lines.push(`    if ${py}:`);
+    for (const l of emitBranchPayload(bp)) lines.push(l);
+    lines.push(
+      `        return _ok(_get_client().request("${httpMethod}", f"${bp.pyPath}", ${payloadKwarg}=payload))`,
+    );
+  }
+  if (fallback) {
+    for (const qv of fallback.queryVars) {
+      lines.push(`    if ${qv.pyName} is not _UNSET:`);
+      lines.push(`        payload[${JSON.stringify(qv.wire)}] = ${qv.pyName}`);
+    }
+    lines.push(
+      `    return _ok(_get_client().request("${httpMethod}", f"${fallback.pyPath}", ${payloadKwarg}=payload))`,
+    );
+  } else {
+    const required = selectors.map((s) => s.pyName).join(" or ");
+    lines.push(
+      `    raise ValueError("${pm.klass}.${pm.name} requires one of: ${required}")`,
+    );
+  }
+
+  return {
+    snakeName: fnSnake,
+    pascalName: fnPascal,
+    klass: pm.klass,
+    verb: pm.verb,
+    pyLines: lines,
+  };
 }
 
 function emitFn(pm: ParsedMethod): Emitted | null {
@@ -649,31 +1084,95 @@ function emitFn(pm: ParsedMethod): Emitted | null {
     .filter((a) => argsInPath.has(a))
     .map(toSnake);
 
-  // Body params come from gitbeaker's object literal body fields. These get
-  // emitted as explicit Python params so the LLM can discover them without
-  // guessing what's inside `**options`.
-  //
-  // Wire-format note: gitbeaker's middleware snake-cases every key before
-  // sending (`sourceBranch` → `source_branch`, `targetProjectId` →
-  // `target_project_id`). We do the equivalent here by snake-casing the
-  // wire name, so the LLM sees the idiomatic GitLab API field name in the
-  // Python signature.
-  //
-  // Python keyword collision: `from`, `to`, `class`, etc. are reserved. We
-  // append a trailing underscore to the Python param name while keeping the
-  // original wire name for the payload.
-  const bodyParams: { pyName: string; wireName: string }[] = [];
-  const seenBodyNames = new Set<string>();
-  for (const bf of pm.bodyFields) {
-    const wireName = toSnake(bf.name);
-    let pyName = wireName;
-    if (PY_KEYWORDS.has(pyName)) pyName = pyName + "_";
-    if (pathArgs.includes(pyName)) continue; // already a path arg
-    if (seenBodyNames.has(pyName)) continue;
-    // Skip middleware/meta fields that gitbeaker plumbs through options.
-    if (["options", "sudo", "show_expanded"].includes(pyName)) continue;
-    seenBodyNames.add(pyName);
-    bodyParams.push({ pyName, wireName });
+  // Try to resolve TS types for this method. Resource* base classes don't
+  // appear under their concrete subclass names in the .d.ts, so for expanded
+  // methods we look up the parsed klass name (e.g. ProjectLabels) directly —
+  // when missing, we fall back gracefully.
+  const typeInfo = resolveMethod(checker, tsSource, pm.klass, pm.name);
+
+  // Conditional dispatch: gitbeaker picks URL based on which selector option
+  // is set (e.g. DeployKeys.all → /projects/{id}/deploy_keys or
+  // /users/{id}/project_deploy_keys or /deploy_keys). Emit a Python chain
+  // that routes to the right path so callers can use the selector safely.
+  if (pm.conditionalBranches) {
+    const em = emitConditionalDispatch(pm, typeInfo);
+    if (em) {
+      stats.methodsConditionalPath++;
+      return em;
+    }
+    // If emission failed (very rare — unsafe template after substitution),
+    // fall through to the legacy `**options`-only path below.
+  }
+
+  const requiredBody: BodyParam[] = [];
+  const optionalBody: BodyParam[] = [];
+  const seenPy = new Set<string>(pathArgs);
+  let useVarKwargs = true;
+  let resolvedTyped = false;
+
+  // Belt-and-suspenders skip list (snake-cased). Matches the gitbeaker-only
+  // filter in typeResolver — `sudo` deliberately NOT here: it's a real
+  // GitLab API param that we keep as a typed optional.
+  const SKIP_PROPS = new Set(["options", "show_expanded", "as_admin", "as_stream", "is_form"]);
+
+  if (typeInfo && typeInfo.options.resolved) {
+    resolvedTyped = true;
+    // Non-path positionals get their TS types. Path positionals stay
+    // `str | int` (handled below in signature build).
+    for (const pa of typeInfo.positionalArgs) {
+      if (argsInPath.has(pa.name)) continue;
+      if (SKIP_PROPS.has(pa.pyName)) continue;
+      if (seenPy.has(pa.pyName)) continue;
+      seenPy.add(pa.pyName);
+      requiredBody.push({
+        pyName: pa.pyName,
+        wireName: toSnake(pa.name),
+        pyType: pa.pyType,
+      });
+    }
+    // Options properties — skipped entirely for conditional-path methods
+    // (we can't distinguish path-selector options from legit body fields).
+    if (!pm.conditionalPath) {
+      for (const p of typeInfo.options.properties) {
+        if (SKIP_PROPS.has(p.pyName)) continue;
+        if (seenPy.has(p.pyName)) continue;
+        seenPy.add(p.pyName);
+        const pyType = p.nullable ? `${p.pyType} | None` : p.pyType;
+        if (p.optional) {
+          optionalBody.push({ pyName: p.pyName, wireName: p.name, pyType });
+        } else {
+          requiredBody.push({ pyName: p.pyName, wireName: p.name, pyType });
+        }
+      }
+    }
+    if (pm.conditionalPath) {
+      stats.methodsConditionalPath++;
+      useVarKwargs = true; // always keep **options for selector-driven methods
+    } else {
+      useVarKwargs = typeInfo.options.hasIndexSignature;
+      if (useVarKwargs) {
+        stats.methodsKeptOptions++;
+      } else {
+        stats.methodsTyped++;
+      }
+    }
+  } else {
+    // Legacy fallback: JS-parsed bodyFields as required `str | int` body params.
+    if (pm.conditionalPath) {
+      stats.methodsConditionalPath++;
+    } else {
+      stats.methodsTypeFallback++;
+    }
+    for (const bf of pm.bodyFields) {
+      const wireName = toSnake(bf.name);
+      let py = wireName;
+      if (PY_KEYWORDS.has(py)) py = py + "_";
+      if (SKIP_PROPS.has(py)) continue;
+      if (seenPy.has(py)) continue;
+      seenPy.add(py);
+      requiredBody.push({ pyName: py, wireName, pyType: "str | int" });
+    }
+    useVarKwargs = true;
   }
 
   const snakeClass = toSnake(pm.klass);
@@ -685,19 +1184,20 @@ function emitFn(pm: ParsedMethod): Emitted | null {
   const payloadKwarg =
     httpMethod === "GET" || httpMethod === "DELETE" ? "params" : "json";
 
-  // Build the Python signature.
-  const sigParams: string[] = [];
-  for (const a of pathArgs) sigParams.push(`${a}: str | int`);
-  for (const bp of bodyParams) sigParams.push(`${bp.pyName}: str | int`);
-  sigParams.push("**options");
-  const sig = `def ${fnSnake}(${sigParams.join(", ")}):`;
+  // 4-tier signature: path → required body → optional (= _UNSET) → **options
+  const sigParts: string[] = [];
+  for (const a of pathArgs) sigParts.push(`${a}: str | int`);
+  for (const b of requiredBody) sigParts.push(`${b.pyName}: ${b.pyType}`);
+  for (const b of optionalBody) sigParts.push(`${b.pyName}: ${b.pyType} = _UNSET`);
+  if (useVarKwargs) sigParts.push("**options");
+  const sig = `def ${fnSnake}(${sigParts.join(", ")}):`;
 
-  // Build the function body.
   const lines: string[] = [];
   lines.push(sig);
   const docPath = pm.pathTpl;
-  if (bodyParams.length > 0) {
-    const fieldList = bodyParams.map((b) => b.wireName).join(", ");
+  const allBody = [...requiredBody, ...optionalBody];
+  if (allBody.length > 0) {
+    const fieldList = allBody.map((b) => b.wireName).join(", ");
     lines.push(
       `    """${pm.klass}.${pm.name} (${httpMethod} ${docPath}). Body fields: ${fieldList}."""`
     );
@@ -705,16 +1205,31 @@ function emitFn(pm: ParsedMethod): Emitted | null {
     lines.push(`    """${pm.klass}.${pm.name} (${httpMethod} ${docPath})."""`);
   }
 
-  if (bodyParams.length === 0) {
-    // Simple: pass options directly as params/json.
-    lines.push(
-      `    return _ok(_get_client().request("${httpMethod}", f"${pathStr}", ${payloadKwarg}=options))`
-    );
+  if (allBody.length === 0) {
+    if (useVarKwargs) {
+      lines.push(
+        `    return _ok(_get_client().request("${httpMethod}", f"${pathStr}", ${payloadKwarg}=options))`
+      );
+    } else {
+      lines.push(
+        `    return _ok(_get_client().request("${httpMethod}", f"${pathStr}"))`
+      );
+    }
   } else {
-    // Merge explicit body params into the payload dict.
-    lines.push(`    payload = {**options}`);
-    for (const bp of bodyParams) {
-      lines.push(`    payload[${JSON.stringify(bp.wireName)}] = ${bp.pyName}`);
+    // Spread **options FIRST so explicitly typed params can't be silently
+    // shadowed by an extra (matters for keyword-collision renames like
+    // from_ → wire "from"). For closed types we start from an empty dict.
+    if (useVarKwargs) {
+      lines.push(`    payload = {**options}`);
+    } else {
+      lines.push(`    payload: dict = {}`);
+    }
+    for (const b of requiredBody) {
+      lines.push(`    payload[${JSON.stringify(b.wireName)}] = ${b.pyName}`);
+    }
+    for (const b of optionalBody) {
+      lines.push(`    if ${b.pyName} is not _UNSET:`);
+      lines.push(`        payload[${JSON.stringify(b.wireName)}] = ${b.pyName}`);
     }
     lines.push(
       `    return _ok(_get_client().request("${httpMethod}", f"${pathStr}", ${payloadKwarg}=payload))`
@@ -803,9 +1318,11 @@ const pyLines: string[] = [
   "# GENERATED by codegen/generate.ts — DO NOT EDIT",
   "from __future__ import annotations",
   "",
+  "from typing import Any, Literal",
   "from urllib.parse import quote as _q",
   "",
   "from .client import get_client as _get_client",
+  "from .registry import _UNSET",
   "",
   "",
   "def _enc(v) -> str:",
@@ -898,6 +1415,21 @@ function diffCheck(path: string, expected: string): boolean {
   return actual === expected;
 }
 
+// Sanity check: the emitted Python must parse. Catches missing imports,
+// duplicate defaults-after-non-defaults, etc. before we ship the file.
+function astParseCheck(pySource: string): void {
+  try {
+    execSync(
+      `python3 -c "import ast, sys; ast.parse(sys.stdin.read())"`,
+      { input: pySource, stdio: ["pipe", "pipe", "inherit"] },
+    );
+  } catch (e) {
+    console.error("AST parse FAILED on generated source:");
+    throw e;
+  }
+}
+astParseCheck(pyOut);
+
 if (CHECK_MODE) {
   const okPy = diffCheck(OUT_PY, pyOut);
   const okGroups = diffCheck(OUT_GROUPS, groupOut);
@@ -932,6 +1464,11 @@ console.log(
     `  gitlab_write:   ${groupMap.gitlab_write.length}\n` +
     `  gitlab_delete:  ${groupMap.gitlab_delete.length}`
 );
+console.log("─".repeat(60));
+console.log(`Methods with typed body params:  ${stats.methodsTyped}`);
+console.log(`Methods kept **options (index sig): ${stats.methodsKeptOptions}`);
+console.log(`Type-resolution fallback:        ${stats.methodsTypeFallback}`);
+console.log(`Conditional-path dispatch:       ${stats.methodsConditionalPath}`);
 
 if (process.argv.includes("--show-skipped") && skippedMethods.length > 0) {
   console.log("─".repeat(60));
