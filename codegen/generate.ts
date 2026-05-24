@@ -923,6 +923,15 @@ function emitConditionalDispatch(
 
   type SigArg = { pyName: string; pyType: string };
 
+  // Reuse the JS body-literal renaming so wire keys match GitLab REST docs
+  // (see emitFn for context). Conditional methods rarely have a body literal
+  // since they usually pass plain `options`, but Runners-style methods (with
+  // `{ token, ...options }`) need this to keep token's wire name correct.
+  const wireByJsVar = new Map<string, string>();
+  for (const bf of pm.conditionalBodyFields) {
+    wireByJsVar.set(bf.variable, bf.name);
+  }
+
   // 4. Path-only typed positional args: in EVERY branch's URL, never in body.
   const pathOnlyArgs: SigArg[] = [];
   // 5. Required typed body args: typed positionals NOT in any branch path,
@@ -931,16 +940,22 @@ function emitConditionalDispatch(
 
   if (typeInfo) {
     for (const pa of typeInfo.positionalArgs) {
-      if (SKIP_PROPS.has(pa.pyName)) continue;
       if (selectorVars.includes(pa.name)) continue;
-      if (seenPy.has(pa.pyName)) continue;
-      seenPy.add(pa.pyName);
-      if (allPathVars.has(pa.name)) {
-        pathOnlyArgs.push({ pyName: pa.pyName, pyType: pa.pyType });
+      const isPath = allPathVars.has(pa.name);
+      const wire = toSnake(wireByJsVar.get(pa.name) ?? pa.name);
+      const py = PY_KEYWORDS.has(wire) ? wire + "_" : wire;
+      if (SKIP_PROPS.has(py)) continue;
+      if (seenPy.has(py)) continue;
+      seenPy.add(py);
+      if (isPath) {
+        // Path vars: signature uses the same name as the pyPath f-string,
+        // which is built from the JS template var (e.g. `${projectId}` →
+        // `project_id`). Don't reroute through the body-literal rename here.
+        pathOnlyArgs.push({ pyName: toSnake(pa.name), pyType: pa.pyType });
       } else {
         requiredBody.push({
-          pyName: pa.pyName,
-          wireName: toSnake(pa.name),
+          pyName: py,
+          wireName: wire,
           pyType: pa.pyType,
         });
       }
@@ -1115,18 +1130,30 @@ function emitFn(pm: ParsedMethod): Emitted | null {
   // GitLab API param that we keep as a typed optional.
   const SKIP_PROPS = new Set(["options", "show_expanded", "as_admin", "as_stream", "is_form"]);
 
+  // gitbeaker often renames body fields in the request literal (e.g.
+  // `{ branch: branchName, ref }`), so the wire key is `branch` while the
+  // TS positional arg is `branchName`. Look it up by JS variable so the
+  // Python param name + wire key both match the GitLab REST docs instead
+  // of leaking gitbeaker's internal naming.
+  const wireByJsVar = new Map<string, string>();
+  for (const bf of pm.bodyFields) {
+    wireByJsVar.set(bf.variable, bf.name);
+  }
+
   if (typeInfo && typeInfo.options.resolved) {
     resolvedTyped = true;
     // Non-path positionals get their TS types. Path positionals stay
     // `str | int` (handled below in signature build).
     for (const pa of typeInfo.positionalArgs) {
       if (argsInPath.has(pa.name)) continue;
-      if (SKIP_PROPS.has(pa.pyName)) continue;
-      if (seenPy.has(pa.pyName)) continue;
-      seenPy.add(pa.pyName);
+      const wire = toSnake(wireByJsVar.get(pa.name) ?? pa.name);
+      const py = PY_KEYWORDS.has(wire) ? wire + "_" : wire;
+      if (SKIP_PROPS.has(py)) continue;
+      if (seenPy.has(py)) continue;
+      seenPy.add(py);
       requiredBody.push({
-        pyName: pa.pyName,
-        wireName: toSnake(pa.name),
+        pyName: py,
+        wireName: wire,
         pyType: pa.pyType,
       });
     }
