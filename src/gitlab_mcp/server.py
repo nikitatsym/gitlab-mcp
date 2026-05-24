@@ -461,3 +461,55 @@ def _register_tools():
         for fn in ops.values():
             fn._mcp_hints = typing.get_type_hints(fn, include_extras=True)
             fn._mcp_params_model = _build_params_model(fn)
+
+    _register_wait_resource()
+
+
+# ── Resources ────────────────────────────────────────────────────────────
+
+
+_WAIT_RESOURCE_REGISTERED = False
+
+
+def _register_wait_resource() -> None:
+    """Register `gitlab://waits/{wait_id}` once per process.
+
+    The resource returns the JSON snapshot of an in-flight or recently-terminal
+    wait operation. Clients that support resource reads can observe wait state
+    without going through a tool call — useful as a side-channel for agents
+    that want to peek between other operations.
+
+    FastMCP's resource manager rejects duplicate registration, so we gate
+    on a module-level flag. Tests that call `_register_tools()` multiple
+    times therefore see exactly one registration.
+    """
+    global _WAIT_RESOURCE_REGISTERED
+    if _WAIT_RESOURCE_REGISTERED:
+        return
+    import json as _json
+
+    from .wait_registry import WAIT_REGISTRY as _WAIT_REGISTRY
+
+    @mcp.resource(
+        "gitlab://waits/{wait_id}",
+        name="GitLab wait snapshot",
+        description=(
+            "JSON snapshot of a long-running wait operation registered by "
+            "pipelines_wait_start or jobs_wait_start. Same shape as the "
+            "return value of the corresponding *_wait_poll tool."
+        ),
+        mime_type="application/json",
+    )
+    def _read_wait(wait_id: str) -> str:
+        handle = _WAIT_REGISTRY.get(wait_id)
+        if handle is None:
+            return _json.dumps({
+                "error": f"unknown wait_id: {wait_id!r}",
+                "hint": (
+                    "Use waits_list to enumerate currently-known waits. "
+                    "Terminated waits are reaped after ~1 hour."
+                ),
+            })
+        return _json.dumps(handle.snapshot(), default=str)
+
+    _WAIT_RESOURCE_REGISTERED = True

@@ -1334,6 +1334,467 @@ async def jobs_wait(
     return result
 
 
+# ── Non-blocking wait tools (start / poll / cancel) ───────────────────────
+#
+# Pattern: the blocking `pipelines_wait` / `jobs_wait` above hold the MCP
+# tool call open for the entire wait, which means the agent can't do
+# anything else for up to `timeout` seconds. The trio below splits the
+# operation into:
+#
+#   start  — one initial sync poll, spawns a background task for the rest,
+#            returns a `wait_id` + snapshot immediately.
+#   poll   — read current snapshot. `max_block > 0` waits efficiently on
+#            the handle's done_event so a poll can sleep up to N seconds
+#            without busy-looping.
+#   cancel — cancel the underlying task, leaves the snapshot in the
+#            registry (so the caller can still read the partial state).
+#
+# Each wait is also exposed as an MCP Resource at `gitlab://waits/{wait_id}`
+# (registered in server.py) so clients that support resource reads can
+# observe state without going through a tool call.
+
+
+from .wait_registry import (  # noqa: E402 — defined late so registry is optional
+    TERMINAL_STATUSES as _TERMINAL_STATUSES,
+    WAIT_REGISTRY as _WAIT_REGISTRY,
+    WaitHandle as _WaitHandle,
+)
+
+
+def _do_pipeline_poll(handle: _WaitHandle) -> bool:
+    """One pipeline poll. Updates handle, returns True if terminal.
+
+    Sync function: the underlying httpx call blocks the event loop briefly,
+    matching the pattern used by every other tool in this module. Wrap in
+    a try/except by the caller if it should not propagate.
+    """
+    payload = _generated.pipelines_show(
+        project_id=handle.project_id, pipeline_id=handle.target_id
+    )
+    handle.polls += 1
+    handle.last_payload = payload
+    status = payload.get("status") if isinstance(payload, dict) else None
+    handle.record_transition(status)
+    return status in _TERMINAL_STATUSES
+
+
+def _do_job_poll(handle: _WaitHandle) -> bool:
+    """One job poll. Updates handle, returns True if terminal."""
+    payload = _generated.jobs_show(
+        project_id=handle.project_id, job_id=handle.target_id
+    )
+    handle.polls += 1
+    handle.last_payload = payload
+    status = payload.get("status") if isinstance(payload, dict) else None
+    handle.record_transition(status)
+    return status in _TERMINAL_STATUSES
+
+
+def _enrich_pipeline_final(handle: _WaitHandle) -> None:
+    """Populate handle.final_extras (jobs, failed_logs, warnings) after terminal.
+
+    Mirrors the blocking `pipelines_wait` finalisation: optional jobs list,
+    optional failed-job logs, and the soft `.gitlab-ci.yml` diagnostic
+    when a pipeline reaches `failed` before any job materialised.
+    """
+    opts = handle.options
+    if not opts.get("include_jobs", True):
+        return
+    jobs_raw = _generated.jobs_all(
+        project_id=handle.project_id, pipeline_id=int(handle.target_id)
+    )
+    jobs = jobs_raw if isinstance(jobs_raw, list) else []
+    handle.final_extras["jobs"] = [_slim_job(j) for j in jobs]
+    if opts.get("include_failed_logs", True):
+        handle.final_extras["failed_logs"] = _fetch_failed_logs(
+            handle.project_id, jobs, opts.get("log_tail", 100)
+        )
+
+    yaml_errors = (
+        handle.last_payload.get("yaml_errors")
+        if isinstance(handle.last_payload, dict)
+        else None
+    )
+    if (
+        handle.status == "failed"
+        and not jobs
+        and not yaml_errors
+    ):
+        warning = (
+            f"pipeline #{handle.target_id} reached terminal status 'failed' "
+            "before any jobs were materialized. This often indicates a "
+            "`.gitlab-ci.yml` validation failure, but no `yaml_errors` "
+            "were attached to the pipeline. To get the parser error, "
+            "call gitlab_read(operation='LintCheck', params={'project_id': "
+            f"{handle.project_id!r}}}) for the committed config, or "
+            "gitlab_read(operation='LintLint', params={'project_id': "
+            f"{handle.project_id!r}, 'content': '<yaml>'}}) with explicit content."
+        )
+        handle.final_extras.setdefault("warnings", []).append(warning)
+
+
+def _enrich_job_final(handle: _WaitHandle) -> None:
+    """Attach trailing job log to final_extras when include_log is set."""
+    opts = handle.options
+    if not opts.get("include_log", True):
+        return
+    try:
+        handle.final_extras["log"] = jobs_show_log(
+            project_id=handle.project_id,
+            job_id=handle.target_id,
+            tail=opts.get("log_tail", 100),
+        )
+    except Exception as e:  # noqa: BLE001 — surface as content, not abort
+        handle.final_extras["log"] = {"error": f"failed to fetch log: {e}"}
+
+
+async def _pipeline_loop(handle: _WaitHandle) -> None:
+    """Background task body: sleep, poll, repeat until terminal."""
+    interval = handle.options["interval"]
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                terminal = _do_pipeline_poll(handle)
+            except Exception as e:  # noqa: BLE001
+                handle.mark_terminated(error=f"poll failed: {e}")
+                return
+            if terminal:
+                try:
+                    _enrich_pipeline_final(handle)
+                except Exception as e:  # noqa: BLE001 — enrichment is best-effort
+                    handle.final_extras["enrichment_error"] = str(e)
+                handle.mark_terminated()
+                return
+    except asyncio.CancelledError:
+        handle.mark_terminated(error="cancelled")
+        raise
+
+
+async def _job_loop(handle: _WaitHandle) -> None:
+    """Background task body: sleep, poll, repeat until terminal."""
+    interval = handle.options["interval"]
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                terminal = _do_job_poll(handle)
+            except Exception as e:  # noqa: BLE001
+                handle.mark_terminated(error=f"poll failed: {e}")
+                return
+            if terminal:
+                try:
+                    _enrich_job_final(handle)
+                except Exception as e:  # noqa: BLE001
+                    handle.final_extras["enrichment_error"] = str(e)
+                handle.mark_terminated()
+                return
+    except asyncio.CancelledError:
+        handle.mark_terminated(error="cancelled")
+        raise
+
+
+async def _cancel_handle(handle: _WaitHandle) -> None:
+    """Cancel a handle's background task and ensure the handle is marked
+    terminated with `error="cancelled"`.
+
+    Why we don't rely on the loop's `except asyncio.CancelledError` handler
+    alone: a task whose CancelledError arrives before the coroutine has
+    executed past its first await point may finish without running the
+    handler. We await the task to let any handler that does run set state,
+    then defensively mark the handle if the done_event still isn't set.
+    """
+    task = handle.task
+    if task is not None and not task.done():
+        task.cancel()
+        try:
+            await task
+        except (asyncio.CancelledError, Exception):  # noqa: BLE001 — defensive
+            pass
+    if not handle.done_event.is_set():
+        handle.mark_terminated(error="cancelled")
+
+
+def _require_handle(wait_id: str, expected_kind: str | None = None) -> _WaitHandle:
+    handle = _WAIT_REGISTRY.get(wait_id)
+    if handle is None:
+        raise ValueError(
+            f"Unknown wait_id: {wait_id!r}. Use waits_list to enumerate "
+            "active or recently-finished waits."
+        )
+    if expected_kind is not None and handle.kind != expected_kind:
+        raise ValueError(
+            f"wait_id {wait_id!r} is a {handle.kind} wait, not {expected_kind}. "
+            f"Use {expected_kind}s_wait_poll for {handle.kind} waits or fix the call."
+        )
+    return handle
+
+
+@_op(gitlab_execute)
+async def pipelines_wait_start(
+    project_id: str | int,
+    pipeline_id: str | int,
+    interval: Annotated[
+        float,
+        Field(description="Seconds between background polls. Lower = faster reaction, more API calls."),
+    ] = 5.0,
+    include_jobs: Annotated[
+        bool,
+        Field(description="When the pipeline terminates, attach the slim jobs list to the final snapshot."),
+    ] = True,
+    include_failed_logs: Annotated[
+        bool,
+        Field(description="When include_jobs is true, also attach trailing logs of failed jobs."),
+    ] = True,
+    log_tail: Annotated[
+        int,
+        Field(description="Number of trailing log lines to attach per failed job."),
+    ] = 100,
+):
+    """Start a non-blocking wait for a pipeline to reach a terminal status.
+
+    Returns a `wait_id` and `resource_uri` immediately so the agent stays
+    unblocked. The first poll runs synchronously so the returned snapshot
+    already carries real status; if the pipeline is already terminal, no
+    background task is spawned and the snapshot includes full enrichment
+    (jobs, failed_logs).
+
+    Observe with `pipelines_wait_poll(wait_id, max_block=...)` or by reading
+    the resource at `gitlab://waits/{wait_id}`. Stop with
+    `pipelines_wait_cancel(wait_id)`.
+
+    Returns the same snapshot shape as `pipelines_wait_poll`. See its
+    docstring for field semantics.
+    """
+    if interval <= 0:
+        raise ValueError(f"interval must be > 0, got {interval}")
+    if log_tail < 0:
+        raise ValueError(f"log_tail must be >= 0, got {log_tail}")
+
+    _WAIT_REGISTRY.reap_old()
+
+    options = {
+        "interval": interval,
+        "include_jobs": include_jobs,
+        "include_failed_logs": include_failed_logs,
+        "log_tail": log_tail,
+    }
+    handle = _WAIT_REGISTRY.new_handle(
+        "pipeline", project_id, pipeline_id, options
+    )
+
+    # First poll synchronously so the returned snapshot carries real status.
+    try:
+        terminal = _do_pipeline_poll(handle)
+    except Exception as e:  # noqa: BLE001
+        handle.mark_terminated(error=f"initial poll failed: {e}")
+        return handle.snapshot()
+
+    if terminal:
+        try:
+            _enrich_pipeline_final(handle)
+        except Exception as e:  # noqa: BLE001
+            handle.final_extras["enrichment_error"] = str(e)
+        handle.mark_terminated()
+        return handle.snapshot()
+
+    handle.task = asyncio.create_task(_pipeline_loop(handle))
+    return handle.snapshot()
+
+
+@_op(gitlab_read)
+async def pipelines_wait_poll(
+    wait_id: str,
+    max_block: Annotated[
+        float,
+        Field(description="If > 0 and the wait is still in flight, block up to this many seconds waiting for the next terminal event. 0 (default) returns the current snapshot immediately."),
+    ] = 0.0,
+):
+    """Read the current snapshot of a pipeline wait.
+
+    With `max_block=0` (default) this is non-blocking — returns whatever
+    the background poll task has observed so far. With `max_block > 0` it
+    waits up to that many seconds for the wait to terminate, using an
+    asyncio.Event under the hood so the caller doesn't spin.
+
+    Snapshot fields:
+      wait_id           identifier registered by pipelines_wait_start
+      resource_uri      gitlab://waits/<wait_id> (for clients that read resources)
+      kind              "pipeline"
+      project_id, pipeline_id
+      status            latest observed status
+      terminated        True once a terminal status was reached
+      timed_out         True only if the caller's max_block elapsed before terminal
+      polls             number of pipelines_show calls made
+      transitions       list of {from, to, elapsed_seconds} entries
+      pipeline          full pipelines_show payload from the latest poll
+      started_at, ended_at, elapsed_seconds
+      jobs, failed_logs, warnings   only when terminated (and include_* set on start)
+      error             set if the wait failed or was cancelled
+    """
+    if max_block < 0:
+        raise ValueError(f"max_block must be >= 0, got {max_block}")
+    handle = _require_handle(wait_id, expected_kind="pipeline")
+    if max_block > 0 and not handle.done_event.is_set():
+        try:
+            await asyncio.wait_for(handle.done_event.wait(), timeout=max_block)
+        except asyncio.TimeoutError:
+            snap = handle.snapshot()
+            snap["timed_out"] = True
+            return snap
+    return handle.snapshot()
+
+
+@_op(gitlab_execute)
+async def pipelines_wait_cancel(wait_id: str):
+    """Cancel a pipeline wait. The snapshot remains readable; error="cancelled".
+
+    Idempotent on an already-terminal or already-errored wait — returns the
+    snapshot unchanged. Cancellation only stops the background polling task;
+    it does NOT cancel the underlying GitLab pipeline. Use `pipelines_cancel`
+    for that.
+    """
+    handle = _require_handle(wait_id, expected_kind="pipeline")
+    if handle.done_event.is_set():
+        return handle.snapshot()
+    await _cancel_handle(handle)
+    return handle.snapshot()
+
+
+@_op(gitlab_execute)
+async def jobs_wait_start(
+    project_id: str | int,
+    job_id: str | int,
+    interval: Annotated[
+        float,
+        Field(description="Seconds between background polls."),
+    ] = 5.0,
+    include_log: Annotated[
+        bool,
+        Field(description="On termination, attach the job's trailing log to the final snapshot."),
+    ] = True,
+    log_tail: Annotated[
+        int,
+        Field(description="Number of trailing log lines to attach."),
+    ] = 100,
+):
+    """Start a non-blocking wait for a job to reach a terminal status.
+
+    Returns a handle immediately. See `pipelines_wait_start` for the same
+    pattern; observe with `jobs_wait_poll(wait_id, max_block=...)` or read
+    the resource at `gitlab://waits/{wait_id}`.
+    """
+    if interval <= 0:
+        raise ValueError(f"interval must be > 0, got {interval}")
+    if log_tail < 0:
+        raise ValueError(f"log_tail must be >= 0, got {log_tail}")
+
+    _WAIT_REGISTRY.reap_old()
+
+    options = {
+        "interval": interval,
+        "include_log": include_log,
+        "log_tail": log_tail,
+    }
+    handle = _WAIT_REGISTRY.new_handle("job", project_id, job_id, options)
+
+    try:
+        terminal = _do_job_poll(handle)
+    except Exception as e:  # noqa: BLE001
+        handle.mark_terminated(error=f"initial poll failed: {e}")
+        return handle.snapshot()
+
+    if terminal:
+        try:
+            _enrich_job_final(handle)
+        except Exception as e:  # noqa: BLE001
+            handle.final_extras["enrichment_error"] = str(e)
+        handle.mark_terminated()
+        return handle.snapshot()
+
+    handle.task = asyncio.create_task(_job_loop(handle))
+    return handle.snapshot()
+
+
+@_op(gitlab_read)
+async def jobs_wait_poll(
+    wait_id: str,
+    max_block: Annotated[
+        float,
+        Field(description="If > 0, block up to this many seconds waiting for terminal. 0 returns the current snapshot immediately."),
+    ] = 0.0,
+):
+    """Read the current snapshot of a job wait. Mirrors `pipelines_wait_poll`."""
+    if max_block < 0:
+        raise ValueError(f"max_block must be >= 0, got {max_block}")
+    handle = _require_handle(wait_id, expected_kind="job")
+    if max_block > 0 and not handle.done_event.is_set():
+        try:
+            await asyncio.wait_for(handle.done_event.wait(), timeout=max_block)
+        except asyncio.TimeoutError:
+            snap = handle.snapshot()
+            snap["timed_out"] = True
+            return snap
+    return handle.snapshot()
+
+
+@_op(gitlab_execute)
+async def jobs_wait_cancel(wait_id: str):
+    """Cancel a job wait. Mirrors `pipelines_wait_cancel`."""
+    handle = _require_handle(wait_id, expected_kind="job")
+    if handle.done_event.is_set():
+        return handle.snapshot()
+    await _cancel_handle(handle)
+    return handle.snapshot()
+
+
+@_op(gitlab_read)
+def waits_list(
+    kind: Annotated[
+        str | None,
+        Field(description="Filter by kind: 'pipeline' or 'job'. None lists both."),
+    ] = None,
+    terminated: Annotated[
+        bool | None,
+        Field(description="Filter by termination state. None lists all."),
+    ] = None,
+):
+    """List active and recently-terminal waits known to this server.
+
+    Returns a list of compact dicts (no payload, no jobs, no logs) suitable
+    for letting the agent recover after losing a wait_id. Each entry has:
+      wait_id, resource_uri, kind, project_id, target_id, status,
+      terminated, polls, elapsed_seconds, started_at, ended_at.
+
+    The wait registry has a TTL (default 1 hour after termination); after
+    that, entries are reaped and no longer listed.
+    """
+    if kind is not None and kind not in ("pipeline", "job"):
+        raise ValueError(f"kind must be 'pipeline' or 'job' or None, got {kind!r}")
+    out: list[dict] = []
+    for handle in _WAIT_REGISTRY.all_handles():
+        if kind is not None and handle.kind != kind:
+            continue
+        if terminated is not None and handle.terminated != terminated:
+            continue
+        target_key = "pipeline_id" if handle.kind == "pipeline" else "job_id"
+        out.append({
+            "wait_id": handle.wait_id,
+            "resource_uri": f"gitlab://waits/{handle.wait_id}",
+            "kind": handle.kind,
+            "project_id": handle.project_id,
+            target_key: handle.target_id,
+            "status": handle.status,
+            "terminated": handle.terminated,
+            "polls": handle.polls,
+            "elapsed_seconds": handle.elapsed_seconds,
+            "started_at": handle.started_at,
+            "ended_at": handle.ended_at,
+            "error": handle.error,
+        })
+    return out
+
+
 # ── Per-param descriptions ─────────────────────────────────────────────────
 # Run at the very bottom so every override (generated wrapper or hand-written
 # module-level fn) is in `globals()` before we walk PARAM_ANNOTATIONS.
