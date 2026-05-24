@@ -27,6 +27,28 @@ services:
       retries: 60
       start_period: 120s
 
+  # CI runner for waiter integration tests — opt-in via --profile ci.
+  # Uses the shell executor so jobs run directly in this container with no
+  # docker-in-docker / socket-mount complexity. Registered against the
+  # GitLab service by scripts/register_runner.py after GitLab is ready.
+  gitlab-runner:
+    image: gitlab/gitlab-runner:alpine
+    container_name: tests-gitlab-runner
+    depends_on:
+      gitlab:
+        condition: service_healthy
+    networks:
+      default: {}
+    extra_hosts:
+      # Lets the runner reach gitlab on the same URL the host uses so that
+      # `external_url 'http://localhost:8929'` resolves consistently.
+      - "localhost:host-gateway"
+    volumes:
+      - gitlab_runner_config:/etc/gitlab-runner
+    restart: unless-stopped
+    profiles:
+      - ci
+
   heptapod:
     image: octobus/heptapod:latest-stable
     hostname: heptapod.test
@@ -43,3 +65,6 @@ services:
       timeout: 5s
       retries: 60
       start_period: 300s
+
+volumes:
+  gitlab_runner_config: {}

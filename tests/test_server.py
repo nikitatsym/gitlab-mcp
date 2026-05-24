@@ -205,20 +205,25 @@ class TestMakeTool:
 
         Pre-fix bug: `params: dict = {}` shared one dict across all calls,
         so mutations from earlier calls leaked into later ones.
+
+        Meta-tools are async (so progress / log can be awaited from inside
+        ops), so we drive them with `asyncio.run`.
         """
+        import asyncio
+
         from gitlab_mcp import server
 
         captured: list[int] = []
 
-        def fake_dispatch(operation, group_name, params):
+        def fake_dispatch(operation, group_name, params, ctx=None):
             captured.append(len(params))
             params["leaked"] = "mutation"
             return None
 
         monkeypatch.setattr(server, "_dispatch", fake_dispatch)
         tool_fn = server._make_tool("test_group", "doc")
-        tool_fn(operation="MyOp")
-        tool_fn(operation="MyOp")
+        asyncio.run(tool_fn(operation="MyOp"))
+        asyncio.run(tool_fn(operation="MyOp"))
         assert captured == [0, 0]
 
 

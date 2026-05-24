@@ -13,7 +13,7 @@ import types as _types
 import typing
 from typing import Annotated, Any
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -28,6 +28,13 @@ from .client import get_client
 from .registry import ROOT, _UNSET, _Unset
 
 mcp = FastMCP("gitlab")
+
+
+# Parameter name reserved for FastMCP's Context injection. Tools that declare
+# this param receive the live MCP request context (for report_progress / log)
+# but it's never exposed to callers — the Pydantic params model skips it and
+# `_coerce_call` injects it after validation.
+_CTX_PARAM = "ctx"
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -57,6 +64,8 @@ def _build_params_model(fn) -> type[BaseModel]:
     for name, p in sig.parameters.items():
         if p.kind is inspect.Parameter.VAR_KEYWORD:
             has_var_keyword = True
+            continue
+        if name == _CTX_PARAM:
             continue
         ann = hints.get(name, Any)
         if p.default is inspect.Parameter.empty:
@@ -92,7 +101,7 @@ def _build_params_model(fn) -> type[BaseModel]:
     )
 
 
-def _coerce_call(fn, params: dict):
+def _coerce_call(fn, params: dict, ctx: Context | None = None):
     """Validate `params` via the cached Pydantic model and invoke `fn`.
 
     - Caller-omitted fields (sentinel `_UNSET` defaults) are filtered via
@@ -101,6 +110,9 @@ def _coerce_call(fn, params: dict):
     - Pre-flight check still rejects body-fields-nested-under-`**options`
       with a friendly hint (Pydantic's "extra not permitted" error wouldn't
       flag this since the var-keyword name IS a valid key).
+    - When the target function declares a `ctx` parameter, the live MCP
+      Context (when present) is injected after validation. `ctx` is never
+      part of the Pydantic params model, so callers can't pass it themselves.
     """
     sig_params = inspect.signature(fn).parameters
     var_kw = next(
@@ -125,6 +137,8 @@ def _coerce_call(fn, params: dict):
     kwargs = validated.model_dump(exclude_unset=True)
     if validated.model_extra:
         kwargs.update(validated.model_extra)
+    if _CTX_PARAM in sig_params:
+        kwargs[_CTX_PARAM] = ctx
     return fn(**kwargs)
 
 
@@ -307,6 +321,8 @@ def _format_help_full(ops: dict, group_name: str, scope_desc: str) -> str:
             if p.kind is inspect.Parameter.VAR_KEYWORD:
                 parts.append(f"**{name}")
                 continue
+            if name == _CTX_PARAM:
+                continue
             hint = hints.get(name)
             type_str = _render_type(hint) if hint is not None else "Any"
             if p.default is inspect.Parameter.empty:
@@ -330,8 +346,15 @@ def _format_help_full(ops: dict, group_name: str, scope_desc: str) -> str:
     return "\n".join(lines)
 
 
-def _dispatch(operation: str, group_name: str, params: dict):
-    """Dispatch an operation call to the right function."""
+def _dispatch(operation: str, group_name: str, params: dict, ctx: Context | None = None):
+    """Dispatch an operation call to the right function.
+
+    Synchronous ops are called directly. Async ops (e.g. pipelines_wait,
+    jobs_wait) return a coroutine which is returned as-is — the meta-tool
+    `tool_fn` awaits it. Calling `_dispatch` directly from a sync caller
+    against an async op therefore yields an awaitable, not a value;
+    callers in that situation should `asyncio.run(...)` the result.
+    """
     ops = _group_ops[group_name]
     if operation not in ops:
         if operation in _all_grouped:
@@ -346,7 +369,7 @@ def _dispatch(operation: str, group_name: str, params: dict):
         }
 
     fn = ops[operation]
-    return _coerce_call(fn, params)
+    return _coerce_call(fn, params, ctx)
 
 
 # ── Registration ─────────────────────────────────────────────────────────
@@ -355,11 +378,19 @@ def _dispatch(operation: str, group_name: str, params: dict):
 def _make_tool(group_name: str, group_doc: str):
     """Build the meta-tool function for a group.
 
-    Lifted to module level so tests can construct meta-tools without going
-    through `_register_tools()`, and so the `params` default isn't a shared
-    mutable dict across calls.
+    Async by design so tools that need the MCP Context (progress / log)
+    can `await ctx.report_progress(...)` from inside their dispatch path.
+    Sync ops still work — `_coerce_call` returns whatever the op returns,
+    and we only `await` when the result is actually a coroutine.
+
+    The `ctx` parameter is typed `Context` so FastMCP injects the live
+    request context; it never appears in the tool's JSON schema for callers.
     """
-    def tool_fn(operation: str, params: dict | None = None):
+    async def tool_fn(
+        operation: str,
+        params: dict | None = None,
+        ctx: Context | None = None,
+    ):
         params = params or {}
         if operation == "help":
             return _build_help(
@@ -367,7 +398,10 @@ def _make_tool(group_name: str, group_doc: str):
                 category=params.get("category"),
                 search=params.get("search"),
             )
-        return _dispatch(operation, group_name, params)
+        result = _dispatch(operation, group_name, params, ctx)
+        if inspect.iscoroutine(result):
+            result = await result
+        return result
     tool_fn.__name__ = group_name
     tool_fn.__qualname__ = group_name
     tool_fn.__doc__ = group_doc
