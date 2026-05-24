@@ -12,6 +12,7 @@ Full REST API coverage with VCS-aware helpers — one tool surface, two backends
 - **Pre-flight guards** — block `fork` on hg projects, validate hg topic naming on MR creation, detect silently-dropped fields in write responses
 - **Visibility default-deny** — public/internal projects/snippets/groups blocked unless `--allow-public` is passed
 - **Slim list views** — `brief=True` returns trimmed entries for projects/MRs/issues/branches/commits/etc. so the LLM doesn't drown in metadata
+- **Long-running waiters** — `pipelines_wait` / `jobs_wait` block until a CI pipeline or job reaches a terminal status, streaming each transition via MCP `report_progress` + `log` notifications. Final summary (with failed-job log tails for pipelines) is returned even if the client doesn't render notifications
 - Self-service helpers for SSH/GPG keys, emails, and notification settings (which gitbeaker hides behind URL helpers)
 - Zero-config install via `uvx`
 
@@ -93,6 +94,20 @@ npm run codegen
 
 # CI drift check (exit 1 if generated files diverge from source)
 npm run codegen:check
+```
+
+### Waiter integration tests
+
+`pipelines_wait` / `jobs_wait` need a real runner to exercise transitions, so
+their integration test (`tests/test_integration_waiters.py`) is gated behind
+an extra `gitlab-runner` container (shell executor, `--profile ci`):
+
+```bash
+npm run gitlab:up                 # GitLab CE + PAT bootstrap (~3-5 min first run)
+npm run runner:up                 # register a fresh instance-scope runner
+npm run test:integration:waiters  # creates a project, pushes CI config, waits
+
+npm run runner:down               # remove the runner + wipe its config volume
 ```
 
 Heptapod integration tests are gated behind `RUN_HEPTAPOD_TESTS=1`:

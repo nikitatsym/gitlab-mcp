@@ -7,15 +7,20 @@ Layout:
   4. Wire generated ops into groups via _SCOPE_GROUPS + _OVERRIDES
   5. (Phase 6) Business-logic overrides (create_merge_request, fork_project, …)
   6. (Phase 7) Heptapod-only ops (hg_*)
+  7. Long-running waiters (pipelines_wait, jobs_wait)
 """
 
+import asyncio
+import logging
 import re
+import time
 import typing
 from importlib.metadata import version as _pkg_version
 from pathlib import Path as _Path
-from typing import Annotated
+from typing import Annotated, Any
 from urllib.parse import quote as _quote
 
+from mcp.server.fastmcp import Context
 from pydantic import Field
 
 from . import _generated
@@ -957,6 +962,376 @@ def hg_create_topic_mr(
 
 
 hg_create_topic_mr._heptapod_only = True
+
+
+# ── Long-running waiters ──────────────────────────────────────────────────
+#
+# Hand-written async tools that poll a pipeline / job until it reaches a
+# terminal status, streaming progress via `ctx.report_progress(message=…)`
+# and `ctx.log(level, message)`. Both return a complete summary even when
+# the MCP client doesn't render notifications — the result is the source
+# of truth, progress / log are best-effort.
+
+
+_log_wait = logging.getLogger("gitlab_mcp.wait")
+
+# Per GitLab pipeline / job state machine:
+#   non-terminal: created, waiting_for_resource, preparing, pending, running
+#   terminal:     success, failed, canceled, skipped, manual, scheduled
+# `manual` / `scheduled` are terminal in the polling sense — they will not
+# change without an external trigger (user click, schedule fire), so further
+# polling is pointless. Callers that want to wait through a manual gate
+# should explicitly play the job and call wait again.
+_PIPELINE_TERMINAL = frozenset(
+    {"success", "failed", "canceled", "skipped", "manual", "scheduled"}
+)
+_JOB_TERMINAL = _PIPELINE_TERMINAL
+
+# Status → log level for terminal outcomes. `info` for the green path,
+# `warning` for non-failure stops, `error` only for actual failures.
+_TERMINAL_LOG_LEVEL: dict[str, str] = {
+    "success": "info",
+    "failed": "error",
+    "canceled": "warning",
+    "skipped": "warning",
+    "manual": "info",
+    "scheduled": "info",
+}
+
+
+async def _emit_progress(
+    ctx: Context | None, progress: float, total: float | None, message: str
+) -> None:
+    """Best-effort progress emit — never breaks polling on transport errors."""
+    if ctx is None:
+        return
+    try:
+        await ctx.report_progress(progress=progress, total=total, message=message)
+    except Exception:  # noqa: BLE001 — progress is best-effort, never fatal
+        _log_wait.debug("report_progress failed", exc_info=True)
+
+
+async def _emit_log(ctx: Context | None, level: str, message: str) -> None:
+    """Best-effort log emit — never breaks polling on transport errors."""
+    if ctx is None:
+        return
+    try:
+        await ctx.log(level=level, message=message)  # type: ignore[arg-type]
+    except Exception:  # noqa: BLE001 — log notifications are best-effort
+        _log_wait.debug("ctx.log failed", exc_info=True)
+
+
+def _fetch_failed_logs(
+    project_id: str | int, jobs: list[dict], log_tail: int
+) -> dict[int, dict]:
+    """Pull trace tails for each failed job. Errors per-job are absorbed so
+    one unreadable trace doesn't poison the whole summary."""
+    out: dict[int, dict] = {}
+    for j in jobs:
+        if not isinstance(j, dict) or j.get("status") != "failed":
+            continue
+        jid = j.get("id")
+        if jid is None:
+            continue
+        try:
+            out[jid] = jobs_show_log(
+                project_id=project_id, job_id=jid, tail=log_tail
+            )
+        except Exception as e:  # noqa: BLE001 — surface as content, not abort
+            out[jid] = {"error": f"failed to fetch log: {e}"}
+    return out
+
+
+@_op(gitlab_execute)
+async def pipelines_wait(
+    project_id: str | int,
+    pipeline_id: str | int,
+    timeout: Annotated[
+        float,
+        Field(description="Max seconds to wait for a terminal status."),
+    ] = 600.0,
+    interval: Annotated[
+        float,
+        Field(description="Seconds between polls. Lower = faster reaction, more API calls."),
+    ] = 5.0,
+    include_jobs: Annotated[
+        bool,
+        Field(description="When terminated, include the pipeline's jobs in the response."),
+    ] = True,
+    include_failed_logs: Annotated[
+        bool,
+        Field(description="When include_jobs is true, also attach the trailing log of every failed job."),
+    ] = True,
+    log_tail: Annotated[
+        int,
+        Field(description="Number of trailing log lines to attach per failed job."),
+    ] = 100,
+    ctx: Context | None = None,
+):
+    """Block until a pipeline reaches a terminal status.
+
+    Polls `pipelines_show` every `interval` seconds for up to `timeout`
+    seconds. Each status transition is streamed to the client via
+    `ctx.report_progress(progress, total, message=...)` and `ctx.log(level,
+    message)`. Clients without notification UI still get the full picture
+    from the return value — progress and log are best-effort.
+
+    Terminal statuses: success, failed, canceled, skipped, manual, scheduled.
+    `manual` and `scheduled` are terminal in the polling sense (they won't
+    change without an external trigger).
+
+    Returns a dict:
+      pipeline          full pipelines_show payload at the last poll
+      status            terminal status string (or last seen on timeout)
+      terminated        True if a terminal status was reached
+      timed_out         True if `timeout` expired first
+      elapsed_seconds   wall-clock duration of the wait
+      polls             number of pipelines_show calls made
+      jobs              list (when include_jobs=True) of jobs in the pipeline
+      failed_logs       dict[job_id, log] (when include_failed_logs=True)
+    """
+    if timeout <= 0:
+        raise ValueError(f"timeout must be > 0, got {timeout}")
+    if interval <= 0:
+        raise ValueError(f"interval must be > 0, got {interval}")
+    if log_tail < 0:
+        raise ValueError(f"log_tail must be >= 0, got {log_tail}")
+
+    start = time.monotonic()
+    previous_status: str | None = None
+    pipeline: Any = {}
+    status: str | None = None
+    polls = 0
+    terminated = False
+
+    while True:
+        elapsed = time.monotonic() - start
+        pipeline = _generated.pipelines_show(
+            project_id=project_id, pipeline_id=pipeline_id
+        )
+        polls += 1
+        status = pipeline.get("status") if isinstance(pipeline, dict) else None
+
+        if status != previous_status:
+            await _emit_progress(
+                ctx,
+                progress=elapsed,
+                total=timeout,
+                message=f"pipeline #{pipeline_id} status: {status}",
+            )
+            if previous_status is None:
+                await _emit_log(
+                    ctx, "info",
+                    f"pipeline #{pipeline_id}: starting wait (status={status})",
+                )
+            else:
+                await _emit_log(
+                    ctx, "info",
+                    f"pipeline #{pipeline_id}: {previous_status} → {status}",
+                )
+            previous_status = status
+
+        if status in _PIPELINE_TERMINAL:
+            terminated = True
+            break
+
+        if elapsed + interval >= timeout:
+            break
+
+        await asyncio.sleep(interval)
+
+    elapsed_final = time.monotonic() - start
+    result: dict[str, Any] = {
+        "pipeline": pipeline,
+        "status": status,
+        "terminated": terminated,
+        "timed_out": not terminated,
+        "elapsed_seconds": round(elapsed_final, 2),
+        "polls": polls,
+    }
+
+    if terminated:
+        level = _TERMINAL_LOG_LEVEL.get(status or "", "info")
+        await _emit_log(
+            ctx, level,
+            f"pipeline #{pipeline_id} finished with status={status} "
+            f"after {polls} polls in {elapsed_final:.1f}s",
+        )
+    else:
+        await _emit_log(
+            ctx, "warning",
+            f"pipeline #{pipeline_id} did not reach a terminal status "
+            f"in {timeout}s (last status={status}, polls={polls})",
+        )
+
+    if include_jobs:
+        jobs_raw = _generated.jobs_all(
+            project_id=project_id, pipeline_id=int(pipeline_id)
+        )
+        jobs = jobs_raw if isinstance(jobs_raw, list) else []
+        result["jobs"] = [_slim_job(j) for j in jobs]
+        if include_failed_logs:
+            failed_logs = _fetch_failed_logs(project_id, jobs, log_tail)
+            result["failed_logs"] = failed_logs
+            if failed_logs:
+                await _emit_log(
+                    ctx, "error",
+                    f"pipeline #{pipeline_id}: {len(failed_logs)} failed job(s); "
+                    f"trailing log attached (tail={log_tail})",
+                )
+
+        # Soft diagnostic for "failed before any job materialized" — a common
+        # but not exclusive signature of `.gitlab-ci.yml` validation failure.
+        # We don't auto-lint here: the waiter shouldn't read files or guess
+        # ref/content. Just point at the right tool so the caller can act.
+        yaml_errors = (
+            pipeline.get("yaml_errors") if isinstance(pipeline, dict) else None
+        )
+        if (
+            terminated
+            and status == "failed"
+            and not jobs
+            and not yaml_errors
+        ):
+            warning = (
+                f"pipeline #{pipeline_id} reached terminal status 'failed' "
+                "before any jobs were materialized. This often indicates a "
+                "`.gitlab-ci.yml` validation failure, but no `yaml_errors` "
+                "were attached to the pipeline. To get the parser error, "
+                "call gitlab_read(operation='LintCheck', params={'project_id': "
+                f"{project_id!r}}}) for the committed config, or "
+                "gitlab_read(operation='LintLint', params={'project_id': "
+                f"{project_id!r}, 'content': '<yaml>'}}) with explicit content."
+            )
+            result.setdefault("warnings", []).append(warning)
+            await _emit_log(ctx, "warning", warning)
+
+    return result
+
+
+@_op(gitlab_execute)
+async def jobs_wait(
+    project_id: str | int,
+    job_id: str | int,
+    timeout: Annotated[
+        float,
+        Field(description="Max seconds to wait for a terminal status."),
+    ] = 600.0,
+    interval: Annotated[
+        float,
+        Field(description="Seconds between polls. Lower = faster reaction, more API calls."),
+    ] = 5.0,
+    include_log: Annotated[
+        bool,
+        Field(description="Include the job's trailing log in the response when terminated."),
+    ] = True,
+    log_tail: Annotated[
+        int,
+        Field(description="Number of trailing log lines to attach (used when include_log is true)."),
+    ] = 100,
+    ctx: Context | None = None,
+):
+    """Block until a job reaches a terminal status.
+
+    Polls `jobs_show` every `interval` seconds for up to `timeout` seconds.
+    Each status transition is streamed via `ctx.report_progress(message=…)`
+    and `ctx.log(level, message)`. The final result dict is the source of
+    truth — clients without notification UI still get everything from the
+    return value; progress / log are best-effort.
+
+    Terminal statuses: success, failed, canceled, skipped, manual, scheduled.
+
+    Returns a dict:
+      job               full jobs_show payload at the last poll
+      status            terminal status string (or last seen on timeout)
+      terminated        True if a terminal status was reached
+      timed_out         True if `timeout` expired first
+      elapsed_seconds   wall-clock duration of the wait
+      polls             number of jobs_show calls made
+      log               trailing log (when include_log=True), structured like
+                        jobs_show_log: {text, total_lines, tail, truncated}
+    """
+    if timeout <= 0:
+        raise ValueError(f"timeout must be > 0, got {timeout}")
+    if interval <= 0:
+        raise ValueError(f"interval must be > 0, got {interval}")
+    if log_tail < 0:
+        raise ValueError(f"log_tail must be >= 0, got {log_tail}")
+
+    start = time.monotonic()
+    previous_status: str | None = None
+    job: Any = {}
+    status: str | None = None
+    polls = 0
+    terminated = False
+
+    while True:
+        elapsed = time.monotonic() - start
+        job = _generated.jobs_show(project_id=project_id, job_id=job_id)
+        polls += 1
+        status = job.get("status") if isinstance(job, dict) else None
+
+        if status != previous_status:
+            await _emit_progress(
+                ctx,
+                progress=elapsed,
+                total=timeout,
+                message=f"job #{job_id} status: {status}",
+            )
+            if previous_status is None:
+                await _emit_log(
+                    ctx, "info",
+                    f"job #{job_id}: starting wait (status={status})",
+                )
+            else:
+                await _emit_log(
+                    ctx, "info",
+                    f"job #{job_id}: {previous_status} → {status}",
+                )
+            previous_status = status
+
+        if status in _JOB_TERMINAL:
+            terminated = True
+            break
+
+        if elapsed + interval >= timeout:
+            break
+
+        await asyncio.sleep(interval)
+
+    elapsed_final = time.monotonic() - start
+    result: dict[str, Any] = {
+        "job": job,
+        "status": status,
+        "terminated": terminated,
+        "timed_out": not terminated,
+        "elapsed_seconds": round(elapsed_final, 2),
+        "polls": polls,
+    }
+
+    if terminated:
+        level = _TERMINAL_LOG_LEVEL.get(status or "", "info")
+        await _emit_log(
+            ctx, level,
+            f"job #{job_id} finished with status={status} "
+            f"after {polls} polls in {elapsed_final:.1f}s",
+        )
+    else:
+        await _emit_log(
+            ctx, "warning",
+            f"job #{job_id} did not reach a terminal status "
+            f"in {timeout}s (last status={status}, polls={polls})",
+        )
+
+    if include_log:
+        try:
+            result["log"] = jobs_show_log(
+                project_id=project_id, job_id=job_id, tail=log_tail
+            )
+        except Exception as e:  # noqa: BLE001 — surface as content, not abort
+            result["log"] = {"error": f"failed to fetch log: {e}"}
+
+    return result
 
 
 # ── Per-param descriptions ─────────────────────────────────────────────────
