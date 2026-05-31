@@ -233,12 +233,19 @@ def _build_help(
     # ── Filtered detailed listings ──
     if search:
         s = search.lower()
-        matched = {k: v for k, v in ops.items() if s in k.lower()}
+
+        def _hit(name: str, fn) -> bool:
+            # Match op name AND docstring (ANNOTATIONS overrides land in
+            # __doc__), so intent words find ops named differently.
+            return s in name.lower() or s in (inspect.getdoc(fn) or "").lower()
+
+        matched = {k: v for k, v in ops.items() if _hit(k, v)}
         elsewhere: dict[str, list[str]] = {}
         for op_name, other_group in _all_grouped.items():
             if other_group == group_name:
                 continue
-            if s in op_name.lower():
+            other_fn = _group_ops.get(other_group, {}).get(op_name)
+            if other_fn is not None and _hit(op_name, other_fn):
                 elsewhere.setdefault(other_group, []).append(op_name)
         if not matched:
             msg = f"No ops in {group_name} matching {search!r}."
