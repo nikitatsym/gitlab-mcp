@@ -407,36 +407,78 @@ def broadcast_messages_show(broadcast_message_id: str | int, sudo: str | int = _
 
 # ── CommitDiscussions ─────────────────────────────────────────────────────
 
-def commit_discussions_add_note(project_id: str | int, repositorycommit_id: str | int, discussion_id: str | int, body: str | int, **options):
-    """CommitDiscussions.addNote (POST projects/${projectId}/repository/commits/${repositorycommitId}/discussions/${discussionId}/notes). Body fields: body."""
-    payload = {**options}
+def commit_discussions_add_note(project_id: str | int, repositorycommit_id: str | int, discussion_id: str | int, body: str, created_at: str = _UNSET, sudo: str | int = _UNSET):
+    """CommitDiscussions.addNote (POST projects/${projectId}/repository/commits/${repositorycommitId}/discussions/${discussionId}/notes). Body fields: body, created_at, sudo."""
+    payload: dict = {}
     payload["body"] = body
+    if created_at is not _UNSET:
+        payload["created_at"] = created_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions/{_enc(discussion_id)}/notes", json=payload))
 
 
-def commit_discussions_all(project_id: str | int, repositorycommit_id: str | int, **options):
-    """CommitDiscussions.all (GET projects/${projectId}/repository/commits/${repositorycommitId}/discussions)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions", params=options))
+def commit_discussions_all(project_id: str | int, repositorycommit_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """CommitDiscussions.all (GET projects/${projectId}/repository/commits/${repositorycommitId}/discussions). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions", params=payload))
 
 
-def commit_discussions_create(project_id: str | int, repositorycommit_id: str | int, **options):
-    """CommitDiscussions.create (POST projects/${projectId}/repository/commits/${repositorycommitId}/discussions)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions", json=options))
+def commit_discussions_create(project_id: str | int, repositorycommit_id: str | int, body: str, position: dict = _UNSET, commit_id: str = _UNSET, created_at: str = _UNSET, sudo: str | int = _UNSET):
+    """CommitDiscussions.create (POST projects/${projectId}/repository/commits/${repositorycommitId}/discussions). Body fields: body, position, commit_id, created_at, sudo."""
+    payload: dict = {}
+    payload["body"] = body
+    if position is not _UNSET:
+        payload["position"] = position
+    if commit_id is not _UNSET:
+        payload["commit_id"] = commit_id
+    if created_at is not _UNSET:
+        payload["created_at"] = created_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions", json=payload))
 
 
-def commit_discussions_edit_note(project_id: str | int, repositorycommit_id: str | int, discussion_id: str | int, note_id: str | int, **options):
-    """CommitDiscussions.editNote (PUT projects/${projectId}/repository/commits/${repositorycommitId}/discussions/${discussionId}/notes/${noteId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", json=options))
+def commit_discussions_edit_note(project_id: str | int, repositorycommit_id: str | int, discussion_id: str | int, note_id: str | int, sudo: str | int = _UNSET, body: str = _UNSET, resolved: bool = _UNSET):
+    """CommitDiscussions.editNote (PUT projects/${projectId}/repository/commits/${repositorycommitId}/discussions/${discussionId}/notes/${noteId}). Body fields: sudo, body, resolved."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if body is not _UNSET:
+        payload["body"] = body
+    if resolved is not _UNSET:
+        payload["resolved"] = resolved
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", json=payload))
 
 
-def commit_discussions_remove_note(project_id: str | int, repositorycommit_id: str | int, discussion_id: str | int, note_id: str | int, **options):
-    """CommitDiscussions.removeNote (DELETE projects/${projectId}/repository/commits/${repositorycommitId}/discussions/${discussionId}/notes/${noteId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", params=options))
+def commit_discussions_remove_note(project_id: str | int, repositorycommit_id: str | int, discussion_id: str | int, note_id: str | int, sudo: str | int = _UNSET):
+    """CommitDiscussions.removeNote (DELETE projects/${projectId}/repository/commits/${repositorycommitId}/discussions/${discussionId}/notes/${noteId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", params=payload))
 
 
-def commit_discussions_show(project_id: str | int, repositorycommit_id: str | int, discussion_id: str | int, **options):
-    """CommitDiscussions.show (GET projects/${projectId}/repository/commits/${repositorycommitId}/discussions/${discussionId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions/{_enc(discussion_id)}", params=options))
+def commit_discussions_show(project_id: str | int, repositorycommit_id: str | int, discussion_id: str | int, sudo: str | int = _UNSET):
+    """CommitDiscussions.show (GET projects/${projectId}/repository/commits/${repositorycommitId}/discussions/${discussionId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/repository/commits/{_enc(repositorycommit_id)}/discussions/{_enc(discussion_id)}", params=payload))
 
 
 # ── Commits ───────────────────────────────────────────────────────────────
@@ -1158,14 +1200,32 @@ def environments_stop_stale(project_id: str | int, before: str, sudo: str | int 
 
 # ── EpicStateEvents ───────────────────────────────────────────────────────
 
-def epic_state_events_all(group_id: str | int, epic_iid: str | int, **options):
-    """EpicStateEvents.all (GET groups/${groupId}/epics/${epicIid}/resource_state_events)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/epics/{_enc(epic_iid)}/resource_state_events", params=options))
+def epic_state_events_all(group_id: str | int, epic_iid: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """EpicStateEvents.all (GET groups/${groupId}/epics/${epicIid}/resource_state_events). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/epics/{_enc(epic_iid)}/resource_state_events", params=payload))
 
 
-def epic_state_events_show(group_id: str | int, epic_iid: str | int, state_event_id: str | int, **options):
-    """EpicStateEvents.show (GET groups/${groupId}/epics/${epicIid}/resource_state_events/${stateEventId})."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/epics/{_enc(epic_iid)}/resource_state_events/{_enc(state_event_id)}", params=options))
+def epic_state_events_show(group_id: str | int, epic_iid: str | int, state_event_id: str | int, sudo: str | int = _UNSET):
+    """EpicStateEvents.show (GET groups/${groupId}/epics/${epicIid}/resource_state_events/${stateEventId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/epics/{_enc(epic_iid)}/resource_state_events/{_enc(state_event_id)}", params=payload))
 
 
 # ── ErrorTrackingClientKeys ───────────────────────────────────────────────
@@ -1423,55 +1483,111 @@ def go_proxy_show_version_metadata(project_id: str | int, module_name: str | int
 
 # ── GroupAccessRequests ───────────────────────────────────────────────────
 
-def group_access_requests_all(group_id: str | int, **options):
-    """GroupAccessRequests.all (GET projects/${groupId}/access_requests)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(group_id)}/access_requests", params=options))
+def group_access_requests_all(group_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """GroupAccessRequests.all (GET projects/${groupId}/access_requests). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(group_id)}/access_requests", params=payload))
 
 
-def group_access_requests_approve(group_id: str | int, user_id: str | int, **options):
-    """GroupAccessRequests.approve (PUT projects/${groupId}/access_requests/${userId}/approve)."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(group_id)}/access_requests/{_enc(user_id)}/approve", json=options))
+def group_access_requests_approve(group_id: str | int, user_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50] = _UNSET, sudo: str | int = _UNSET):
+    """GroupAccessRequests.approve (PUT projects/${groupId}/access_requests/${userId}/approve). Body fields: access_level, sudo."""
+    payload: dict = {}
+    if access_level is not _UNSET:
+        payload["access_level"] = access_level
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(group_id)}/access_requests/{_enc(user_id)}/approve", json=payload))
 
 
-def group_access_requests_deny(group_id: str | int, user_id: str | int, **options):
-    """GroupAccessRequests.deny (DELETE projects/${groupId}/access_requests/${userId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(group_id)}/access_requests/{_enc(user_id)}", params=options))
+def group_access_requests_deny(group_id: str | int, user_id: str | int, sudo: str | int = _UNSET):
+    """GroupAccessRequests.deny (DELETE projects/${groupId}/access_requests/${userId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(group_id)}/access_requests/{_enc(user_id)}", params=payload))
 
 
-def group_access_requests_request(group_id: str | int, **options):
-    """GroupAccessRequests.request (POST projects/${groupId}/access_requests)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(group_id)}/access_requests", json=options))
+def group_access_requests_request(group_id: str | int, sudo: str | int = _UNSET):
+    """GroupAccessRequests.request (POST projects/${groupId}/access_requests). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(group_id)}/access_requests", json=payload))
 
 
 # ── GroupAccessTokens ─────────────────────────────────────────────────────
 
-def group_access_tokens_all(group_id: str | int, **options):
-    """GroupAccessTokens.all (GET groups/${groupId}/access_tokens)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/access_tokens", params=options))
+def group_access_tokens_all(group_id: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """GroupAccessTokens.all (GET groups/${groupId}/access_tokens). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/access_tokens", params=payload))
 
 
-def group_access_tokens_create(group_id: str | int, name: str | int, scopes: str | int, expires_at: str | int, **options):
-    """GroupAccessTokens.create (POST groups/${groupId}/access_tokens). Body fields: name, scopes, expires_at."""
-    payload = {**options}
+def group_access_tokens_create(group_id: str | int, name: str, scopes: list[Literal["read_repository", "read_registry", "write_registry", "api", "read_api", "create_runner", "write_repository"]], expires_at: str, access_level: Literal[10, 20, 30, 40, 50] = _UNSET, sudo: str | int = _UNSET):
+    """GroupAccessTokens.create (POST groups/${groupId}/access_tokens). Body fields: name, scopes, expires_at, access_level, sudo."""
+    payload: dict = {}
     payload["name"] = name
     payload["scopes"] = scopes
     payload["expires_at"] = expires_at
+    if access_level is not _UNSET:
+        payload["access_level"] = access_level
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/access_tokens", json=payload))
 
 
-def group_access_tokens_revoke(group_id: str | int, token_id: str | int, **options):
-    """GroupAccessTokens.revoke (DELETE groups/${groupId}/access_tokens/${tokenId})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/access_tokens/{_enc(token_id)}", params=options))
+def group_access_tokens_revoke(group_id: str | int, token_id: str | int, sudo: str | int = _UNSET):
+    """GroupAccessTokens.revoke (DELETE groups/${groupId}/access_tokens/${tokenId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/access_tokens/{_enc(token_id)}", params=payload))
 
 
-def group_access_tokens_rotate(group_id: str | int, token_id: str | int, **options):
-    """GroupAccessTokens.rotate (POST groups/${groupId}/access_tokens/${tokenId}/rotate)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/access_tokens/{_enc(token_id)}/rotate", json=options))
+def group_access_tokens_rotate(group_id: str | int, token_id: str | int, expires_at: str = _UNSET, sudo: str | int = _UNSET):
+    """GroupAccessTokens.rotate (POST groups/${groupId}/access_tokens/${tokenId}/rotate). Body fields: expires_at, sudo."""
+    payload: dict = {}
+    if expires_at is not _UNSET:
+        payload["expires_at"] = expires_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/access_tokens/{_enc(token_id)}/rotate", json=payload))
 
 
-def group_access_tokens_show(group_id: str | int, token_id: str | int, **options):
-    """GroupAccessTokens.show (GET groups/${groupId}/access_tokens/${tokenId})."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/access_tokens/{_enc(token_id)}", params=options))
+def group_access_tokens_show(group_id: str | int, token_id: str | int, sudo: str | int = _UNSET):
+    """GroupAccessTokens.show (GET groups/${groupId}/access_tokens/${tokenId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/access_tokens/{_enc(token_id)}", params=payload))
 
 
 # ── GroupActivityAnalytics ────────────────────────────────────────────────
@@ -1505,64 +1621,125 @@ def group_activity_analytics_show_new_members_count(group_path: str, sudo: str |
 
 # ── GroupBadges ───────────────────────────────────────────────────────────
 
-def group_badges_add(group_id: str | int, link_url: str | int, image_url: str | int, **options):
-    """GroupBadges.add (POST groups/${groupId}/badges). Body fields: link_url, image_url."""
-    payload = {**options}
+def group_badges_add(group_id: str | int, link_url: str, image_url: str, name: str = _UNSET, sudo: str | int = _UNSET):
+    """GroupBadges.add (POST groups/${groupId}/badges). Body fields: link_url, image_url, name, sudo."""
+    payload: dict = {}
     payload["link_url"] = link_url
     payload["image_url"] = image_url
+    if name is not _UNSET:
+        payload["name"] = name
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/badges", json=payload))
 
 
-def group_badges_all(group_id: str | int, **options):
-    """GroupBadges.all (GET groups/${groupId}/badges)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/badges", params=options))
+def group_badges_all(group_id: str | int, name: str = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """GroupBadges.all (GET groups/${groupId}/badges). Body fields: name, pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if name is not _UNSET:
+        payload["name"] = name
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/badges", params=payload))
 
 
-def group_badges_edit(group_id: str | int, badge_id: str | int, **options):
-    """GroupBadges.edit (PUT groups/${groupId}/badges/${badgeId})."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/badges/{_enc(badge_id)}", json=options))
+def group_badges_edit(group_id: str | int, badge_id: str | int, name: str = _UNSET, link_url: str = _UNSET, image_url: str = _UNSET, sudo: str | int = _UNSET):
+    """GroupBadges.edit (PUT groups/${groupId}/badges/${badgeId}). Body fields: name, link_url, image_url, sudo."""
+    payload: dict = {}
+    if name is not _UNSET:
+        payload["name"] = name
+    if link_url is not _UNSET:
+        payload["link_url"] = link_url
+    if image_url is not _UNSET:
+        payload["image_url"] = image_url
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/badges/{_enc(badge_id)}", json=payload))
 
 
-def group_badges_preview(group_id: str | int, link_url: str | int, image_url: str | int, **options):
-    """GroupBadges.preview (GET groups/${groupId}/badges/render). Body fields: link_url, image_url."""
-    payload = {**options}
+def group_badges_preview(group_id: str | int, link_url: str, image_url: str, sudo: str | int = _UNSET):
+    """GroupBadges.preview (GET groups/${groupId}/badges/render). Body fields: link_url, image_url, sudo."""
+    payload: dict = {}
     payload["link_url"] = link_url
     payload["image_url"] = image_url
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/badges/render", params=payload))
 
 
-def group_badges_remove(group_id: str | int, badge_id: str | int, **options):
-    """GroupBadges.remove (DELETE groups/${groupId}/badges/${badgeId})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/badges/{_enc(badge_id)}", params=options))
+def group_badges_remove(group_id: str | int, badge_id: str | int, sudo: str | int = _UNSET):
+    """GroupBadges.remove (DELETE groups/${groupId}/badges/${badgeId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/badges/{_enc(badge_id)}", params=payload))
 
 
-def group_badges_show(group_id: str | int, badge_id: str | int, **options):
-    """GroupBadges.show (GET groups/${groupId}/badges/${badgeId})."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/badges/{_enc(badge_id)}", params=options))
+def group_badges_show(group_id: str | int, badge_id: str | int, sudo: str | int = _UNSET):
+    """GroupBadges.show (GET groups/${groupId}/badges/${badgeId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/badges/{_enc(badge_id)}", params=payload))
 
 
 # ── GroupCustomAttributes ─────────────────────────────────────────────────
 
-def group_custom_attributes_all(group_id: str | int, **options):
-    """GroupCustomAttributes.all (GET groups/${groupId}/custom_attributes)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/custom_attributes", params=options))
+def group_custom_attributes_all(group_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """GroupCustomAttributes.all (GET groups/${groupId}/custom_attributes). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/custom_attributes", params=payload))
 
 
-def group_custom_attributes_remove(group_id: str | int, custom_attribute_id: str | int, **options):
-    """GroupCustomAttributes.remove (DELETE groups/${groupId}/custom_attributes/${customAttributeId})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=options))
+def group_custom_attributes_remove(group_id: str | int, custom_attribute_id: str | int, sudo: str | int = _UNSET):
+    """GroupCustomAttributes.remove (DELETE groups/${groupId}/custom_attributes/${customAttributeId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=payload))
 
 
-def group_custom_attributes_set(group_id: str | int, custom_attribute_id: str | int, value: str | int, **options):
-    """GroupCustomAttributes.set (PUT groups/${groupId}/custom_attributes/${customAttributeId}). Body fields: value."""
-    payload = {**options}
+def group_custom_attributes_set(group_id: str | int, custom_attribute_id: str | int, value: str, sudo: str | int = _UNSET):
+    """GroupCustomAttributes.set (PUT groups/${groupId}/custom_attributes/${customAttributeId}). Body fields: value, sudo."""
+    payload: dict = {}
     payload["value"] = value
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/custom_attributes/{_enc(custom_attribute_id)}", json=payload))
 
 
-def group_custom_attributes_show(group_id: str | int, custom_attribute_id: str | int, **options):
-    """GroupCustomAttributes.show (GET groups/${groupId}/custom_attributes/${customAttributeId})."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=options))
+def group_custom_attributes_show(group_id: str | int, custom_attribute_id: str | int, sudo: str | int = _UNSET):
+    """GroupCustomAttributes.show (GET groups/${groupId}/custom_attributes/${customAttributeId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=payload))
 
 
 # ── GroupEpicBoards ───────────────────────────────────────────────────────
@@ -1613,33 +1790,122 @@ def group_epic_boards_show_list(group_id: str | int, board_id: str | int, list_i
 
 # ── GroupHooks ────────────────────────────────────────────────────────────
 
-def group_hooks_add(group_id: str | int, url: str | int, **options):
-    """GroupHooks.add (POST groups/${groupId}/hooks). Body fields: url."""
-    payload = {**options}
+def group_hooks_add(group_id: str | int, url: str, push_events: bool = _UNSET, push_events_branch_filter: str = _UNSET, issues_events: bool = _UNSET, confidential_issues_events: bool = _UNSET, merge_requests_events: bool = _UNSET, tag_push_events: bool = _UNSET, note_events: bool = _UNSET, confidential_note_events: bool = _UNSET, job_events: bool = _UNSET, pipeline_events: bool = _UNSET, wiki_page_events: bool = _UNSET, deployment_events: bool = _UNSET, releases_events: bool = _UNSET, subgroup_events: bool = _UNSET, enable_ssl_verification: bool = _UNSET, token: str = _UNSET, sudo: str | int = _UNSET):
+    """GroupHooks.add (POST groups/${groupId}/hooks). Body fields: url, push_events, push_events_branch_filter, issues_events, confidential_issues_events, merge_requests_events, tag_push_events, note_events, confidential_note_events, job_events, pipeline_events, wiki_page_events, deployment_events, releases_events, subgroup_events, enable_ssl_verification, token, sudo."""
+    payload: dict = {}
     payload["url"] = url
+    if push_events is not _UNSET:
+        payload["push_events"] = push_events
+    if push_events_branch_filter is not _UNSET:
+        payload["push_events_branch_filter"] = push_events_branch_filter
+    if issues_events is not _UNSET:
+        payload["issues_events"] = issues_events
+    if confidential_issues_events is not _UNSET:
+        payload["confidential_issues_events"] = confidential_issues_events
+    if merge_requests_events is not _UNSET:
+        payload["merge_requests_events"] = merge_requests_events
+    if tag_push_events is not _UNSET:
+        payload["tag_push_events"] = tag_push_events
+    if note_events is not _UNSET:
+        payload["note_events"] = note_events
+    if confidential_note_events is not _UNSET:
+        payload["confidential_note_events"] = confidential_note_events
+    if job_events is not _UNSET:
+        payload["job_events"] = job_events
+    if pipeline_events is not _UNSET:
+        payload["pipeline_events"] = pipeline_events
+    if wiki_page_events is not _UNSET:
+        payload["wiki_page_events"] = wiki_page_events
+    if deployment_events is not _UNSET:
+        payload["deployment_events"] = deployment_events
+    if releases_events is not _UNSET:
+        payload["releases_events"] = releases_events
+    if subgroup_events is not _UNSET:
+        payload["subgroup_events"] = subgroup_events
+    if enable_ssl_verification is not _UNSET:
+        payload["enable_ssl_verification"] = enable_ssl_verification
+    if token is not _UNSET:
+        payload["token"] = token
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/hooks", json=payload))
 
 
-def group_hooks_all(group_id: str | int, **options):
-    """GroupHooks.all (GET groups/${groupId}/hooks)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/hooks", params=options))
+def group_hooks_all(group_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """GroupHooks.all (GET groups/${groupId}/hooks). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/hooks", params=payload))
 
 
-def group_hooks_edit(group_id: str | int, hook_id: str | int, url: str | int, **options):
-    """GroupHooks.edit (PUT groups/${groupId}/hooks/${hookId}). Body fields: url."""
-    payload = {**options}
+def group_hooks_edit(group_id: str | int, hook_id: str | int, url: str, push_events: bool = _UNSET, push_events_branch_filter: str = _UNSET, issues_events: bool = _UNSET, confidential_issues_events: bool = _UNSET, merge_requests_events: bool = _UNSET, tag_push_events: bool = _UNSET, note_events: bool = _UNSET, confidential_note_events: bool = _UNSET, job_events: bool = _UNSET, pipeline_events: bool = _UNSET, wiki_page_events: bool = _UNSET, deployment_events: bool = _UNSET, releases_events: bool = _UNSET, subgroup_events: bool = _UNSET, enable_ssl_verification: bool = _UNSET, token: str = _UNSET, sudo: str | int = _UNSET):
+    """GroupHooks.edit (PUT groups/${groupId}/hooks/${hookId}). Body fields: url, push_events, push_events_branch_filter, issues_events, confidential_issues_events, merge_requests_events, tag_push_events, note_events, confidential_note_events, job_events, pipeline_events, wiki_page_events, deployment_events, releases_events, subgroup_events, enable_ssl_verification, token, sudo."""
+    payload: dict = {}
     payload["url"] = url
+    if push_events is not _UNSET:
+        payload["push_events"] = push_events
+    if push_events_branch_filter is not _UNSET:
+        payload["push_events_branch_filter"] = push_events_branch_filter
+    if issues_events is not _UNSET:
+        payload["issues_events"] = issues_events
+    if confidential_issues_events is not _UNSET:
+        payload["confidential_issues_events"] = confidential_issues_events
+    if merge_requests_events is not _UNSET:
+        payload["merge_requests_events"] = merge_requests_events
+    if tag_push_events is not _UNSET:
+        payload["tag_push_events"] = tag_push_events
+    if note_events is not _UNSET:
+        payload["note_events"] = note_events
+    if confidential_note_events is not _UNSET:
+        payload["confidential_note_events"] = confidential_note_events
+    if job_events is not _UNSET:
+        payload["job_events"] = job_events
+    if pipeline_events is not _UNSET:
+        payload["pipeline_events"] = pipeline_events
+    if wiki_page_events is not _UNSET:
+        payload["wiki_page_events"] = wiki_page_events
+    if deployment_events is not _UNSET:
+        payload["deployment_events"] = deployment_events
+    if releases_events is not _UNSET:
+        payload["releases_events"] = releases_events
+    if subgroup_events is not _UNSET:
+        payload["subgroup_events"] = subgroup_events
+    if enable_ssl_verification is not _UNSET:
+        payload["enable_ssl_verification"] = enable_ssl_verification
+    if token is not _UNSET:
+        payload["token"] = token
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/hooks/{_enc(hook_id)}", json=payload))
 
 
-def group_hooks_remove(group_id: str | int, hook_id: str | int, **options):
-    """GroupHooks.remove (DELETE groups/${groupId}/hooks/${hookId})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/hooks/{_enc(hook_id)}", params=options))
+def group_hooks_remove(group_id: str | int, hook_id: str | int, sudo: str | int = _UNSET):
+    """GroupHooks.remove (DELETE groups/${groupId}/hooks/${hookId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/hooks/{_enc(hook_id)}", params=payload))
 
 
-def group_hooks_show(group_id: str | int, hook_id: str | int, **options):
-    """GroupHooks.show (GET groups/${groupId}/hooks/${hookId})."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/hooks/{_enc(hook_id)}", params=options))
+def group_hooks_show(group_id: str | int, hook_id: str | int, sudo: str | int = _UNSET):
+    """GroupHooks.show (GET groups/${groupId}/hooks/${hookId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/hooks/{_enc(hook_id)}", params=payload))
 
 
 # ── GroupImportExports ────────────────────────────────────────────────────
@@ -1676,134 +1942,311 @@ def group_import_exports_schedule_export(group_id: str | int, sudo: str | int = 
 
 # ── GroupInvitations ──────────────────────────────────────────────────────
 
-def group_invitations_add(group_id: str | int, access_level: str | int, **options):
-    """GroupInvitations.add (POST groups/${groupId}/invitations). Body fields: access_level."""
-    payload = {**options}
+def group_invitations_add(group_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50], user_id: str = _UNSET, email: str = _UNSET, expires_at: str = _UNSET, invite_source: str = _UNSET, tasks_to_be_done: list[str] = _UNSET, tasks_project_id: int = _UNSET, sudo: str | int = _UNSET):
+    """GroupInvitations.add (POST groups/${groupId}/invitations). Body fields: access_level, user_id, email, expires_at, invite_source, tasks_to_be_done, tasks_project_id, sudo."""
+    payload: dict = {}
     payload["access_level"] = access_level
+    if user_id is not _UNSET:
+        payload["user_id"] = user_id
+    if email is not _UNSET:
+        payload["email"] = email
+    if expires_at is not _UNSET:
+        payload["expires_at"] = expires_at
+    if invite_source is not _UNSET:
+        payload["invite_source"] = invite_source
+    if tasks_to_be_done is not _UNSET:
+        payload["tasks_to_be_done"] = tasks_to_be_done
+    if tasks_project_id is not _UNSET:
+        payload["tasks_project_id"] = tasks_project_id
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/invitations", json=payload))
 
 
-def group_invitations_all(group_id: str | int, **options):
-    """GroupInvitations.all (GET groups/${groupId}/invitations)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/invitations", params=options))
+def group_invitations_all(group_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, query: str = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """GroupInvitations.all (GET groups/${groupId}/invitations). Body fields: pagination, per_page, max_pages, order_by, sort, query, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if query is not _UNSET:
+        payload["query"] = query
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/invitations", params=payload))
 
 
-def group_invitations_edit(group_id: str | int, email: str | int, **options):
-    """GroupInvitations.edit (PUT groups/${groupId}/invitations/${email})."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/invitations/{_enc(email)}", json=options))
+def group_invitations_edit(group_id: str | int, email: str | int, expires_at: str = _UNSET, access_level: Literal[0, 5, 10, 20, 30, 40, 50] = _UNSET, sudo: str | int = _UNSET):
+    """GroupInvitations.edit (PUT groups/${groupId}/invitations/${email}). Body fields: expires_at, access_level, sudo."""
+    payload: dict = {}
+    if expires_at is not _UNSET:
+        payload["expires_at"] = expires_at
+    if access_level is not _UNSET:
+        payload["access_level"] = access_level
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/invitations/{_enc(email)}", json=payload))
 
 
-def group_invitations_remove(group_id: str | int, email: str | int, **options):
-    """GroupInvitations.remove (DELETE groups/${groupId}/invitations/${email})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/invitations/{_enc(email)}", params=options))
+def group_invitations_remove(group_id: str | int, email: str | int, sudo: str | int = _UNSET):
+    """GroupInvitations.remove (DELETE groups/${groupId}/invitations/${email}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/invitations/{_enc(email)}", params=payload))
 
 
 # ── GroupIssueBoards ──────────────────────────────────────────────────────
 
-def group_issue_boards_all(group_id: str | int, **options):
-    """GroupIssueBoards.all (GET groups/${groupId}/boards)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/boards", params=options))
+def group_issue_boards_all(group_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """GroupIssueBoards.all (GET groups/${groupId}/boards). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/boards", params=payload))
 
 
-def group_issue_boards_all_lists(group_id: str | int, board_id: str | int, **options):
-    """GroupIssueBoards.allLists (GET groups/${groupId}/boards/${boardId}/lists)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}/lists", params=options))
+def group_issue_boards_all_lists(group_id: str | int, board_id: str | int, sudo: str | int = _UNSET):
+    """GroupIssueBoards.allLists (GET groups/${groupId}/boards/${boardId}/lists). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}/lists", params=payload))
 
 
-def group_issue_boards_create(group_id: str | int, name: str | int, **options):
-    """GroupIssueBoards.create (POST groups/${groupId}/boards). Body fields: name."""
-    payload = {**options}
+def group_issue_boards_create(group_id: str | int, name: str, sudo: str | int = _UNSET):
+    """GroupIssueBoards.create (POST groups/${groupId}/boards). Body fields: name, sudo."""
+    payload: dict = {}
     payload["name"] = name
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/boards", json=payload))
 
 
-def group_issue_boards_create_list(group_id: str | int, board_id: str | int, **options):
-    """GroupIssueBoards.createList (POST groups/${groupId}/boards/${boardId}/lists)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}/lists", json=options))
+def group_issue_boards_create_list(group_id: str | int, board_id: str | int, label_id: int = _UNSET, assignee_id: int = _UNSET, milestone_id: int = _UNSET, sudo: str | int = _UNSET):
+    """GroupIssueBoards.createList (POST groups/${groupId}/boards/${boardId}/lists). Body fields: label_id, assignee_id, milestone_id, sudo."""
+    payload: dict = {}
+    if label_id is not _UNSET:
+        payload["label_id"] = label_id
+    if assignee_id is not _UNSET:
+        payload["assignee_id"] = assignee_id
+    if milestone_id is not _UNSET:
+        payload["milestone_id"] = milestone_id
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}/lists", json=payload))
 
 
-def group_issue_boards_edit(group_id: str | int, board_id: str | int, **options):
-    """GroupIssueBoards.edit (PUT groups/${groupId}/boards/${boardId})."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}", json=options))
+def group_issue_boards_edit(group_id: str | int, board_id: str | int, name: str = _UNSET, assignee_id: int = _UNSET, milestone_id: int = _UNSET, labels: str = _UNSET, weight: int = _UNSET, sudo: str | int = _UNSET):
+    """GroupIssueBoards.edit (PUT groups/${groupId}/boards/${boardId}). Body fields: name, assignee_id, milestone_id, labels, weight, sudo."""
+    payload: dict = {}
+    if name is not _UNSET:
+        payload["name"] = name
+    if assignee_id is not _UNSET:
+        payload["assignee_id"] = assignee_id
+    if milestone_id is not _UNSET:
+        payload["milestone_id"] = milestone_id
+    if labels is not _UNSET:
+        payload["labels"] = labels
+    if weight is not _UNSET:
+        payload["weight"] = weight
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}", json=payload))
 
 
-def group_issue_boards_edit_list(group_id: str | int, board_id: str | int, list_id: str | int, position: str | int, **options):
-    """GroupIssueBoards.editList (PUT groups/${groupId}/boards/${boardId}/lists/${listId}). Body fields: position."""
-    payload = {**options}
+def group_issue_boards_edit_list(group_id: str | int, board_id: str | int, list_id: str | int, position: int, sudo: str | int = _UNSET):
+    """GroupIssueBoards.editList (PUT groups/${groupId}/boards/${boardId}/lists/${listId}). Body fields: position, sudo."""
+    payload: dict = {}
     payload["position"] = position
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", json=payload))
 
 
-def group_issue_boards_remove(group_id: str | int, board_id: str | int, **options):
-    """GroupIssueBoards.remove (DELETE groups/${groupId}/boards/${boardId})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}", params=options))
+def group_issue_boards_remove(group_id: str | int, board_id: str | int, sudo: str | int = _UNSET):
+    """GroupIssueBoards.remove (DELETE groups/${groupId}/boards/${boardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}", params=payload))
 
 
-def group_issue_boards_remove_list(group_id: str | int, board_id: str | int, list_id: str | int, **options):
-    """GroupIssueBoards.removeList (DELETE groups/${groupId}/boards/${boardId}/lists/${listId})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", params=options))
+def group_issue_boards_remove_list(group_id: str | int, board_id: str | int, list_id: str | int, sudo: str | int = _UNSET):
+    """GroupIssueBoards.removeList (DELETE groups/${groupId}/boards/${boardId}/lists/${listId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", params=payload))
 
 
-def group_issue_boards_show(group_id: str | int, board_id: str | int, **options):
-    """GroupIssueBoards.show (GET groups/${groupId}/boards/${boardId})."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}", params=options))
+def group_issue_boards_show(group_id: str | int, board_id: str | int, sudo: str | int = _UNSET):
+    """GroupIssueBoards.show (GET groups/${groupId}/boards/${boardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}", params=payload))
 
 
-def group_issue_boards_show_list(group_id: str | int, board_id: str | int, list_id: str | int, **options):
-    """GroupIssueBoards.showList (GET groups/${groupId}/boards/${boardId}/lists/${listId})."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", params=options))
+def group_issue_boards_show_list(group_id: str | int, board_id: str | int, list_id: str | int, sudo: str | int = _UNSET):
+    """GroupIssueBoards.showList (GET groups/${groupId}/boards/${boardId}/lists/${listId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", params=payload))
 
 
 # ── GroupIterations ───────────────────────────────────────────────────────
 
-def group_iterations_all(group_id: str | int, **options):
-    """GroupIterations.all (GET groups/${groupId}/iterations)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/iterations", params=options))
+def group_iterations_all(group_id: str | int, state: Literal["closed", "all", "opened", "upcoming", "current"] = _UNSET, search: str = _UNSET, include_ancestors: bool = _UNSET, updated_before: str = _UNSET, updated_after: str = _UNSET, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """GroupIterations.all (GET groups/${groupId}/iterations). Body fields: state, search, include_ancestors, updated_before, updated_after, sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if state is not _UNSET:
+        payload["state"] = state
+    if search is not _UNSET:
+        payload["search"] = search
+    if include_ancestors is not _UNSET:
+        payload["include_ancestors"] = include_ancestors
+    if updated_before is not _UNSET:
+        payload["updated_before"] = updated_before
+    if updated_after is not _UNSET:
+        payload["updated_after"] = updated_after
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/iterations", params=payload))
 
 
 # ── GroupLabels ───────────────────────────────────────────────────────────
 
-def group_labels_all(group_id: str | int, **options):
-    """GroupLabels.all (GET groups/${groupId}/labels)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/labels", params=options))
+def group_labels_all(group_id: str | int, with_counts: bool = _UNSET, include_ancestor_groups: bool = _UNSET, search: str = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """GroupLabels.all (GET groups/${groupId}/labels). Body fields: with_counts, include_ancestor_groups, search, pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if with_counts is not _UNSET:
+        payload["with_counts"] = with_counts
+    if include_ancestor_groups is not _UNSET:
+        payload["include_ancestor_groups"] = include_ancestor_groups
+    if search is not _UNSET:
+        payload["search"] = search
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/labels", params=payload))
 
 
-def group_labels_create(group_id: str | int, name: str | int, color: str | int, **options):
-    """GroupLabels.create (POST groups/${groupId}/labels). Body fields: name, color."""
-    payload = {**options}
+def group_labels_create(group_id: str | int, name: str, color: str, description: str = _UNSET, priority: int = _UNSET, sudo: str | int = _UNSET):
+    """GroupLabels.create (POST groups/${groupId}/labels). Body fields: name, color, description, priority, sudo."""
+    payload: dict = {}
     payload["name"] = name
     payload["color"] = color
+    if description is not _UNSET:
+        payload["description"] = description
+    if priority is not _UNSET:
+        payload["priority"] = priority
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/labels", json=payload))
 
 
-def group_labels_edit(group_id: str | int, label_id: str | int, **options):
-    """GroupLabels.edit (PUT groups/${groupId}/labels/${labelId})."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/labels/{_enc(label_id)}", json=options))
+def group_labels_edit(group_id: str | int, label_id: str | int, new_name: str = _UNSET, color: str = _UNSET, description: str = _UNSET, priority: int = _UNSET, sudo: str | int = _UNSET):
+    """GroupLabels.edit (PUT groups/${groupId}/labels/${labelId}). Body fields: new_name, color, description, priority, sudo."""
+    payload: dict = {}
+    if new_name is not _UNSET:
+        payload["new_name"] = new_name
+    if color is not _UNSET:
+        payload["color"] = color
+    if description is not _UNSET:
+        payload["description"] = description
+    if priority is not _UNSET:
+        payload["priority"] = priority
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/labels/{_enc(label_id)}", json=payload))
 
 
-def group_labels_promote(group_id: str | int, label_id: str | int, **options):
-    """GroupLabels.promote (PUT groups/${groupId}/labels/${labelId}/promote)."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/labels/{_enc(label_id)}/promote", json=options))
+def group_labels_promote(group_id: str | int, label_id: str | int, sudo: str | int = _UNSET):
+    """GroupLabels.promote (PUT groups/${groupId}/labels/${labelId}/promote). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/labels/{_enc(label_id)}/promote", json=payload))
 
 
-def group_labels_remove(group_id: str | int, label_id: str | int, **options):
-    """GroupLabels.remove (DELETE groups/${groupId}/labels/${labelId})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/labels/{_enc(label_id)}", params=options))
+def group_labels_remove(group_id: str | int, label_id: str | int, sudo: str | int = _UNSET):
+    """GroupLabels.remove (DELETE groups/${groupId}/labels/${labelId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/labels/{_enc(label_id)}", params=payload))
 
 
-def group_labels_show(group_id: str | int, label_id: str | int, **options):
-    """GroupLabels.show (GET groups/${groupId}/labels/${labelId})."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/labels/{_enc(label_id)}", params=options))
+def group_labels_show(group_id: str | int, label_id: str | int, include_ancestor_groups: bool = _UNSET, sudo: str | int = _UNSET):
+    """GroupLabels.show (GET groups/${groupId}/labels/${labelId}). Body fields: include_ancestor_groups, sudo."""
+    payload: dict = {}
+    if include_ancestor_groups is not _UNSET:
+        payload["include_ancestor_groups"] = include_ancestor_groups
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/labels/{_enc(label_id)}", params=payload))
 
 
-def group_labels_subscribe(group_id: str | int, label_id: str | int, **options):
-    """GroupLabels.subscribe (POST groups/${groupId}/issues/${labelId}/subscribe)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/issues/{_enc(label_id)}/subscribe", json=options))
+def group_labels_subscribe(group_id: str | int, label_id: str | int, sudo: str | int = _UNSET):
+    """GroupLabels.subscribe (POST groups/${groupId}/issues/${labelId}/subscribe). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/issues/{_enc(label_id)}/subscribe", json=payload))
 
 
-def group_labels_unsubscribe(group_id: str | int, label_id: str | int, **options):
-    """GroupLabels.unsubscribe (POST groups/${groupId}/issues/${labelId}/unsubscribe)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/issues/{_enc(label_id)}/unsubscribe", json=options))
+def group_labels_unsubscribe(group_id: str | int, label_id: str | int, sudo: str | int = _UNSET):
+    """GroupLabels.unsubscribe (POST groups/${groupId}/issues/${labelId}/unsubscribe). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/issues/{_enc(label_id)}/unsubscribe", json=payload))
 
 
 # ── GroupLDAPLinks ────────────────────────────────────────────────────────
@@ -1863,19 +2306,42 @@ def group_ldap_links_sync(group_id: str | int, sudo: str | int = _UNSET):
 
 # ── GroupMarkdownUploads ──────────────────────────────────────────────────
 
-def group_markdown_uploads_all(group_id: str | int, **options):
-    """GroupMarkdownUploads.all (GET groups/${groupId}/uploads)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/uploads", params=options))
+def group_markdown_uploads_all(group_id: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """GroupMarkdownUploads.all (GET groups/${groupId}/uploads). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/uploads", params=payload))
 
 
-def group_markdown_uploads_download(group_id: str | int, upload_id_or_secret: str | int, filename: str | int, **options):
-    """GroupMarkdownUploads.download (GET groups/${groupId}/uploads/${uploadIdOrSecret}/${filename})."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/uploads/{_enc(upload_id_or_secret)}/{_enc(filename)}", params=options))
+def group_markdown_uploads_download(group_id: str | int, upload_id_or_secret: str | int, filename: str | int, secret: str | int | str, sudo: str | int = _UNSET):
+    """GroupMarkdownUploads.download (GET groups/${groupId}/uploads/${uploadIdOrSecret}/${filename}). Body fields: secret, sudo."""
+    payload: dict = {}
+    payload["secret"] = secret
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/uploads/{_enc(upload_id_or_secret)}/{_enc(filename)}", params=payload))
 
 
-def group_markdown_uploads_remove(group_id: str | int, upload_id_or_secret: str | int, filename: str | int, **options):
-    """GroupMarkdownUploads.remove (DELETE groups/${groupId}/uploads/${uploadIdOrSecret}/${filename})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/uploads/{_enc(upload_id_or_secret)}/{_enc(filename)}", params=options))
+def group_markdown_uploads_remove(group_id: str | int, upload_id_or_secret: str | int, filename: str | int, secret: str | int | str, sudo: str | int = _UNSET):
+    """GroupMarkdownUploads.remove (DELETE groups/${groupId}/uploads/${uploadIdOrSecret}/${filename}). Body fields: secret, sudo."""
+    payload: dict = {}
+    payload["secret"] = secret
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/uploads/{_enc(upload_id_or_secret)}/{_enc(filename)}", params=payload))
 
 
 # ── GroupMemberRoles ──────────────────────────────────────────────────────
@@ -1921,72 +2387,189 @@ def group_member_roles_remove(group_id: str | int, member_role_id: str | int, su
 
 # ── GroupMembers ──────────────────────────────────────────────────────────
 
-def group_members_add(group_id: str | int, access_level: str | int, **options):
-    """GroupMembers.add (POST groups/${groupId}/members). Body fields: access_level."""
-    payload = {**options}
+def group_members_add(group_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50], user_id: str | int = _UNSET, username: str = _UNSET, expires_at: str = _UNSET, invite_source: str = _UNSET, tasks_to_be_done: list[str] = _UNSET, tasks_project_id: int = _UNSET, sudo: str | int = _UNSET):
+    """GroupMembers.add (POST groups/${groupId}/members). Body fields: access_level, user_id, username, expires_at, invite_source, tasks_to_be_done, tasks_project_id, sudo."""
+    payload: dict = {}
     payload["access_level"] = access_level
+    if user_id is not _UNSET:
+        payload["user_id"] = user_id
+    if username is not _UNSET:
+        payload["username"] = username
+    if expires_at is not _UNSET:
+        payload["expires_at"] = expires_at
+    if invite_source is not _UNSET:
+        payload["invite_source"] = invite_source
+    if tasks_to_be_done is not _UNSET:
+        payload["tasks_to_be_done"] = tasks_to_be_done
+    if tasks_project_id is not _UNSET:
+        payload["tasks_project_id"] = tasks_project_id
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/members", json=payload))
 
 
-def group_members_all(group_id: str | int, **options):
-    """GroupMembers.all (GET groups/${groupId}/members)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/members", params=options))
-
-
-def group_members_edit(group_id: str | int, user_id: str | int, access_level: str | int, **options):
-    """GroupMembers.edit (PUT groups/${groupId}/members/${userId}). Body fields: access_level."""
+def group_members_all(group_id: str | int, include_inherited: bool = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, query: str = _UNSET, user_ids: list[int] = _UNSET, skip_users: list[int] = _UNSET, show_seat_info: bool = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET, **options):
+    """GroupMembers.all (GET groups/${groupId}/members). Body fields: include_inherited, pagination, per_page, max_pages, order_by, sort, query, user_ids, skip_users, show_seat_info, sudo, page."""
     payload = {**options}
+    if include_inherited is not _UNSET:
+        payload["include_inherited"] = include_inherited
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if query is not _UNSET:
+        payload["query"] = query
+    if user_ids is not _UNSET:
+        payload["user_ids"] = user_ids
+    if skip_users is not _UNSET:
+        payload["skip_users"] = skip_users
+    if show_seat_info is not _UNSET:
+        payload["show_seat_info"] = show_seat_info
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/members", params=payload))
+
+
+def group_members_edit(group_id: str | int, user_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50], expires_at: str = _UNSET, member_role_id: int = _UNSET, sudo: str | int = _UNSET):
+    """GroupMembers.edit (PUT groups/${groupId}/members/${userId}). Body fields: access_level, expires_at, member_role_id, sudo."""
+    payload: dict = {}
     payload["access_level"] = access_level
+    if expires_at is not _UNSET:
+        payload["expires_at"] = expires_at
+    if member_role_id is not _UNSET:
+        payload["member_role_id"] = member_role_id
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/members/{_enc(user_id)}", json=payload))
 
 
-def group_members_remove(group_id: str | int, user_id: str | int, **options):
-    """GroupMembers.remove (DELETE groups/${groupId}/members/${userId})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/members/{_enc(user_id)}", params=options))
+def group_members_remove(group_id: str | int, user_id: str | int, skip_subresource_s: bool = _UNSET, unassign_issuables: bool = _UNSET, sudo: str | int = _UNSET):
+    """GroupMembers.remove (DELETE groups/${groupId}/members/${userId}). Body fields: skip_subresource_s, unassign_issuables, sudo."""
+    payload: dict = {}
+    if skip_subresource_s is not _UNSET:
+        payload["skip_subresource_s"] = skip_subresource_s
+    if unassign_issuables is not _UNSET:
+        payload["unassign_issuables"] = unassign_issuables
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/members/{_enc(user_id)}", params=payload))
 
 
 # ── GroupMilestones ───────────────────────────────────────────────────────
 
-def group_milestones_all(group_id: str | int, **options):
-    """GroupMilestones.all (GET groups/${groupId}/milestones)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/milestones", params=options))
+def group_milestones_all(group_id: str | int, iids: list[int] = _UNSET, state: str = _UNSET, title: str = _UNSET, search: str = _UNSET, include_parent_milestones: bool = _UNSET, updated_before: str = _UNSET, updated_after: str = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """GroupMilestones.all (GET groups/${groupId}/milestones). Body fields: iids, state, title, search, include_parent_milestones, updated_before, updated_after, pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if iids is not _UNSET:
+        payload["iids"] = iids
+    if state is not _UNSET:
+        payload["state"] = state
+    if title is not _UNSET:
+        payload["title"] = title
+    if search is not _UNSET:
+        payload["search"] = search
+    if include_parent_milestones is not _UNSET:
+        payload["include_parent_milestones"] = include_parent_milestones
+    if updated_before is not _UNSET:
+        payload["updated_before"] = updated_before
+    if updated_after is not _UNSET:
+        payload["updated_after"] = updated_after
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/milestones", params=payload))
 
 
-def group_milestones_all_assigned_issues(group_id: str | int, milestone_id: str | int, **options):
-    """GroupMilestones.allAssignedIssues (GET groups/${groupId}/milestones/${milestoneId}/issues)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}/issues", params=options))
+def group_milestones_all_assigned_issues(group_id: str | int, milestone_id: str | int, sudo: str | int = _UNSET):
+    """GroupMilestones.allAssignedIssues (GET groups/${groupId}/milestones/${milestoneId}/issues). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}/issues", params=payload))
 
 
-def group_milestones_all_assigned_merge_requests(group_id: str | int, milestone_id: str | int, **options):
-    """GroupMilestones.allAssignedMergeRequests (GET groups/${groupId}/milestones/${milestoneId}/merge_requests)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}/merge_requests", params=options))
+def group_milestones_all_assigned_merge_requests(group_id: str | int, milestone_id: str | int, sudo: str | int = _UNSET):
+    """GroupMilestones.allAssignedMergeRequests (GET groups/${groupId}/milestones/${milestoneId}/merge_requests). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}/merge_requests", params=payload))
 
 
-def group_milestones_all_burndown_chart_events(group_id: str | int, milestone_id: str | int, **options):
-    """GroupMilestones.allBurndownChartEvents (GET groups/${groupId}/milestones/${milestoneId}/burndown_events)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}/burndown_events", params=options))
+def group_milestones_all_burndown_chart_events(group_id: str | int, milestone_id: str | int, sudo: str | int = _UNSET):
+    """GroupMilestones.allBurndownChartEvents (GET groups/${groupId}/milestones/${milestoneId}/burndown_events). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}/burndown_events", params=payload))
 
 
-def group_milestones_create(group_id: str | int, title: str | int, **options):
-    """GroupMilestones.create (POST groups/${groupId}/milestones). Body fields: title."""
-    payload = {**options}
+def group_milestones_create(group_id: str | int, title: str, description: str = _UNSET, due_date: str = _UNSET, start_date: str = _UNSET, sudo: str | int = _UNSET):
+    """GroupMilestones.create (POST groups/${groupId}/milestones). Body fields: title, description, due_date, start_date, sudo."""
+    payload: dict = {}
     payload["title"] = title
+    if description is not _UNSET:
+        payload["description"] = description
+    if due_date is not _UNSET:
+        payload["due_date"] = due_date
+    if start_date is not _UNSET:
+        payload["start_date"] = start_date
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/milestones", json=payload))
 
 
-def group_milestones_edit(group_id: str | int, milestone_id: str | int, **options):
-    """GroupMilestones.edit (PUT groups/${groupId}/milestones/${milestoneId})."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}", json=options))
+def group_milestones_edit(group_id: str | int, milestone_id: str | int, title: str = _UNSET, description: str = _UNSET, due_date: str = _UNSET, start_date: str = _UNSET, state_event: Literal["close", "activate"] = _UNSET, sudo: str | int = _UNSET):
+    """GroupMilestones.edit (PUT groups/${groupId}/milestones/${milestoneId}). Body fields: title, description, due_date, start_date, state_event, sudo."""
+    payload: dict = {}
+    if title is not _UNSET:
+        payload["title"] = title
+    if description is not _UNSET:
+        payload["description"] = description
+    if due_date is not _UNSET:
+        payload["due_date"] = due_date
+    if start_date is not _UNSET:
+        payload["start_date"] = start_date
+    if state_event is not _UNSET:
+        payload["state_event"] = state_event
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}", json=payload))
 
 
-def group_milestones_remove(group_id: str | int, milestone_id: str | int, **options):
-    """GroupMilestones.remove (DELETE groups/${groupId}/milestones/${milestoneId})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}", params=options))
+def group_milestones_remove(group_id: str | int, milestone_id: str | int, sudo: str | int = _UNSET):
+    """GroupMilestones.remove (DELETE groups/${groupId}/milestones/${milestoneId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}", params=payload))
 
 
-def group_milestones_show(group_id: str | int, milestone_id: str | int, **options):
-    """GroupMilestones.show (GET groups/${groupId}/milestones/${milestoneId})."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}", params=options))
+def group_milestones_show(group_id: str | int, milestone_id: str | int, sudo: str | int = _UNSET):
+    """GroupMilestones.show (GET groups/${groupId}/milestones/${milestoneId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/milestones/{_enc(milestone_id)}", params=payload))
 
 
 # ── GroupRelationExports ──────────────────────────────────────────────────
@@ -2040,9 +2623,12 @@ def group_releases_all(group_id: str | int, pagination: Any = _UNSET, per_page: 
 
 # ── GroupRepositoryStorageMoves ───────────────────────────────────────────
 
-def group_repository_storage_moves_show(repository_storage_id: str | int, **options):
-    """GroupRepositoryStorageMoves.show (GET groups//${repositoryStorageId})."""
-    return _ok(_get_client().request("GET", f"/groups//{_enc(repository_storage_id)}", params=options))
+def group_repository_storage_moves_show(repository_storage_id: str | int, sudo: str | int = _UNSET):
+    """GroupRepositoryStorageMoves.show (GET groups//${repositoryStorageId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups//{_enc(repository_storage_id)}", params=payload))
 
 
 # ── Groups ────────────────────────────────────────────────────────────────
@@ -2685,69 +3271,169 @@ def group_service_accounts_rotate_personal_access_token(group_id: str | int, ser
 
 # ── GroupVariables ────────────────────────────────────────────────────────
 
-def group_variables_all(group_id: str | int, **options):
-    """GroupVariables.all (GET groups/${groupId}/variables)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/variables", params=options))
+def group_variables_all(group_id: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """GroupVariables.all (GET groups/${groupId}/variables). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/variables", params=payload))
 
 
-def group_variables_create(group_id: str | int, key: str | int, value: str | int, **options):
-    """GroupVariables.create (POST groups/${groupId}/variables). Body fields: key, value."""
-    payload = {**options}
+def group_variables_create(group_id: str | int, key: str, value: str, variable_type: Literal["file", "env_var"] = _UNSET, protected: bool = _UNSET, masked: bool = _UNSET, environment_scope: str = _UNSET, description: str = _UNSET, raw: bool = _UNSET, sudo: str | int = _UNSET):
+    """GroupVariables.create (POST groups/${groupId}/variables). Body fields: key, value, variable_type, protected, masked, environment_scope, description, raw, sudo."""
+    payload: dict = {}
     payload["key"] = key
     payload["value"] = value
+    if variable_type is not _UNSET:
+        payload["variable_type"] = variable_type
+    if protected is not _UNSET:
+        payload["protected"] = protected
+    if masked is not _UNSET:
+        payload["masked"] = masked
+    if environment_scope is not _UNSET:
+        payload["environment_scope"] = environment_scope
+    if description is not _UNSET:
+        payload["description"] = description
+    if raw is not _UNSET:
+        payload["raw"] = raw
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/variables", json=payload))
 
 
-def group_variables_edit(group_id: str | int, key: str | int, value: str | int, **options):
-    """GroupVariables.edit (PUT groups/${groupId}/variables/${key}). Body fields: value."""
-    payload = {**options}
+def group_variables_edit(group_id: str | int, key: str | int, value: str, filter: dict, variable_type: Literal["file", "env_var"] = _UNSET, protected: bool = _UNSET, masked: bool = _UNSET, environment_scope: str = _UNSET, description: str = _UNSET, raw: bool = _UNSET, sudo: str | int = _UNSET):
+    """GroupVariables.edit (PUT groups/${groupId}/variables/${key}). Body fields: value, filter, variable_type, protected, masked, environment_scope, description, raw, sudo."""
+    payload: dict = {}
     payload["value"] = value
+    payload["filter"] = filter
+    if variable_type is not _UNSET:
+        payload["variable_type"] = variable_type
+    if protected is not _UNSET:
+        payload["protected"] = protected
+    if masked is not _UNSET:
+        payload["masked"] = masked
+    if environment_scope is not _UNSET:
+        payload["environment_scope"] = environment_scope
+    if description is not _UNSET:
+        payload["description"] = description
+    if raw is not _UNSET:
+        payload["raw"] = raw
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/variables/{_enc(key)}", json=payload))
 
 
-def group_variables_remove(group_id: str | int, key: str | int, **options):
-    """GroupVariables.remove (DELETE groups/${groupId}/variables/${key})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/variables/{_enc(key)}", params=options))
+def group_variables_remove(group_id: str | int, key: str | int, filter: dict = _UNSET, sudo: str | int = _UNSET):
+    """GroupVariables.remove (DELETE groups/${groupId}/variables/${key}). Body fields: filter, sudo."""
+    payload: dict = {}
+    if filter is not _UNSET:
+        payload["filter"] = filter
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/variables/{_enc(key)}", params=payload))
 
 
-def group_variables_show(group_id: str | int, key: str | int, **options):
-    """GroupVariables.show (GET groups/${groupId}/variables/${key})."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/variables/{_enc(key)}", params=options))
+def group_variables_show(group_id: str | int, key: str | int, filter: dict = _UNSET, sudo: str | int = _UNSET):
+    """GroupVariables.show (GET groups/${groupId}/variables/${key}). Body fields: filter, sudo."""
+    payload: dict = {}
+    if filter is not _UNSET:
+        payload["filter"] = filter
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/variables/{_enc(key)}", params=payload))
 
 
 # ── GroupWikis ────────────────────────────────────────────────────────────
 
-def group_wikis_all(group_id: str | int, **options):
-    """GroupWikis.all (GET groups/${groupId}/wikis)."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/wikis", params=options))
+def group_wikis_all(group_id: str | int, with_content: bool = _UNSET, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """GroupWikis.all (GET groups/${groupId}/wikis). Body fields: with_content, sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if with_content is not _UNSET:
+        payload["with_content"] = with_content
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/wikis", params=payload))
 
 
-def group_wikis_create(group_id: str | int, content: str | int, title: str | int, **options):
-    """GroupWikis.create (POST groups/${groupId}/wikis). Body fields: content, title."""
-    payload = {**options}
+def group_wikis_create(group_id: str | int, content: str, title: str, format: str = _UNSET, sudo: str | int = _UNSET):
+    """GroupWikis.create (POST groups/${groupId}/wikis). Body fields: content, title, format, sudo."""
+    payload: dict = {}
     payload["content"] = content
     payload["title"] = title
+    if format is not _UNSET:
+        payload["format"] = format
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/wikis", json=payload))
 
 
-def group_wikis_edit(group_id: str | int, slug: str | int, **options):
-    """GroupWikis.edit (PUT groups/${groupId}/wikis/${slug})."""
-    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/wikis/{_enc(slug)}", json=options))
+def group_wikis_edit(group_id: str | int, slug: str | int, title: str = _UNSET, content: str = _UNSET, format: str = _UNSET, sudo: str | int = _UNSET):
+    """GroupWikis.edit (PUT groups/${groupId}/wikis/${slug}). Body fields: title, content, format, sudo."""
+    payload: dict = {}
+    if title is not _UNSET:
+        payload["title"] = title
+    if content is not _UNSET:
+        payload["content"] = content
+    if format is not _UNSET:
+        payload["format"] = format
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/wikis/{_enc(slug)}", json=payload))
 
 
-def group_wikis_remove(group_id: str | int, slug: str | int, **options):
-    """GroupWikis.remove (DELETE groups/${groupId}/wikis/${slug})."""
-    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/wikis/{_enc(slug)}", params=options))
+def group_wikis_remove(group_id: str | int, slug: str | int, sudo: str | int = _UNSET):
+    """GroupWikis.remove (DELETE groups/${groupId}/wikis/${slug}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/wikis/{_enc(slug)}", params=payload))
 
 
-def group_wikis_show(group_id: str | int, slug: str | int, **options):
-    """GroupWikis.show (GET groups/${groupId}/wikis/${slug})."""
-    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/wikis/{_enc(slug)}", params=options))
+def group_wikis_show(group_id: str | int, slug: str | int, render_html: bool = _UNSET, version: str = _UNSET, sudo: str | int = _UNSET):
+    """GroupWikis.show (GET groups/${groupId}/wikis/${slug}). Body fields: render_html, version, sudo."""
+    payload: dict = {}
+    if render_html is not _UNSET:
+        payload["render_html"] = render_html
+    if version is not _UNSET:
+        payload["version"] = version
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/wikis/{_enc(slug)}", params=payload))
 
 
-def group_wikis_upload_attachment(group_id: str | int, **options):
-    """GroupWikis.uploadAttachment (POST groups/${groupId}/wikis/attachments)."""
-    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/wikis/attachments", json=options))
+def group_wikis_upload_attachment(group_id: str | int, file: dict, branch: str = _UNSET, sudo: str | int = _UNSET):
+    """GroupWikis.uploadAttachment (POST groups/${groupId}/wikis/attachments). Body fields: file, branch, sudo."""
+    payload: dict = {}
+    payload["file"] = file
+    if branch is not _UNSET:
+        payload["branch"] = branch
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/wikis/attachments", json=payload))
 
 
 # ── Import ────────────────────────────────────────────────────────────────
@@ -2901,82 +3587,185 @@ def integrations_show(project_id: str | int, integration_name: str | int, sudo: 
 
 # ── IssueAwardEmojis ──────────────────────────────────────────────────────
 
-def issue_award_emojis_all(project_id: str | int, resource_iid: str | int, **options):
-    """IssueAwardEmojis.all (GET projects/${projectId}/issues/${resourceIId}/award_emoji)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(resource_iid)}/award_emoji", params=options))
+def issue_award_emojis_all(project_id: str | int, resource_iid: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """IssueAwardEmojis.all (GET projects/${projectId}/issues/${resourceIId}/award_emoji). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(resource_iid)}/award_emoji", params=payload))
 
 
-def issue_award_emojis_award(project_id: str | int, resource_iid: str | int, **options):
-    """IssueAwardEmojis.award (POST projects/${projectId}/issues/${resourceIId}/award_emoji)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(resource_iid)}/award_emoji", json=options))
+def issue_award_emojis_award(project_id: str | int, resource_iid: str | int, name: str, sudo: str | int = _UNSET):
+    """IssueAwardEmojis.award (POST projects/${projectId}/issues/${resourceIId}/award_emoji). Body fields: name, sudo."""
+    payload: dict = {}
+    payload["name"] = name
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(resource_iid)}/award_emoji", json=payload))
 
 
-def issue_award_emojis_remove(project_id: str | int, resource_iid: str | int, award_id: str | int, **options):
-    """IssueAwardEmojis.remove (DELETE projects/${projectId}/issues/${resourceIId}/award_emoji/${awardId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/issues/{_enc(resource_iid)}/award_emoji/{_enc(award_id)}", params=options))
+def issue_award_emojis_remove(project_id: str | int, resource_iid: str | int, award_id: str | int, sudo: str | int = _UNSET):
+    """IssueAwardEmojis.remove (DELETE projects/${projectId}/issues/${resourceIId}/award_emoji/${awardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/issues/{_enc(resource_iid)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
-def issue_award_emojis_show(project_id: str | int, resource_iid: str | int, award_id: str | int, **options):
-    """IssueAwardEmojis.show (GET projects/${projectId}/issues/${resourceIId}/award_emoji/${awardId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(resource_iid)}/award_emoji/{_enc(award_id)}", params=options))
+def issue_award_emojis_show(project_id: str | int, resource_iid: str | int, award_id: str | int, sudo: str | int = _UNSET):
+    """IssueAwardEmojis.show (GET projects/${projectId}/issues/${resourceIId}/award_emoji/${awardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(resource_iid)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
 # ── IssueDiscussions ──────────────────────────────────────────────────────
 
-def issue_discussions_add_note(project_id: str | int, issue_iid: str | int, discussion_id: str | int, body: str | int, **options):
-    """IssueDiscussions.addNote (POST projects/${projectId}/issues/${issueIid}/discussions/${discussionId}/notes). Body fields: body."""
-    payload = {**options}
+def issue_discussions_add_note(project_id: str | int, issue_iid: str | int, discussion_id: str | int, body: str, created_at: str = _UNSET, sudo: str | int = _UNSET):
+    """IssueDiscussions.addNote (POST projects/${projectId}/issues/${issueIid}/discussions/${discussionId}/notes). Body fields: body, created_at, sudo."""
+    payload: dict = {}
     payload["body"] = body
+    if created_at is not _UNSET:
+        payload["created_at"] = created_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions/{_enc(discussion_id)}/notes", json=payload))
 
 
-def issue_discussions_all(project_id: str | int, issue_iid: str | int, **options):
-    """IssueDiscussions.all (GET projects/${projectId}/issues/${issueIid}/discussions)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions", params=options))
+def issue_discussions_all(project_id: str | int, issue_iid: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """IssueDiscussions.all (GET projects/${projectId}/issues/${issueIid}/discussions). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions", params=payload))
 
 
-def issue_discussions_create(project_id: str | int, issue_iid: str | int, **options):
-    """IssueDiscussions.create (POST projects/${projectId}/issues/${issueIid}/discussions)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions", json=options))
+def issue_discussions_create(project_id: str | int, issue_iid: str | int, body: str, position: dict = _UNSET, commit_id: str = _UNSET, created_at: str = _UNSET, sudo: str | int = _UNSET):
+    """IssueDiscussions.create (POST projects/${projectId}/issues/${issueIid}/discussions). Body fields: body, position, commit_id, created_at, sudo."""
+    payload: dict = {}
+    payload["body"] = body
+    if position is not _UNSET:
+        payload["position"] = position
+    if commit_id is not _UNSET:
+        payload["commit_id"] = commit_id
+    if created_at is not _UNSET:
+        payload["created_at"] = created_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions", json=payload))
 
 
-def issue_discussions_edit_note(project_id: str | int, issue_iid: str | int, discussion_id: str | int, note_id: str | int, **options):
-    """IssueDiscussions.editNote (PUT projects/${projectId}/issues/${issueIid}/discussions/${discussionId}/notes/${noteId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", json=options))
+def issue_discussions_edit_note(project_id: str | int, issue_iid: str | int, discussion_id: str | int, note_id: str | int, sudo: str | int = _UNSET, body: str = _UNSET, resolved: bool = _UNSET):
+    """IssueDiscussions.editNote (PUT projects/${projectId}/issues/${issueIid}/discussions/${discussionId}/notes/${noteId}). Body fields: sudo, body, resolved."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if body is not _UNSET:
+        payload["body"] = body
+    if resolved is not _UNSET:
+        payload["resolved"] = resolved
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", json=payload))
 
 
-def issue_discussions_remove_note(project_id: str | int, issue_iid: str | int, discussion_id: str | int, note_id: str | int, **options):
-    """IssueDiscussions.removeNote (DELETE projects/${projectId}/issues/${issueIid}/discussions/${discussionId}/notes/${noteId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", params=options))
+def issue_discussions_remove_note(project_id: str | int, issue_iid: str | int, discussion_id: str | int, note_id: str | int, sudo: str | int = _UNSET):
+    """IssueDiscussions.removeNote (DELETE projects/${projectId}/issues/${issueIid}/discussions/${discussionId}/notes/${noteId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", params=payload))
 
 
-def issue_discussions_show(project_id: str | int, issue_iid: str | int, discussion_id: str | int, **options):
-    """IssueDiscussions.show (GET projects/${projectId}/issues/${issueIid}/discussions/${discussionId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions/{_enc(discussion_id)}", params=options))
+def issue_discussions_show(project_id: str | int, issue_iid: str | int, discussion_id: str | int, sudo: str | int = _UNSET):
+    """IssueDiscussions.show (GET projects/${projectId}/issues/${issueIid}/discussions/${discussionId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/discussions/{_enc(discussion_id)}", params=payload))
 
 
 # ── IssueIterationEvents ──────────────────────────────────────────────────
 
-def issue_iteration_events_all(project_id: str | int, issue_iid: str | int, **options):
-    """IssueIterationEvents.all (GET projects/${projectId}/issues/${issueIid}/resource_iteration_events)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_iteration_events", params=options))
+def issue_iteration_events_all(project_id: str | int, issue_iid: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """IssueIterationEvents.all (GET projects/${projectId}/issues/${issueIid}/resource_iteration_events). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_iteration_events", params=payload))
 
 
-def issue_iteration_events_show(project_id: str | int, issue_iid: str | int, iteration_event_id: str | int, **options):
-    """IssueIterationEvents.show (GET projects/${projectId}/issues/${issueIid}/resource_iteration_events/${iterationEventId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_iteration_events/{_enc(iteration_event_id)}", params=options))
+def issue_iteration_events_show(project_id: str | int, issue_iid: str | int, iteration_event_id: str | int, sudo: str | int = _UNSET):
+    """IssueIterationEvents.show (GET projects/${projectId}/issues/${issueIid}/resource_iteration_events/${iterationEventId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_iteration_events/{_enc(iteration_event_id)}", params=payload))
 
 
 # ── IssueLabelEvents ──────────────────────────────────────────────────────
 
-def issue_label_events_all(project_id: str | int, issue_iid: str | int, **options):
-    """IssueLabelEvents.all (GET projects/${projectId}/issues/${issueIid}/resource_label_events)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_label_events", params=options))
+def issue_label_events_all(project_id: str | int, issue_iid: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """IssueLabelEvents.all (GET projects/${projectId}/issues/${issueIid}/resource_label_events). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_label_events", params=payload))
 
 
-def issue_label_events_show(project_id: str | int, issue_iid: str | int, label_event_id: str | int, **options):
-    """IssueLabelEvents.show (GET projects/${projectId}/issues/${issueIid}/resource_label_events/${labelEventId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_label_events/{_enc(label_event_id)}", params=options))
+def issue_label_events_show(project_id: str | int, issue_iid: str | int, label_event_id: str | int, sudo: str | int = _UNSET):
+    """IssueLabelEvents.show (GET projects/${projectId}/issues/${issueIid}/resource_label_events/${labelEventId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_label_events/{_enc(label_event_id)}", params=payload))
 
 
 # ── IssueLinks ────────────────────────────────────────────────────────────
@@ -3025,65 +3814,140 @@ def issue_links_remove(project_id: str | int, issue_iid: str | int, issue_link_i
 
 # ── IssueMilestoneEvents ──────────────────────────────────────────────────
 
-def issue_milestone_events_all(project_id: str | int, issue_iid: str | int, **options):
-    """IssueMilestoneEvents.all (GET projects/${projectId}/issues/${issueIid}/resource_milestone_events)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_milestone_events", params=options))
+def issue_milestone_events_all(project_id: str | int, issue_iid: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """IssueMilestoneEvents.all (GET projects/${projectId}/issues/${issueIid}/resource_milestone_events). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_milestone_events", params=payload))
 
 
-def issue_milestone_events_show(project_id: str | int, issue_iid: str | int, milestone_event_id: str | int, **options):
-    """IssueMilestoneEvents.show (GET projects/${projectId}/issues/${issueIid}/resource_milestone_events/${milestoneEventId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_milestone_events/{_enc(milestone_event_id)}", params=options))
+def issue_milestone_events_show(project_id: str | int, issue_iid: str | int, milestone_event_id: str | int, sudo: str | int = _UNSET):
+    """IssueMilestoneEvents.show (GET projects/${projectId}/issues/${issueIid}/resource_milestone_events/${milestoneEventId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_milestone_events/{_enc(milestone_event_id)}", params=payload))
 
 
 # ── IssueNoteAwardEmojis ──────────────────────────────────────────────────
 
-def issue_note_award_emojis_all(project_id: str | int, resource_iid: str | int, note_id: str | int, **options):
-    """IssueNoteAwardEmojis.all (GET issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji)."""
-    return _ok(_get_client().request("GET", f"/issues/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", params=options))
+def issue_note_award_emojis_all(project_id: str | int, resource_iid: str | int, note_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET, **options):
+    """IssueNoteAwardEmojis.all (GET issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload = {**options}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/issues/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", params=payload))
 
 
-def issue_note_award_emojis_award(project_id: str | int, resource_iid: str | int, note_id: str | int, **options):
-    """IssueNoteAwardEmojis.award (POST issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji)."""
-    return _ok(_get_client().request("POST", f"/issues/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", json=options))
+def issue_note_award_emojis_award(project_id: str | int, resource_iid: str | int, note_id: str | int, name: str, sudo: str | int = _UNSET):
+    """IssueNoteAwardEmojis.award (POST issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji). Body fields: name, sudo."""
+    payload: dict = {}
+    payload["name"] = name
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/issues/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", json=payload))
 
 
-def issue_note_award_emojis_remove(project_id: str | int, resource_iid: str | int, note_id: str | int, award_id: str | int, **options):
-    """IssueNoteAwardEmojis.remove (DELETE issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji/${awardId})."""
-    return _ok(_get_client().request("DELETE", f"/issues/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=options))
+def issue_note_award_emojis_remove(project_id: str | int, resource_iid: str | int, note_id: str | int, award_id: str | int, sudo: str | int = _UNSET):
+    """IssueNoteAwardEmojis.remove (DELETE issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji/${awardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/issues/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
-def issue_note_award_emojis_show(project_id: str | int, resource_iid: str | int, note_id: str | int, award_id: str | int, **options):
-    """IssueNoteAwardEmojis.show (GET issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji/${awardId})."""
-    return _ok(_get_client().request("GET", f"/issues/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=options))
+def issue_note_award_emojis_show(project_id: str | int, resource_iid: str | int, note_id: str | int, award_id: str | int, sudo: str | int = _UNSET):
+    """IssueNoteAwardEmojis.show (GET issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji/${awardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/issues/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
 # ── IssueNotes ────────────────────────────────────────────────────────────
 
-def issue_notes_all(project_id: str | int, issue_iid: str | int, **options):
-    """IssueNotes.all (GET projects/${projectId}/issues/${issueIid}/notes)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/notes", params=options))
+def issue_notes_all(project_id: str | int, issue_iid: str | int, sort: Literal["asc", "desc"] = _UNSET, order_by: Literal["created_at", "updated_at"] = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """IssueNotes.all (GET projects/${projectId}/issues/${issueIid}/notes). Body fields: sort, order_by, pagination, per_page, max_pages, sudo, page."""
+    payload: dict = {}
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/notes", params=payload))
 
 
-def issue_notes_create(project_id: str | int, issue_iid: str | int, body: str | int, **options):
-    """IssueNotes.create (POST projects/${projectId}/issues/${issueIid}/notes). Body fields: body."""
-    payload = {**options}
+def issue_notes_create(project_id: str | int, issue_iid: str | int, body: str, internal: bool = _UNSET, created_at: str = _UNSET, sudo: str | int = _UNSET):
+    """IssueNotes.create (POST projects/${projectId}/issues/${issueIid}/notes). Body fields: body, internal, created_at, sudo."""
+    payload: dict = {}
     payload["body"] = body
+    if internal is not _UNSET:
+        payload["internal"] = internal
+    if created_at is not _UNSET:
+        payload["created_at"] = created_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/notes", json=payload))
 
 
-def issue_notes_edit(project_id: str | int, issue_iid: str | int, note_id: str | int, **options):
-    """IssueNotes.edit (PUT projects/${projectId}/issues/${issueIid}/notes/${noteId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/notes/{_enc(note_id)}", json=options))
+def issue_notes_edit(project_id: str | int, issue_iid: str | int, note_id: str | int, body: str = _UNSET, sudo: str | int = _UNSET):
+    """IssueNotes.edit (PUT projects/${projectId}/issues/${issueIid}/notes/${noteId}). Body fields: body, sudo."""
+    payload: dict = {}
+    if body is not _UNSET:
+        payload["body"] = body
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/notes/{_enc(note_id)}", json=payload))
 
 
-def issue_notes_remove(project_id: str | int, issue_iid: str | int, note_id: str | int, **options):
-    """IssueNotes.remove (DELETE projects/${projectId}/issues/${issueIid}/notes/${noteId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/notes/{_enc(note_id)}", params=options))
+def issue_notes_remove(project_id: str | int, issue_iid: str | int, note_id: str | int, sudo: str | int = _UNSET):
+    """IssueNotes.remove (DELETE projects/${projectId}/issues/${issueIid}/notes/${noteId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/notes/{_enc(note_id)}", params=payload))
 
 
-def issue_notes_show(project_id: str | int, issue_iid: str | int, note_id: str | int, **options):
-    """IssueNotes.show (GET projects/${projectId}/issues/${issueIid}/notes/${noteId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/notes/{_enc(note_id)}", params=options))
+def issue_notes_show(project_id: str | int, issue_iid: str | int, note_id: str | int, sudo: str | int = _UNSET):
+    """IssueNotes.show (GET projects/${projectId}/issues/${issueIid}/notes/${noteId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/notes/{_enc(note_id)}", params=payload))
 
 
 # ── Issues ────────────────────────────────────────────────────────────────
@@ -3393,26 +4257,62 @@ def issues_statistics_all(project_id: str | int = _UNSET, group_id: str | int = 
 
 # ── IssueStateEvents ──────────────────────────────────────────────────────
 
-def issue_state_events_all(project_id: str | int, issue_iid: str | int, **options):
-    """IssueStateEvents.all (GET projects/${projectId}/issues/${issueIid}/resource_state_events)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_state_events", params=options))
+def issue_state_events_all(project_id: str | int, issue_iid: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """IssueStateEvents.all (GET projects/${projectId}/issues/${issueIid}/resource_state_events). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_state_events", params=payload))
 
 
-def issue_state_events_show(project_id: str | int, issue_iid: str | int, state_event_id: str | int, **options):
-    """IssueStateEvents.show (GET projects/${projectId}/issues/${issueIid}/resource_state_events/${stateEventId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_state_events/{_enc(state_event_id)}", params=options))
+def issue_state_events_show(project_id: str | int, issue_iid: str | int, state_event_id: str | int, sudo: str | int = _UNSET):
+    """IssueStateEvents.show (GET projects/${projectId}/issues/${issueIid}/resource_state_events/${stateEventId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_state_events/{_enc(state_event_id)}", params=payload))
 
 
 # ── IssueWeightEvents ─────────────────────────────────────────────────────
 
-def issue_weight_events_all(project_id: str | int, issue_iid: str | int, **options):
-    """IssueWeightEvents.all (GET projects/${projectId}/issues/${issueIid}/resource_state_events)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_state_events", params=options))
+def issue_weight_events_all(project_id: str | int, issue_iid: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """IssueWeightEvents.all (GET projects/${projectId}/issues/${issueIid}/resource_state_events). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_state_events", params=payload))
 
 
-def issue_weight_events_show(project_id: str | int, issue_iid: str | int, state_event_id: str | int, **options):
-    """IssueWeightEvents.show (GET projects/${projectId}/issues/${issueIid}/resource_state_events/${stateEventId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_state_events/{_enc(state_event_id)}", params=options))
+def issue_weight_events_show(project_id: str | int, issue_iid: str | int, state_event_id: str | int, sudo: str | int = _UNSET):
+    """IssueWeightEvents.show (GET projects/${projectId}/issues/${issueIid}/resource_state_events/${stateEventId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/resource_state_events/{_enc(state_event_id)}", params=payload))
 
 
 # ── JobArtifacts ──────────────────────────────────────────────────────────
@@ -3805,24 +4705,49 @@ def merge_request_approvals_unapprove(project_id: str | int, mergerequest_iid: s
 
 # ── MergeRequestAwardEmojis ───────────────────────────────────────────────
 
-def merge_request_award_emojis_all(project_id: str | int, resource_iid: str | int, **options):
-    """MergeRequestAwardEmojis.all (GET projects/${projectId}/merge_requests/${resourceIId}/award_emoji)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/award_emoji", params=options))
+def merge_request_award_emojis_all(project_id: str | int, resource_iid: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """MergeRequestAwardEmojis.all (GET projects/${projectId}/merge_requests/${resourceIId}/award_emoji). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/award_emoji", params=payload))
 
 
-def merge_request_award_emojis_award(project_id: str | int, resource_iid: str | int, **options):
-    """MergeRequestAwardEmojis.award (POST projects/${projectId}/merge_requests/${resourceIId}/award_emoji)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/award_emoji", json=options))
+def merge_request_award_emojis_award(project_id: str | int, resource_iid: str | int, name: str, sudo: str | int = _UNSET):
+    """MergeRequestAwardEmojis.award (POST projects/${projectId}/merge_requests/${resourceIId}/award_emoji). Body fields: name, sudo."""
+    payload: dict = {}
+    payload["name"] = name
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/award_emoji", json=payload))
 
 
-def merge_request_award_emojis_remove(project_id: str | int, resource_iid: str | int, award_id: str | int, **options):
-    """MergeRequestAwardEmojis.remove (DELETE projects/${projectId}/merge_requests/${resourceIId}/award_emoji/${awardId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/award_emoji/{_enc(award_id)}", params=options))
+def merge_request_award_emojis_remove(project_id: str | int, resource_iid: str | int, award_id: str | int, sudo: str | int = _UNSET):
+    """MergeRequestAwardEmojis.remove (DELETE projects/${projectId}/merge_requests/${resourceIId}/award_emoji/${awardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
-def merge_request_award_emojis_show(project_id: str | int, resource_iid: str | int, award_id: str | int, **options):
-    """MergeRequestAwardEmojis.show (GET projects/${projectId}/merge_requests/${resourceIId}/award_emoji/${awardId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/award_emoji/{_enc(award_id)}", params=options))
+def merge_request_award_emojis_show(project_id: str | int, resource_iid: str | int, award_id: str | int, sudo: str | int = _UNSET):
+    """MergeRequestAwardEmojis.show (GET projects/${projectId}/merge_requests/${resourceIId}/award_emoji/${awardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
 # ── MergeRequestContextCommits ────────────────────────────────────────────
@@ -3857,36 +4782,78 @@ def merge_request_context_commits_remove(project_id: str | int, mergerequest_iid
 
 # ── MergeRequestDiscussions ───────────────────────────────────────────────
 
-def merge_request_discussions_add_note(project_id: str | int, merge_request_iid: str | int, discussion_id: str | int, body: str | int, **options):
-    """MergeRequestDiscussions.addNote (POST projects/${projectId}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes). Body fields: body."""
-    payload = {**options}
+def merge_request_discussions_add_note(project_id: str | int, merge_request_iid: str | int, discussion_id: str | int, body: str, created_at: str = _UNSET, sudo: str | int = _UNSET):
+    """MergeRequestDiscussions.addNote (POST projects/${projectId}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes). Body fields: body, created_at, sudo."""
+    payload: dict = {}
     payload["body"] = body
+    if created_at is not _UNSET:
+        payload["created_at"] = created_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions/{_enc(discussion_id)}/notes", json=payload))
 
 
-def merge_request_discussions_all(project_id: str | int, merge_request_iid: str | int, **options):
-    """MergeRequestDiscussions.all (GET projects/${projectId}/merge_requests/${mergeRequestIid}/discussions)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions", params=options))
+def merge_request_discussions_all(project_id: str | int, merge_request_iid: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """MergeRequestDiscussions.all (GET projects/${projectId}/merge_requests/${mergeRequestIid}/discussions). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions", params=payload))
 
 
-def merge_request_discussions_create(project_id: str | int, merge_request_iid: str | int, **options):
-    """MergeRequestDiscussions.create (POST projects/${projectId}/merge_requests/${mergeRequestIid}/discussions)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions", json=options))
+def merge_request_discussions_create(project_id: str | int, merge_request_iid: str | int, body: str, position: dict = _UNSET, commit_id: str = _UNSET, created_at: str = _UNSET, sudo: str | int = _UNSET):
+    """MergeRequestDiscussions.create (POST projects/${projectId}/merge_requests/${mergeRequestIid}/discussions). Body fields: body, position, commit_id, created_at, sudo."""
+    payload: dict = {}
+    payload["body"] = body
+    if position is not _UNSET:
+        payload["position"] = position
+    if commit_id is not _UNSET:
+        payload["commit_id"] = commit_id
+    if created_at is not _UNSET:
+        payload["created_at"] = created_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions", json=payload))
 
 
-def merge_request_discussions_edit_note(project_id: str | int, merge_request_iid: str | int, discussion_id: str | int, note_id: str | int, **options):
-    """MergeRequestDiscussions.editNote (PUT projects/${projectId}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", json=options))
+def merge_request_discussions_edit_note(project_id: str | int, merge_request_iid: str | int, discussion_id: str | int, note_id: str | int, sudo: str | int = _UNSET, body: str = _UNSET, resolved: bool = _UNSET):
+    """MergeRequestDiscussions.editNote (PUT projects/${projectId}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}). Body fields: sudo, body, resolved."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if body is not _UNSET:
+        payload["body"] = body
+    if resolved is not _UNSET:
+        payload["resolved"] = resolved
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", json=payload))
 
 
-def merge_request_discussions_remove_note(project_id: str | int, merge_request_iid: str | int, discussion_id: str | int, note_id: str | int, **options):
-    """MergeRequestDiscussions.removeNote (DELETE projects/${projectId}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", params=options))
+def merge_request_discussions_remove_note(project_id: str | int, merge_request_iid: str | int, discussion_id: str | int, note_id: str | int, sudo: str | int = _UNSET):
+    """MergeRequestDiscussions.removeNote (DELETE projects/${projectId}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes/${noteId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", params=payload))
 
 
-def merge_request_discussions_show(project_id: str | int, merge_request_iid: str | int, discussion_id: str | int, **options):
-    """MergeRequestDiscussions.show (GET projects/${projectId}/merge_requests/${mergeRequestIid}/discussions/${discussionId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions/{_enc(discussion_id)}", params=options))
+def merge_request_discussions_show(project_id: str | int, merge_request_iid: str | int, discussion_id: str | int, sudo: str | int = _UNSET):
+    """MergeRequestDiscussions.show (GET projects/${projectId}/merge_requests/${mergeRequestIid}/discussions/${discussionId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/discussions/{_enc(discussion_id)}", params=payload))
 
 
 # ── MergeRequestDraftNotes ────────────────────────────────────────────────
@@ -3974,77 +4941,170 @@ def merge_request_draft_notes_show(project_id: str | int, mergerequest_iid: str 
 
 # ── MergeRequestLabelEvents ───────────────────────────────────────────────
 
-def merge_request_label_events_all(project_id: str | int, merge_request_iid: str | int, **options):
-    """MergeRequestLabelEvents.all (GET projects/${projectId}/merge_requests/${mergeRequestIid}/resource_label_events)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/resource_label_events", params=options))
+def merge_request_label_events_all(project_id: str | int, merge_request_iid: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """MergeRequestLabelEvents.all (GET projects/${projectId}/merge_requests/${mergeRequestIid}/resource_label_events). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/resource_label_events", params=payload))
 
 
-def merge_request_label_events_show(project_id: str | int, merge_request_iid: str | int, label_event_id: str | int, **options):
-    """MergeRequestLabelEvents.show (GET projects/${projectId}/merge_requests/${mergeRequestIid}/resource_label_events/${labelEventId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/resource_label_events/{_enc(label_event_id)}", params=options))
+def merge_request_label_events_show(project_id: str | int, merge_request_iid: str | int, label_event_id: str | int, sudo: str | int = _UNSET):
+    """MergeRequestLabelEvents.show (GET projects/${projectId}/merge_requests/${mergeRequestIid}/resource_label_events/${labelEventId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/resource_label_events/{_enc(label_event_id)}", params=payload))
 
 
 # ── MergeRequestMilestoneEvents ───────────────────────────────────────────
 
-def merge_request_milestone_events_all(project_id: str | int, merge_request_iid: str | int, **options):
-    """MergeRequestMilestoneEvents.all (GET projects/${projectId}/merge_requests/${mergeRequestIid}/resource_milestone_events)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/resource_milestone_events", params=options))
+def merge_request_milestone_events_all(project_id: str | int, merge_request_iid: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """MergeRequestMilestoneEvents.all (GET projects/${projectId}/merge_requests/${mergeRequestIid}/resource_milestone_events). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/resource_milestone_events", params=payload))
 
 
-def merge_request_milestone_events_show(project_id: str | int, merge_request_iid: str | int, milestone_event_id: str | int, **options):
-    """MergeRequestMilestoneEvents.show (GET projects/${projectId}/merge_requests/${mergeRequestIid}/resource_milestone_events/${milestoneEventId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/resource_milestone_events/{_enc(milestone_event_id)}", params=options))
+def merge_request_milestone_events_show(project_id: str | int, merge_request_iid: str | int, milestone_event_id: str | int, sudo: str | int = _UNSET):
+    """MergeRequestMilestoneEvents.show (GET projects/${projectId}/merge_requests/${mergeRequestIid}/resource_milestone_events/${milestoneEventId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/resource_milestone_events/{_enc(milestone_event_id)}", params=payload))
 
 
 # ── MergeRequestNoteAwardEmojis ───────────────────────────────────────────
 
-def merge_request_note_award_emojis_all(project_id: str | int, resource_iid: str | int, note_id: str | int, **options):
-    """MergeRequestNoteAwardEmojis.all (GET merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji)."""
-    return _ok(_get_client().request("GET", f"/merge_requests/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", params=options))
+def merge_request_note_award_emojis_all(project_id: str | int, resource_iid: str | int, note_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET, **options):
+    """MergeRequestNoteAwardEmojis.all (GET merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload = {**options}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/merge_requests/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", params=payload))
 
 
-def merge_request_note_award_emojis_award(project_id: str | int, resource_iid: str | int, note_id: str | int, **options):
-    """MergeRequestNoteAwardEmojis.award (POST merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji)."""
-    return _ok(_get_client().request("POST", f"/merge_requests/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", json=options))
+def merge_request_note_award_emojis_award(project_id: str | int, resource_iid: str | int, note_id: str | int, name: str, sudo: str | int = _UNSET):
+    """MergeRequestNoteAwardEmojis.award (POST merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji). Body fields: name, sudo."""
+    payload: dict = {}
+    payload["name"] = name
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/merge_requests/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", json=payload))
 
 
-def merge_request_note_award_emojis_remove(project_id: str | int, resource_iid: str | int, note_id: str | int, award_id: str | int, **options):
-    """MergeRequestNoteAwardEmojis.remove (DELETE merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji/${awardId})."""
-    return _ok(_get_client().request("DELETE", f"/merge_requests/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=options))
+def merge_request_note_award_emojis_remove(project_id: str | int, resource_iid: str | int, note_id: str | int, award_id: str | int, sudo: str | int = _UNSET):
+    """MergeRequestNoteAwardEmojis.remove (DELETE merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji/${awardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/merge_requests/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
-def merge_request_note_award_emojis_show(project_id: str | int, resource_iid: str | int, note_id: str | int, award_id: str | int, **options):
-    """MergeRequestNoteAwardEmojis.show (GET merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji/${awardId})."""
-    return _ok(_get_client().request("GET", f"/merge_requests/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=options))
+def merge_request_note_award_emojis_show(project_id: str | int, resource_iid: str | int, note_id: str | int, award_id: str | int, sudo: str | int = _UNSET):
+    """MergeRequestNoteAwardEmojis.show (GET merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji/${awardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/merge_requests/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
 # ── MergeRequestNotes ─────────────────────────────────────────────────────
 
-def merge_request_notes_all(project_id: str | int, merge_request_iid: str | int, **options):
-    """MergeRequestNotes.all (GET projects/${projectId}/merge_requests/${mergeRequestIid}/notes)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/notes", params=options))
+def merge_request_notes_all(project_id: str | int, merge_request_iid: str | int, sort: Literal["asc", "desc"] = _UNSET, order_by: Literal["created_at", "updated_at"] = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """MergeRequestNotes.all (GET projects/${projectId}/merge_requests/${mergeRequestIid}/notes). Body fields: sort, order_by, pagination, per_page, max_pages, sudo, page."""
+    payload: dict = {}
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/notes", params=payload))
 
 
-def merge_request_notes_create(project_id: str | int, merge_request_iid: str | int, body: str | int, **options):
-    """MergeRequestNotes.create (POST projects/${projectId}/merge_requests/${mergeRequestIid}/notes). Body fields: body."""
-    payload = {**options}
+def merge_request_notes_create(project_id: str | int, merge_request_iid: str | int, body: str, internal: bool = _UNSET, created_at: str = _UNSET, sudo: str | int = _UNSET):
+    """MergeRequestNotes.create (POST projects/${projectId}/merge_requests/${mergeRequestIid}/notes). Body fields: body, internal, created_at, sudo."""
+    payload: dict = {}
     payload["body"] = body
+    if internal is not _UNSET:
+        payload["internal"] = internal
+    if created_at is not _UNSET:
+        payload["created_at"] = created_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/notes", json=payload))
 
 
-def merge_request_notes_edit(project_id: str | int, merge_request_iid: str | int, note_id: str | int, **options):
-    """MergeRequestNotes.edit (PUT projects/${projectId}/merge_requests/${mergeRequestIid}/notes/${noteId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/notes/{_enc(note_id)}", json=options))
+def merge_request_notes_edit(project_id: str | int, merge_request_iid: str | int, note_id: str | int, body: str = _UNSET, sudo: str | int = _UNSET):
+    """MergeRequestNotes.edit (PUT projects/${projectId}/merge_requests/${mergeRequestIid}/notes/${noteId}). Body fields: body, sudo."""
+    payload: dict = {}
+    if body is not _UNSET:
+        payload["body"] = body
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/notes/{_enc(note_id)}", json=payload))
 
 
-def merge_request_notes_remove(project_id: str | int, merge_request_iid: str | int, note_id: str | int, **options):
-    """MergeRequestNotes.remove (DELETE projects/${projectId}/merge_requests/${mergeRequestIid}/notes/${noteId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/notes/{_enc(note_id)}", params=options))
+def merge_request_notes_remove(project_id: str | int, merge_request_iid: str | int, note_id: str | int, sudo: str | int = _UNSET):
+    """MergeRequestNotes.remove (DELETE projects/${projectId}/merge_requests/${mergeRequestIid}/notes/${noteId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/notes/{_enc(note_id)}", params=payload))
 
 
-def merge_request_notes_show(project_id: str | int, merge_request_iid: str | int, note_id: str | int, **options):
-    """MergeRequestNotes.show (GET projects/${projectId}/merge_requests/${mergeRequestIid}/notes/${noteId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/notes/{_enc(note_id)}", params=options))
+def merge_request_notes_show(project_id: str | int, merge_request_iid: str | int, note_id: str | int, sudo: str | int = _UNSET):
+    """MergeRequestNotes.show (GET projects/${projectId}/merge_requests/${mergeRequestIid}/notes/${noteId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/notes/{_enc(note_id)}", params=payload))
 
 
 # ── MergeRequests ─────────────────────────────────────────────────────────
@@ -4403,14 +5463,32 @@ def merge_requests_unsubscribe(project_id: str | int, mergerequest_iid: str | in
 
 # ── MergeRequestStateEvents ───────────────────────────────────────────────
 
-def merge_request_state_events_all(project_id: str | int, merge_request_iid: str | int, **options):
-    """MergeRequestStateEvents.all (GET projects/${projectId}/merge_requests/${mergeRequestIid}/resource_state_events)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/resource_state_events", params=options))
+def merge_request_state_events_all(project_id: str | int, merge_request_iid: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """MergeRequestStateEvents.all (GET projects/${projectId}/merge_requests/${mergeRequestIid}/resource_state_events). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/resource_state_events", params=payload))
 
 
-def merge_request_state_events_show(project_id: str | int, merge_request_iid: str | int, state_event_id: str | int, **options):
-    """MergeRequestStateEvents.show (GET projects/${projectId}/merge_requests/${mergeRequestIid}/resource_state_events/${stateEventId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/resource_state_events/{_enc(state_event_id)}", params=options))
+def merge_request_state_events_show(project_id: str | int, merge_request_iid: str | int, state_event_id: str | int, sudo: str | int = _UNSET):
+    """MergeRequestStateEvents.show (GET projects/${projectId}/merge_requests/${mergeRequestIid}/resource_state_events/${stateEventId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(merge_request_iid)}/resource_state_events/{_enc(state_event_id)}", params=payload))
 
 
 # ── MergeTrains ───────────────────────────────────────────────────────────
@@ -5288,55 +6366,111 @@ def product_analytics_show_metadata(project_id: str | int, sudo: str | int = _UN
 
 # ── ProjectAccessRequests ─────────────────────────────────────────────────
 
-def project_access_requests_all(project_id: str | int, **options):
-    """ProjectAccessRequests.all (GET projects/${projectId}/access_requests)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/access_requests", params=options))
+def project_access_requests_all(project_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """ProjectAccessRequests.all (GET projects/${projectId}/access_requests). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/access_requests", params=payload))
 
 
-def project_access_requests_approve(project_id: str | int, user_id: str | int, **options):
-    """ProjectAccessRequests.approve (PUT projects/${projectId}/access_requests/${userId}/approve)."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/access_requests/{_enc(user_id)}/approve", json=options))
+def project_access_requests_approve(project_id: str | int, user_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50] = _UNSET, sudo: str | int = _UNSET):
+    """ProjectAccessRequests.approve (PUT projects/${projectId}/access_requests/${userId}/approve). Body fields: access_level, sudo."""
+    payload: dict = {}
+    if access_level is not _UNSET:
+        payload["access_level"] = access_level
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/access_requests/{_enc(user_id)}/approve", json=payload))
 
 
-def project_access_requests_deny(project_id: str | int, user_id: str | int, **options):
-    """ProjectAccessRequests.deny (DELETE projects/${projectId}/access_requests/${userId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/access_requests/{_enc(user_id)}", params=options))
+def project_access_requests_deny(project_id: str | int, user_id: str | int, sudo: str | int = _UNSET):
+    """ProjectAccessRequests.deny (DELETE projects/${projectId}/access_requests/${userId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/access_requests/{_enc(user_id)}", params=payload))
 
 
-def project_access_requests_request(project_id: str | int, **options):
-    """ProjectAccessRequests.request (POST projects/${projectId}/access_requests)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/access_requests", json=options))
+def project_access_requests_request(project_id: str | int, sudo: str | int = _UNSET):
+    """ProjectAccessRequests.request (POST projects/${projectId}/access_requests). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/access_requests", json=payload))
 
 
 # ── ProjectAccessTokens ───────────────────────────────────────────────────
 
-def project_access_tokens_all(project_id: str | int, **options):
-    """ProjectAccessTokens.all (GET projects/${projectId}/access_tokens)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/access_tokens", params=options))
+def project_access_tokens_all(project_id: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """ProjectAccessTokens.all (GET projects/${projectId}/access_tokens). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/access_tokens", params=payload))
 
 
-def project_access_tokens_create(project_id: str | int, name: str | int, scopes: str | int, expires_at: str | int, **options):
-    """ProjectAccessTokens.create (POST projects/${projectId}/access_tokens). Body fields: name, scopes, expires_at."""
-    payload = {**options}
+def project_access_tokens_create(project_id: str | int, name: str, scopes: list[Literal["read_repository", "read_registry", "write_registry", "api", "read_api", "create_runner", "write_repository"]], expires_at: str, access_level: Literal[10, 20, 30, 40, 50] = _UNSET, sudo: str | int = _UNSET):
+    """ProjectAccessTokens.create (POST projects/${projectId}/access_tokens). Body fields: name, scopes, expires_at, access_level, sudo."""
+    payload: dict = {}
     payload["name"] = name
     payload["scopes"] = scopes
     payload["expires_at"] = expires_at
+    if access_level is not _UNSET:
+        payload["access_level"] = access_level
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/access_tokens", json=payload))
 
 
-def project_access_tokens_revoke(project_id: str | int, token_id: str | int, **options):
-    """ProjectAccessTokens.revoke (DELETE projects/${projectId}/access_tokens/${tokenId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/access_tokens/{_enc(token_id)}", params=options))
+def project_access_tokens_revoke(project_id: str | int, token_id: str | int, sudo: str | int = _UNSET):
+    """ProjectAccessTokens.revoke (DELETE projects/${projectId}/access_tokens/${tokenId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/access_tokens/{_enc(token_id)}", params=payload))
 
 
-def project_access_tokens_rotate(project_id: str | int, token_id: str | int, **options):
-    """ProjectAccessTokens.rotate (POST projects/${projectId}/access_tokens/${tokenId}/rotate)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/access_tokens/{_enc(token_id)}/rotate", json=options))
+def project_access_tokens_rotate(project_id: str | int, token_id: str | int, expires_at: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectAccessTokens.rotate (POST projects/${projectId}/access_tokens/${tokenId}/rotate). Body fields: expires_at, sudo."""
+    payload: dict = {}
+    if expires_at is not _UNSET:
+        payload["expires_at"] = expires_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/access_tokens/{_enc(token_id)}/rotate", json=payload))
 
 
-def project_access_tokens_show(project_id: str | int, token_id: str | int, **options):
-    """ProjectAccessTokens.show (GET projects/${projectId}/access_tokens/${tokenId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/access_tokens/{_enc(token_id)}", params=options))
+def project_access_tokens_show(project_id: str | int, token_id: str | int, sudo: str | int = _UNSET):
+    """ProjectAccessTokens.show (GET projects/${projectId}/access_tokens/${tokenId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/access_tokens/{_enc(token_id)}", params=payload))
 
 
 # ── ProjectAliases ────────────────────────────────────────────────────────
@@ -5389,95 +6523,245 @@ def project_aliases_remove(name: str | int, sudo: str | int = _UNSET):
 
 # ── ProjectBadges ─────────────────────────────────────────────────────────
 
-def project_badges_add(project_id: str | int, link_url: str | int, image_url: str | int, **options):
-    """ProjectBadges.add (POST projects/${projectId}/badges). Body fields: link_url, image_url."""
-    payload = {**options}
+def project_badges_add(project_id: str | int, link_url: str, image_url: str, name: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectBadges.add (POST projects/${projectId}/badges). Body fields: link_url, image_url, name, sudo."""
+    payload: dict = {}
     payload["link_url"] = link_url
     payload["image_url"] = image_url
+    if name is not _UNSET:
+        payload["name"] = name
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/badges", json=payload))
 
 
-def project_badges_all(project_id: str | int, **options):
-    """ProjectBadges.all (GET projects/${projectId}/badges)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/badges", params=options))
+def project_badges_all(project_id: str | int, name: str = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """ProjectBadges.all (GET projects/${projectId}/badges). Body fields: name, pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if name is not _UNSET:
+        payload["name"] = name
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/badges", params=payload))
 
 
-def project_badges_edit(project_id: str | int, badge_id: str | int, **options):
-    """ProjectBadges.edit (PUT projects/${projectId}/badges/${badgeId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/badges/{_enc(badge_id)}", json=options))
+def project_badges_edit(project_id: str | int, badge_id: str | int, name: str = _UNSET, link_url: str = _UNSET, image_url: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectBadges.edit (PUT projects/${projectId}/badges/${badgeId}). Body fields: name, link_url, image_url, sudo."""
+    payload: dict = {}
+    if name is not _UNSET:
+        payload["name"] = name
+    if link_url is not _UNSET:
+        payload["link_url"] = link_url
+    if image_url is not _UNSET:
+        payload["image_url"] = image_url
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/badges/{_enc(badge_id)}", json=payload))
 
 
-def project_badges_preview(project_id: str | int, link_url: str | int, image_url: str | int, **options):
-    """ProjectBadges.preview (GET projects/${projectId}/badges/render). Body fields: link_url, image_url."""
-    payload = {**options}
+def project_badges_preview(project_id: str | int, link_url: str, image_url: str, sudo: str | int = _UNSET):
+    """ProjectBadges.preview (GET projects/${projectId}/badges/render). Body fields: link_url, image_url, sudo."""
+    payload: dict = {}
     payload["link_url"] = link_url
     payload["image_url"] = image_url
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/badges/render", params=payload))
 
 
-def project_badges_remove(project_id: str | int, badge_id: str | int, **options):
-    """ProjectBadges.remove (DELETE projects/${projectId}/badges/${badgeId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/badges/{_enc(badge_id)}", params=options))
+def project_badges_remove(project_id: str | int, badge_id: str | int, sudo: str | int = _UNSET):
+    """ProjectBadges.remove (DELETE projects/${projectId}/badges/${badgeId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/badges/{_enc(badge_id)}", params=payload))
 
 
-def project_badges_show(project_id: str | int, badge_id: str | int, **options):
-    """ProjectBadges.show (GET projects/${projectId}/badges/${badgeId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/badges/{_enc(badge_id)}", params=options))
+def project_badges_show(project_id: str | int, badge_id: str | int, sudo: str | int = _UNSET):
+    """ProjectBadges.show (GET projects/${projectId}/badges/${badgeId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/badges/{_enc(badge_id)}", params=payload))
 
 
 # ── ProjectCustomAttributes ───────────────────────────────────────────────
 
-def project_custom_attributes_all(project_id: str | int, **options):
-    """ProjectCustomAttributes.all (GET projects/${projectId}/custom_attributes)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/custom_attributes", params=options))
+def project_custom_attributes_all(project_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """ProjectCustomAttributes.all (GET projects/${projectId}/custom_attributes). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/custom_attributes", params=payload))
 
 
-def project_custom_attributes_remove(project_id: str | int, custom_attribute_id: str | int, **options):
-    """ProjectCustomAttributes.remove (DELETE projects/${projectId}/custom_attributes/${customAttributeId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=options))
+def project_custom_attributes_remove(project_id: str | int, custom_attribute_id: str | int, sudo: str | int = _UNSET):
+    """ProjectCustomAttributes.remove (DELETE projects/${projectId}/custom_attributes/${customAttributeId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=payload))
 
 
-def project_custom_attributes_set(project_id: str | int, custom_attribute_id: str | int, value: str | int, **options):
-    """ProjectCustomAttributes.set (PUT projects/${projectId}/custom_attributes/${customAttributeId}). Body fields: value."""
-    payload = {**options}
+def project_custom_attributes_set(project_id: str | int, custom_attribute_id: str | int, value: str, sudo: str | int = _UNSET):
+    """ProjectCustomAttributes.set (PUT projects/${projectId}/custom_attributes/${customAttributeId}). Body fields: value, sudo."""
+    payload: dict = {}
     payload["value"] = value
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/custom_attributes/{_enc(custom_attribute_id)}", json=payload))
 
 
-def project_custom_attributes_show(project_id: str | int, custom_attribute_id: str | int, **options):
-    """ProjectCustomAttributes.show (GET projects/${projectId}/custom_attributes/${customAttributeId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=options))
+def project_custom_attributes_show(project_id: str | int, custom_attribute_id: str | int, sudo: str | int = _UNSET):
+    """ProjectCustomAttributes.show (GET projects/${projectId}/custom_attributes/${customAttributeId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=payload))
 
 
 # ── ProjectHooks ──────────────────────────────────────────────────────────
 
-def project_hooks_add(project_id: str | int, url: str | int, **options):
-    """ProjectHooks.add (POST projects/${projectId}/hooks). Body fields: url."""
-    payload = {**options}
+def project_hooks_add(project_id: str | int, url: str, push_events: bool = _UNSET, push_events_branch_filter: str = _UNSET, issues_events: bool = _UNSET, confidential_issues_events: bool = _UNSET, merge_requests_events: bool = _UNSET, tag_push_events: bool = _UNSET, note_events: bool = _UNSET, confidential_note_events: bool = _UNSET, job_events: bool = _UNSET, pipeline_events: bool = _UNSET, wiki_page_events: bool = _UNSET, deployment_events: bool = _UNSET, releases_events: bool = _UNSET, subgroup_events: bool = _UNSET, enable_ssl_verification: bool = _UNSET, token: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectHooks.add (POST projects/${projectId}/hooks). Body fields: url, push_events, push_events_branch_filter, issues_events, confidential_issues_events, merge_requests_events, tag_push_events, note_events, confidential_note_events, job_events, pipeline_events, wiki_page_events, deployment_events, releases_events, subgroup_events, enable_ssl_verification, token, sudo."""
+    payload: dict = {}
     payload["url"] = url
+    if push_events is not _UNSET:
+        payload["push_events"] = push_events
+    if push_events_branch_filter is not _UNSET:
+        payload["push_events_branch_filter"] = push_events_branch_filter
+    if issues_events is not _UNSET:
+        payload["issues_events"] = issues_events
+    if confidential_issues_events is not _UNSET:
+        payload["confidential_issues_events"] = confidential_issues_events
+    if merge_requests_events is not _UNSET:
+        payload["merge_requests_events"] = merge_requests_events
+    if tag_push_events is not _UNSET:
+        payload["tag_push_events"] = tag_push_events
+    if note_events is not _UNSET:
+        payload["note_events"] = note_events
+    if confidential_note_events is not _UNSET:
+        payload["confidential_note_events"] = confidential_note_events
+    if job_events is not _UNSET:
+        payload["job_events"] = job_events
+    if pipeline_events is not _UNSET:
+        payload["pipeline_events"] = pipeline_events
+    if wiki_page_events is not _UNSET:
+        payload["wiki_page_events"] = wiki_page_events
+    if deployment_events is not _UNSET:
+        payload["deployment_events"] = deployment_events
+    if releases_events is not _UNSET:
+        payload["releases_events"] = releases_events
+    if subgroup_events is not _UNSET:
+        payload["subgroup_events"] = subgroup_events
+    if enable_ssl_verification is not _UNSET:
+        payload["enable_ssl_verification"] = enable_ssl_verification
+    if token is not _UNSET:
+        payload["token"] = token
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/hooks", json=payload))
 
 
-def project_hooks_all(project_id: str | int, **options):
-    """ProjectHooks.all (GET projects/${projectId}/hooks)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/hooks", params=options))
+def project_hooks_all(project_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """ProjectHooks.all (GET projects/${projectId}/hooks). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/hooks", params=payload))
 
 
-def project_hooks_edit(project_id: str | int, hook_id: str | int, url: str | int, **options):
-    """ProjectHooks.edit (PUT projects/${projectId}/hooks/${hookId}). Body fields: url."""
-    payload = {**options}
+def project_hooks_edit(project_id: str | int, hook_id: str | int, url: str, push_events: bool = _UNSET, push_events_branch_filter: str = _UNSET, issues_events: bool = _UNSET, confidential_issues_events: bool = _UNSET, merge_requests_events: bool = _UNSET, tag_push_events: bool = _UNSET, note_events: bool = _UNSET, confidential_note_events: bool = _UNSET, job_events: bool = _UNSET, pipeline_events: bool = _UNSET, wiki_page_events: bool = _UNSET, deployment_events: bool = _UNSET, releases_events: bool = _UNSET, subgroup_events: bool = _UNSET, enable_ssl_verification: bool = _UNSET, token: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectHooks.edit (PUT projects/${projectId}/hooks/${hookId}). Body fields: url, push_events, push_events_branch_filter, issues_events, confidential_issues_events, merge_requests_events, tag_push_events, note_events, confidential_note_events, job_events, pipeline_events, wiki_page_events, deployment_events, releases_events, subgroup_events, enable_ssl_verification, token, sudo."""
+    payload: dict = {}
     payload["url"] = url
+    if push_events is not _UNSET:
+        payload["push_events"] = push_events
+    if push_events_branch_filter is not _UNSET:
+        payload["push_events_branch_filter"] = push_events_branch_filter
+    if issues_events is not _UNSET:
+        payload["issues_events"] = issues_events
+    if confidential_issues_events is not _UNSET:
+        payload["confidential_issues_events"] = confidential_issues_events
+    if merge_requests_events is not _UNSET:
+        payload["merge_requests_events"] = merge_requests_events
+    if tag_push_events is not _UNSET:
+        payload["tag_push_events"] = tag_push_events
+    if note_events is not _UNSET:
+        payload["note_events"] = note_events
+    if confidential_note_events is not _UNSET:
+        payload["confidential_note_events"] = confidential_note_events
+    if job_events is not _UNSET:
+        payload["job_events"] = job_events
+    if pipeline_events is not _UNSET:
+        payload["pipeline_events"] = pipeline_events
+    if wiki_page_events is not _UNSET:
+        payload["wiki_page_events"] = wiki_page_events
+    if deployment_events is not _UNSET:
+        payload["deployment_events"] = deployment_events
+    if releases_events is not _UNSET:
+        payload["releases_events"] = releases_events
+    if subgroup_events is not _UNSET:
+        payload["subgroup_events"] = subgroup_events
+    if enable_ssl_verification is not _UNSET:
+        payload["enable_ssl_verification"] = enable_ssl_verification
+    if token is not _UNSET:
+        payload["token"] = token
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/hooks/{_enc(hook_id)}", json=payload))
 
 
-def project_hooks_remove(project_id: str | int, hook_id: str | int, **options):
-    """ProjectHooks.remove (DELETE projects/${projectId}/hooks/${hookId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/hooks/{_enc(hook_id)}", params=options))
+def project_hooks_remove(project_id: str | int, hook_id: str | int, sudo: str | int = _UNSET):
+    """ProjectHooks.remove (DELETE projects/${projectId}/hooks/${hookId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/hooks/{_enc(hook_id)}", params=payload))
 
 
-def project_hooks_show(project_id: str | int, hook_id: str | int, **options):
-    """ProjectHooks.show (GET projects/${projectId}/hooks/${hookId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/hooks/{_enc(hook_id)}", params=options))
+def project_hooks_show(project_id: str | int, hook_id: str | int, sudo: str | int = _UNSET):
+    """ProjectHooks.show (GET projects/${projectId}/hooks/${hookId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/hooks/{_enc(hook_id)}", params=payload))
 
 
 # ── ProjectImportExports ──────────────────────────────────────────────────
@@ -5573,89 +6857,211 @@ def project_import_exports_show_import_status(project_id: str | int, sudo: str |
 
 # ── ProjectInvitations ────────────────────────────────────────────────────
 
-def project_invitations_add(project_id: str | int, access_level: str | int, **options):
-    """ProjectInvitations.add (POST projects/${projectId}/invitations). Body fields: access_level."""
-    payload = {**options}
+def project_invitations_add(project_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50], user_id: str = _UNSET, email: str = _UNSET, expires_at: str = _UNSET, invite_source: str = _UNSET, tasks_to_be_done: list[str] = _UNSET, tasks_project_id: int = _UNSET, sudo: str | int = _UNSET):
+    """ProjectInvitations.add (POST projects/${projectId}/invitations). Body fields: access_level, user_id, email, expires_at, invite_source, tasks_to_be_done, tasks_project_id, sudo."""
+    payload: dict = {}
     payload["access_level"] = access_level
+    if user_id is not _UNSET:
+        payload["user_id"] = user_id
+    if email is not _UNSET:
+        payload["email"] = email
+    if expires_at is not _UNSET:
+        payload["expires_at"] = expires_at
+    if invite_source is not _UNSET:
+        payload["invite_source"] = invite_source
+    if tasks_to_be_done is not _UNSET:
+        payload["tasks_to_be_done"] = tasks_to_be_done
+    if tasks_project_id is not _UNSET:
+        payload["tasks_project_id"] = tasks_project_id
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/invitations", json=payload))
 
 
-def project_invitations_all(project_id: str | int, **options):
-    """ProjectInvitations.all (GET projects/${projectId}/invitations)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/invitations", params=options))
+def project_invitations_all(project_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, query: str = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """ProjectInvitations.all (GET projects/${projectId}/invitations). Body fields: pagination, per_page, max_pages, order_by, sort, query, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if query is not _UNSET:
+        payload["query"] = query
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/invitations", params=payload))
 
 
-def project_invitations_edit(project_id: str | int, email: str | int, **options):
-    """ProjectInvitations.edit (PUT projects/${projectId}/invitations/${email})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/invitations/{_enc(email)}", json=options))
+def project_invitations_edit(project_id: str | int, email: str | int, expires_at: str = _UNSET, access_level: Literal[0, 5, 10, 20, 30, 40, 50] = _UNSET, sudo: str | int = _UNSET):
+    """ProjectInvitations.edit (PUT projects/${projectId}/invitations/${email}). Body fields: expires_at, access_level, sudo."""
+    payload: dict = {}
+    if expires_at is not _UNSET:
+        payload["expires_at"] = expires_at
+    if access_level is not _UNSET:
+        payload["access_level"] = access_level
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/invitations/{_enc(email)}", json=payload))
 
 
-def project_invitations_remove(project_id: str | int, email: str | int, **options):
-    """ProjectInvitations.remove (DELETE projects/${projectId}/invitations/${email})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/invitations/{_enc(email)}", params=options))
+def project_invitations_remove(project_id: str | int, email: str | int, sudo: str | int = _UNSET):
+    """ProjectInvitations.remove (DELETE projects/${projectId}/invitations/${email}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/invitations/{_enc(email)}", params=payload))
 
 
 # ── ProjectIssueBoards ────────────────────────────────────────────────────
 
-def project_issue_boards_all(project_id: str | int, **options):
-    """ProjectIssueBoards.all (GET projects/${projectId}/boards)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/boards", params=options))
+def project_issue_boards_all(project_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """ProjectIssueBoards.all (GET projects/${projectId}/boards). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/boards", params=payload))
 
 
-def project_issue_boards_all_lists(project_id: str | int, board_id: str | int, **options):
-    """ProjectIssueBoards.allLists (GET projects/${projectId}/boards/${boardId}/lists)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}/lists", params=options))
+def project_issue_boards_all_lists(project_id: str | int, board_id: str | int, sudo: str | int = _UNSET):
+    """ProjectIssueBoards.allLists (GET projects/${projectId}/boards/${boardId}/lists). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}/lists", params=payload))
 
 
-def project_issue_boards_create(project_id: str | int, name: str | int, **options):
-    """ProjectIssueBoards.create (POST projects/${projectId}/boards). Body fields: name."""
-    payload = {**options}
+def project_issue_boards_create(project_id: str | int, name: str, sudo: str | int = _UNSET):
+    """ProjectIssueBoards.create (POST projects/${projectId}/boards). Body fields: name, sudo."""
+    payload: dict = {}
     payload["name"] = name
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/boards", json=payload))
 
 
-def project_issue_boards_create_list(project_id: str | int, board_id: str | int, **options):
-    """ProjectIssueBoards.createList (POST projects/${projectId}/boards/${boardId}/lists)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}/lists", json=options))
+def project_issue_boards_create_list(project_id: str | int, board_id: str | int, label_id: int = _UNSET, assignee_id: int = _UNSET, milestone_id: int = _UNSET, sudo: str | int = _UNSET):
+    """ProjectIssueBoards.createList (POST projects/${projectId}/boards/${boardId}/lists). Body fields: label_id, assignee_id, milestone_id, sudo."""
+    payload: dict = {}
+    if label_id is not _UNSET:
+        payload["label_id"] = label_id
+    if assignee_id is not _UNSET:
+        payload["assignee_id"] = assignee_id
+    if milestone_id is not _UNSET:
+        payload["milestone_id"] = milestone_id
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}/lists", json=payload))
 
 
-def project_issue_boards_edit(project_id: str | int, board_id: str | int, **options):
-    """ProjectIssueBoards.edit (PUT projects/${projectId}/boards/${boardId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}", json=options))
+def project_issue_boards_edit(project_id: str | int, board_id: str | int, name: str = _UNSET, assignee_id: int = _UNSET, milestone_id: int = _UNSET, labels: str = _UNSET, weight: int = _UNSET, sudo: str | int = _UNSET):
+    """ProjectIssueBoards.edit (PUT projects/${projectId}/boards/${boardId}). Body fields: name, assignee_id, milestone_id, labels, weight, sudo."""
+    payload: dict = {}
+    if name is not _UNSET:
+        payload["name"] = name
+    if assignee_id is not _UNSET:
+        payload["assignee_id"] = assignee_id
+    if milestone_id is not _UNSET:
+        payload["milestone_id"] = milestone_id
+    if labels is not _UNSET:
+        payload["labels"] = labels
+    if weight is not _UNSET:
+        payload["weight"] = weight
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}", json=payload))
 
 
-def project_issue_boards_edit_list(project_id: str | int, board_id: str | int, list_id: str | int, position: str | int, **options):
-    """ProjectIssueBoards.editList (PUT projects/${projectId}/boards/${boardId}/lists/${listId}). Body fields: position."""
-    payload = {**options}
+def project_issue_boards_edit_list(project_id: str | int, board_id: str | int, list_id: str | int, position: int, sudo: str | int = _UNSET):
+    """ProjectIssueBoards.editList (PUT projects/${projectId}/boards/${boardId}/lists/${listId}). Body fields: position, sudo."""
+    payload: dict = {}
     payload["position"] = position
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", json=payload))
 
 
-def project_issue_boards_remove(project_id: str | int, board_id: str | int, **options):
-    """ProjectIssueBoards.remove (DELETE projects/${projectId}/boards/${boardId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}", params=options))
+def project_issue_boards_remove(project_id: str | int, board_id: str | int, sudo: str | int = _UNSET):
+    """ProjectIssueBoards.remove (DELETE projects/${projectId}/boards/${boardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}", params=payload))
 
 
-def project_issue_boards_remove_list(project_id: str | int, board_id: str | int, list_id: str | int, **options):
-    """ProjectIssueBoards.removeList (DELETE projects/${projectId}/boards/${boardId}/lists/${listId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", params=options))
+def project_issue_boards_remove_list(project_id: str | int, board_id: str | int, list_id: str | int, sudo: str | int = _UNSET):
+    """ProjectIssueBoards.removeList (DELETE projects/${projectId}/boards/${boardId}/lists/${listId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", params=payload))
 
 
-def project_issue_boards_show(project_id: str | int, board_id: str | int, **options):
-    """ProjectIssueBoards.show (GET projects/${projectId}/boards/${boardId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}", params=options))
+def project_issue_boards_show(project_id: str | int, board_id: str | int, sudo: str | int = _UNSET):
+    """ProjectIssueBoards.show (GET projects/${projectId}/boards/${boardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}", params=payload))
 
 
-def project_issue_boards_show_list(project_id: str | int, board_id: str | int, list_id: str | int, **options):
-    """ProjectIssueBoards.showList (GET projects/${projectId}/boards/${boardId}/lists/${listId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", params=options))
+def project_issue_boards_show_list(project_id: str | int, board_id: str | int, list_id: str | int, sudo: str | int = _UNSET):
+    """ProjectIssueBoards.showList (GET projects/${projectId}/boards/${boardId}/lists/${listId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/boards/{_enc(board_id)}/lists/{_enc(list_id)}", params=payload))
 
 
 # ── ProjectIterations ─────────────────────────────────────────────────────
 
-def project_iterations_all(project_id: str | int, **options):
-    """ProjectIterations.all (GET project/${projectId}/iterations)."""
-    return _ok(_get_client().request("GET", f"/project/{_enc(project_id)}/iterations", params=options))
+def project_iterations_all(project_id: str | int, state: Literal["closed", "all", "opened", "upcoming", "current"] = _UNSET, search: str = _UNSET, include_ancestors: bool = _UNSET, updated_before: str = _UNSET, updated_after: str = _UNSET, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """ProjectIterations.all (GET project/${projectId}/iterations). Body fields: state, search, include_ancestors, updated_before, updated_after, sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if state is not _UNSET:
+        payload["state"] = state
+    if search is not _UNSET:
+        payload["search"] = search
+    if include_ancestors is not _UNSET:
+        payload["include_ancestors"] = include_ancestors
+    if updated_before is not _UNSET:
+        payload["updated_before"] = updated_before
+    if updated_after is not _UNSET:
+        payload["updated_after"] = updated_after
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/project/{_enc(project_id)}/iterations", params=payload))
 
 
 # ── ProjectJobTokenScopes ─────────────────────────────────────────────────
@@ -5729,134 +7135,329 @@ def project_job_token_scopes_show_inbound_allow_list(project_id: str | int, sudo
 
 # ── ProjectLabels ─────────────────────────────────────────────────────────
 
-def project_labels_all(project_id: str | int, **options):
-    """ProjectLabels.all (GET projects/${projectId}/labels)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/labels", params=options))
+def project_labels_all(project_id: str | int, with_counts: bool = _UNSET, include_ancestor_groups: bool = _UNSET, search: str = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """ProjectLabels.all (GET projects/${projectId}/labels). Body fields: with_counts, include_ancestor_groups, search, pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if with_counts is not _UNSET:
+        payload["with_counts"] = with_counts
+    if include_ancestor_groups is not _UNSET:
+        payload["include_ancestor_groups"] = include_ancestor_groups
+    if search is not _UNSET:
+        payload["search"] = search
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/labels", params=payload))
 
 
-def project_labels_create(project_id: str | int, name: str | int, color: str | int, **options):
-    """ProjectLabels.create (POST projects/${projectId}/labels). Body fields: name, color."""
-    payload = {**options}
+def project_labels_create(project_id: str | int, name: str, color: str, description: str = _UNSET, priority: int = _UNSET, sudo: str | int = _UNSET):
+    """ProjectLabels.create (POST projects/${projectId}/labels). Body fields: name, color, description, priority, sudo."""
+    payload: dict = {}
     payload["name"] = name
     payload["color"] = color
+    if description is not _UNSET:
+        payload["description"] = description
+    if priority is not _UNSET:
+        payload["priority"] = priority
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/labels", json=payload))
 
 
-def project_labels_edit(project_id: str | int, label_id: str | int, **options):
-    """ProjectLabels.edit (PUT projects/${projectId}/labels/${labelId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/labels/{_enc(label_id)}", json=options))
+def project_labels_edit(project_id: str | int, label_id: str | int, new_name: str = _UNSET, color: str = _UNSET, description: str = _UNSET, priority: int = _UNSET, sudo: str | int = _UNSET):
+    """ProjectLabels.edit (PUT projects/${projectId}/labels/${labelId}). Body fields: new_name, color, description, priority, sudo."""
+    payload: dict = {}
+    if new_name is not _UNSET:
+        payload["new_name"] = new_name
+    if color is not _UNSET:
+        payload["color"] = color
+    if description is not _UNSET:
+        payload["description"] = description
+    if priority is not _UNSET:
+        payload["priority"] = priority
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/labels/{_enc(label_id)}", json=payload))
 
 
-def project_labels_promote(project_id: str | int, label_id: str | int, **options):
-    """ProjectLabels.promote (PUT projects/${projectId}/labels/${labelId}/promote)."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/labels/{_enc(label_id)}/promote", json=options))
+def project_labels_promote(project_id: str | int, label_id: str | int, sudo: str | int = _UNSET):
+    """ProjectLabels.promote (PUT projects/${projectId}/labels/${labelId}/promote). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/labels/{_enc(label_id)}/promote", json=payload))
 
 
-def project_labels_remove(project_id: str | int, label_id: str | int, **options):
-    """ProjectLabels.remove (DELETE projects/${projectId}/labels/${labelId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/labels/{_enc(label_id)}", params=options))
+def project_labels_remove(project_id: str | int, label_id: str | int, sudo: str | int = _UNSET):
+    """ProjectLabels.remove (DELETE projects/${projectId}/labels/${labelId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/labels/{_enc(label_id)}", params=payload))
 
 
-def project_labels_show(project_id: str | int, label_id: str | int, **options):
-    """ProjectLabels.show (GET projects/${projectId}/labels/${labelId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/labels/{_enc(label_id)}", params=options))
+def project_labels_show(project_id: str | int, label_id: str | int, include_ancestor_groups: bool = _UNSET, sudo: str | int = _UNSET):
+    """ProjectLabels.show (GET projects/${projectId}/labels/${labelId}). Body fields: include_ancestor_groups, sudo."""
+    payload: dict = {}
+    if include_ancestor_groups is not _UNSET:
+        payload["include_ancestor_groups"] = include_ancestor_groups
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/labels/{_enc(label_id)}", params=payload))
 
 
-def project_labels_subscribe(project_id: str | int, label_id: str | int, **options):
-    """ProjectLabels.subscribe (POST projects/${projectId}/issues/${labelId}/subscribe)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(label_id)}/subscribe", json=options))
+def project_labels_subscribe(project_id: str | int, label_id: str | int, sudo: str | int = _UNSET):
+    """ProjectLabels.subscribe (POST projects/${projectId}/issues/${labelId}/subscribe). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(label_id)}/subscribe", json=payload))
 
 
-def project_labels_unsubscribe(project_id: str | int, label_id: str | int, **options):
-    """ProjectLabels.unsubscribe (POST projects/${projectId}/issues/${labelId}/unsubscribe)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(label_id)}/unsubscribe", json=options))
+def project_labels_unsubscribe(project_id: str | int, label_id: str | int, sudo: str | int = _UNSET):
+    """ProjectLabels.unsubscribe (POST projects/${projectId}/issues/${labelId}/unsubscribe). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(label_id)}/unsubscribe", json=payload))
 
 
 # ── ProjectMarkdownUploads ────────────────────────────────────────────────
 
-def project_markdown_uploads_all(project_id: str | int, **options):
-    """ProjectMarkdownUploads.all (GET projects/${projectId}/uploads)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/uploads", params=options))
+def project_markdown_uploads_all(project_id: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """ProjectMarkdownUploads.all (GET projects/${projectId}/uploads). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/uploads", params=payload))
 
 
-def project_markdown_uploads_download(project_id: str | int, upload_id_or_secret: str | int, filename: str | int, **options):
-    """ProjectMarkdownUploads.download (GET projects/${projectId}/uploads/${uploadIdOrSecret}/${filename})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/uploads/{_enc(upload_id_or_secret)}/{_enc(filename)}", params=options))
+def project_markdown_uploads_download(project_id: str | int, upload_id_or_secret: str | int, filename: str | int, secret: str | int | str, sudo: str | int = _UNSET):
+    """ProjectMarkdownUploads.download (GET projects/${projectId}/uploads/${uploadIdOrSecret}/${filename}). Body fields: secret, sudo."""
+    payload: dict = {}
+    payload["secret"] = secret
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/uploads/{_enc(upload_id_or_secret)}/{_enc(filename)}", params=payload))
 
 
-def project_markdown_uploads_remove(project_id: str | int, upload_id_or_secret: str | int, filename: str | int, **options):
-    """ProjectMarkdownUploads.remove (DELETE projects/${projectId}/uploads/${uploadIdOrSecret}/${filename})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/uploads/{_enc(upload_id_or_secret)}/{_enc(filename)}", params=options))
+def project_markdown_uploads_remove(project_id: str | int, upload_id_or_secret: str | int, filename: str | int, secret: str | int | str, sudo: str | int = _UNSET):
+    """ProjectMarkdownUploads.remove (DELETE projects/${projectId}/uploads/${uploadIdOrSecret}/${filename}). Body fields: secret, sudo."""
+    payload: dict = {}
+    payload["secret"] = secret
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/uploads/{_enc(upload_id_or_secret)}/{_enc(filename)}", params=payload))
 
 
 # ── ProjectMembers ────────────────────────────────────────────────────────
 
-def project_members_add(project_id: str | int, access_level: str | int, **options):
-    """ProjectMembers.add (POST projects/${projectId}/members). Body fields: access_level."""
-    payload = {**options}
+def project_members_add(project_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50], user_id: str | int = _UNSET, username: str = _UNSET, expires_at: str = _UNSET, invite_source: str = _UNSET, tasks_to_be_done: list[str] = _UNSET, tasks_project_id: int = _UNSET, sudo: str | int = _UNSET):
+    """ProjectMembers.add (POST projects/${projectId}/members). Body fields: access_level, user_id, username, expires_at, invite_source, tasks_to_be_done, tasks_project_id, sudo."""
+    payload: dict = {}
     payload["access_level"] = access_level
+    if user_id is not _UNSET:
+        payload["user_id"] = user_id
+    if username is not _UNSET:
+        payload["username"] = username
+    if expires_at is not _UNSET:
+        payload["expires_at"] = expires_at
+    if invite_source is not _UNSET:
+        payload["invite_source"] = invite_source
+    if tasks_to_be_done is not _UNSET:
+        payload["tasks_to_be_done"] = tasks_to_be_done
+    if tasks_project_id is not _UNSET:
+        payload["tasks_project_id"] = tasks_project_id
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/members", json=payload))
 
 
-def project_members_all(project_id: str | int, **options):
-    """ProjectMembers.all (GET projects/${projectId}/members)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/members", params=options))
-
-
-def project_members_edit(project_id: str | int, user_id: str | int, access_level: str | int, **options):
-    """ProjectMembers.edit (PUT projects/${projectId}/members/${userId}). Body fields: access_level."""
+def project_members_all(project_id: str | int, include_inherited: bool = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, query: str = _UNSET, user_ids: list[int] = _UNSET, skip_users: list[int] = _UNSET, show_seat_info: bool = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET, **options):
+    """ProjectMembers.all (GET projects/${projectId}/members). Body fields: include_inherited, pagination, per_page, max_pages, order_by, sort, query, user_ids, skip_users, show_seat_info, sudo, page."""
     payload = {**options}
+    if include_inherited is not _UNSET:
+        payload["include_inherited"] = include_inherited
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if query is not _UNSET:
+        payload["query"] = query
+    if user_ids is not _UNSET:
+        payload["user_ids"] = user_ids
+    if skip_users is not _UNSET:
+        payload["skip_users"] = skip_users
+    if show_seat_info is not _UNSET:
+        payload["show_seat_info"] = show_seat_info
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/members", params=payload))
+
+
+def project_members_edit(project_id: str | int, user_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50], expires_at: str = _UNSET, member_role_id: int = _UNSET, sudo: str | int = _UNSET):
+    """ProjectMembers.edit (PUT projects/${projectId}/members/${userId}). Body fields: access_level, expires_at, member_role_id, sudo."""
+    payload: dict = {}
     payload["access_level"] = access_level
+    if expires_at is not _UNSET:
+        payload["expires_at"] = expires_at
+    if member_role_id is not _UNSET:
+        payload["member_role_id"] = member_role_id
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/members/{_enc(user_id)}", json=payload))
 
 
-def project_members_remove(project_id: str | int, user_id: str | int, **options):
-    """ProjectMembers.remove (DELETE projects/${projectId}/members/${userId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/members/{_enc(user_id)}", params=options))
+def project_members_remove(project_id: str | int, user_id: str | int, skip_subresource_s: bool = _UNSET, unassign_issuables: bool = _UNSET, sudo: str | int = _UNSET):
+    """ProjectMembers.remove (DELETE projects/${projectId}/members/${userId}). Body fields: skip_subresource_s, unassign_issuables, sudo."""
+    payload: dict = {}
+    if skip_subresource_s is not _UNSET:
+        payload["skip_subresource_s"] = skip_subresource_s
+    if unassign_issuables is not _UNSET:
+        payload["unassign_issuables"] = unassign_issuables
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/members/{_enc(user_id)}", params=payload))
 
 
 # ── ProjectMilestones ─────────────────────────────────────────────────────
 
-def project_milestones_all(project_id: str | int, **options):
-    """ProjectMilestones.all (GET projects/${projectId}/milestones)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/milestones", params=options))
+def project_milestones_all(project_id: str | int, iids: list[int] = _UNSET, state: str = _UNSET, title: str = _UNSET, search: str = _UNSET, include_parent_milestones: bool = _UNSET, updated_before: str = _UNSET, updated_after: str = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """ProjectMilestones.all (GET projects/${projectId}/milestones). Body fields: iids, state, title, search, include_parent_milestones, updated_before, updated_after, pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if iids is not _UNSET:
+        payload["iids"] = iids
+    if state is not _UNSET:
+        payload["state"] = state
+    if title is not _UNSET:
+        payload["title"] = title
+    if search is not _UNSET:
+        payload["search"] = search
+    if include_parent_milestones is not _UNSET:
+        payload["include_parent_milestones"] = include_parent_milestones
+    if updated_before is not _UNSET:
+        payload["updated_before"] = updated_before
+    if updated_after is not _UNSET:
+        payload["updated_after"] = updated_after
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/milestones", params=payload))
 
 
-def project_milestones_all_assigned_issues(project_id: str | int, milestone_id: str | int, **options):
-    """ProjectMilestones.allAssignedIssues (GET projects/${projectId}/milestones/${milestoneId}/issues)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}/issues", params=options))
+def project_milestones_all_assigned_issues(project_id: str | int, milestone_id: str | int, sudo: str | int = _UNSET):
+    """ProjectMilestones.allAssignedIssues (GET projects/${projectId}/milestones/${milestoneId}/issues). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}/issues", params=payload))
 
 
-def project_milestones_all_assigned_merge_requests(project_id: str | int, milestone_id: str | int, **options):
-    """ProjectMilestones.allAssignedMergeRequests (GET projects/${projectId}/milestones/${milestoneId}/merge_requests)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}/merge_requests", params=options))
+def project_milestones_all_assigned_merge_requests(project_id: str | int, milestone_id: str | int, sudo: str | int = _UNSET):
+    """ProjectMilestones.allAssignedMergeRequests (GET projects/${projectId}/milestones/${milestoneId}/merge_requests). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}/merge_requests", params=payload))
 
 
-def project_milestones_all_burndown_chart_events(project_id: str | int, milestone_id: str | int, **options):
-    """ProjectMilestones.allBurndownChartEvents (GET projects/${projectId}/milestones/${milestoneId}/burndown_events)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}/burndown_events", params=options))
+def project_milestones_all_burndown_chart_events(project_id: str | int, milestone_id: str | int, sudo: str | int = _UNSET):
+    """ProjectMilestones.allBurndownChartEvents (GET projects/${projectId}/milestones/${milestoneId}/burndown_events). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}/burndown_events", params=payload))
 
 
-def project_milestones_create(project_id: str | int, title: str | int, **options):
-    """ProjectMilestones.create (POST projects/${projectId}/milestones). Body fields: title."""
-    payload = {**options}
+def project_milestones_create(project_id: str | int, title: str, description: str = _UNSET, due_date: str = _UNSET, start_date: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectMilestones.create (POST projects/${projectId}/milestones). Body fields: title, description, due_date, start_date, sudo."""
+    payload: dict = {}
     payload["title"] = title
+    if description is not _UNSET:
+        payload["description"] = description
+    if due_date is not _UNSET:
+        payload["due_date"] = due_date
+    if start_date is not _UNSET:
+        payload["start_date"] = start_date
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/milestones", json=payload))
 
 
-def project_milestones_edit(project_id: str | int, milestone_id: str | int, **options):
-    """ProjectMilestones.edit (PUT projects/${projectId}/milestones/${milestoneId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}", json=options))
+def project_milestones_edit(project_id: str | int, milestone_id: str | int, title: str = _UNSET, description: str = _UNSET, due_date: str = _UNSET, start_date: str = _UNSET, state_event: Literal["close", "activate"] = _UNSET, sudo: str | int = _UNSET):
+    """ProjectMilestones.edit (PUT projects/${projectId}/milestones/${milestoneId}). Body fields: title, description, due_date, start_date, state_event, sudo."""
+    payload: dict = {}
+    if title is not _UNSET:
+        payload["title"] = title
+    if description is not _UNSET:
+        payload["description"] = description
+    if due_date is not _UNSET:
+        payload["due_date"] = due_date
+    if start_date is not _UNSET:
+        payload["start_date"] = start_date
+    if state_event is not _UNSET:
+        payload["state_event"] = state_event
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}", json=payload))
 
 
-def project_milestones_remove(project_id: str | int, milestone_id: str | int, **options):
-    """ProjectMilestones.remove (DELETE projects/${projectId}/milestones/${milestoneId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}", params=options))
+def project_milestones_remove(project_id: str | int, milestone_id: str | int, sudo: str | int = _UNSET):
+    """ProjectMilestones.remove (DELETE projects/${projectId}/milestones/${milestoneId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}", params=payload))
 
 
-def project_milestones_show(project_id: str | int, milestone_id: str | int, **options):
-    """ProjectMilestones.show (GET projects/${projectId}/milestones/${milestoneId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}", params=options))
+def project_milestones_show(project_id: str | int, milestone_id: str | int, sudo: str | int = _UNSET):
+    """ProjectMilestones.show (GET projects/${projectId}/milestones/${milestoneId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/milestones/{_enc(milestone_id)}", params=payload))
 
 
 # ── ProjectRelationsExport ────────────────────────────────────────────────
@@ -6077,9 +7678,12 @@ def project_remote_mirrors_sync(project_id: str | int, mirror_id: str | int, sud
 
 # ── ProjectRepositoryStorageMoves ─────────────────────────────────────────
 
-def project_repository_storage_moves_show(repository_storage_id: str | int, **options):
-    """ProjectRepositoryStorageMoves.show (GET projects//${repositoryStorageId})."""
-    return _ok(_get_client().request("GET", f"/projects//{_enc(repository_storage_id)}", params=options))
+def project_repository_storage_moves_show(repository_storage_id: str | int, sudo: str | int = _UNSET):
+    """ProjectRepositoryStorageMoves.show (GET projects//${repositoryStorageId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects//{_enc(repository_storage_id)}", params=payload))
 
 
 # ── Projects ──────────────────────────────────────────────────────────────
@@ -6760,87 +8364,186 @@ def projects_upload_for_reference(project_id: str | int, file: dict, sudo: str |
 
 # ── ProjectSnippetAwardEmojis ─────────────────────────────────────────────
 
-def project_snippet_award_emojis_all(project_id: str | int, resource_iid: str | int, **options):
-    """ProjectSnippetAwardEmojis.all (GET projects/${projectId}/snippets/${resourceIId}/award_emoji)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(resource_iid)}/award_emoji", params=options))
+def project_snippet_award_emojis_all(project_id: str | int, resource_iid: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """ProjectSnippetAwardEmojis.all (GET projects/${projectId}/snippets/${resourceIId}/award_emoji). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(resource_iid)}/award_emoji", params=payload))
 
 
-def project_snippet_award_emojis_award(project_id: str | int, resource_iid: str | int, **options):
-    """ProjectSnippetAwardEmojis.award (POST projects/${projectId}/snippets/${resourceIId}/award_emoji)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/snippets/{_enc(resource_iid)}/award_emoji", json=options))
+def project_snippet_award_emojis_award(project_id: str | int, resource_iid: str | int, name: str, sudo: str | int = _UNSET):
+    """ProjectSnippetAwardEmojis.award (POST projects/${projectId}/snippets/${resourceIId}/award_emoji). Body fields: name, sudo."""
+    payload: dict = {}
+    payload["name"] = name
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/snippets/{_enc(resource_iid)}/award_emoji", json=payload))
 
 
-def project_snippet_award_emojis_remove(project_id: str | int, resource_iid: str | int, award_id: str | int, **options):
-    """ProjectSnippetAwardEmojis.remove (DELETE projects/${projectId}/snippets/${resourceIId}/award_emoji/${awardId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/snippets/{_enc(resource_iid)}/award_emoji/{_enc(award_id)}", params=options))
+def project_snippet_award_emojis_remove(project_id: str | int, resource_iid: str | int, award_id: str | int, sudo: str | int = _UNSET):
+    """ProjectSnippetAwardEmojis.remove (DELETE projects/${projectId}/snippets/${resourceIId}/award_emoji/${awardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/snippets/{_enc(resource_iid)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
-def project_snippet_award_emojis_show(project_id: str | int, resource_iid: str | int, award_id: str | int, **options):
-    """ProjectSnippetAwardEmojis.show (GET projects/${projectId}/snippets/${resourceIId}/award_emoji/${awardId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(resource_iid)}/award_emoji/{_enc(award_id)}", params=options))
+def project_snippet_award_emojis_show(project_id: str | int, resource_iid: str | int, award_id: str | int, sudo: str | int = _UNSET):
+    """ProjectSnippetAwardEmojis.show (GET projects/${projectId}/snippets/${resourceIId}/award_emoji/${awardId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(resource_iid)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
 # ── ProjectSnippetDiscussions ─────────────────────────────────────────────
 
-def project_snippet_discussions_add_note(project_id: str | int, snippet_id: str | int, discussion_id: str | int, body: str | int, **options):
-    """ProjectSnippetDiscussions.addNote (POST projects/${projectId}/snippets/${snippetId}/discussions/${discussionId}/notes). Body fields: body."""
-    payload = {**options}
+def project_snippet_discussions_add_note(project_id: str | int, snippet_id: str | int, discussion_id: str | int, body: str, created_at: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectSnippetDiscussions.addNote (POST projects/${projectId}/snippets/${snippetId}/discussions/${discussionId}/notes). Body fields: body, created_at, sudo."""
+    payload: dict = {}
     payload["body"] = body
+    if created_at is not _UNSET:
+        payload["created_at"] = created_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions/{_enc(discussion_id)}/notes", json=payload))
 
 
-def project_snippet_discussions_all(project_id: str | int, snippet_id: str | int, **options):
-    """ProjectSnippetDiscussions.all (GET projects/${projectId}/snippets/${snippetId}/discussions)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions", params=options))
+def project_snippet_discussions_all(project_id: str | int, snippet_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """ProjectSnippetDiscussions.all (GET projects/${projectId}/snippets/${snippetId}/discussions). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions", params=payload))
 
 
-def project_snippet_discussions_create(project_id: str | int, snippet_id: str | int, **options):
-    """ProjectSnippetDiscussions.create (POST projects/${projectId}/snippets/${snippetId}/discussions)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions", json=options))
+def project_snippet_discussions_create(project_id: str | int, snippet_id: str | int, body: str, position: dict = _UNSET, commit_id: str = _UNSET, created_at: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectSnippetDiscussions.create (POST projects/${projectId}/snippets/${snippetId}/discussions). Body fields: body, position, commit_id, created_at, sudo."""
+    payload: dict = {}
+    payload["body"] = body
+    if position is not _UNSET:
+        payload["position"] = position
+    if commit_id is not _UNSET:
+        payload["commit_id"] = commit_id
+    if created_at is not _UNSET:
+        payload["created_at"] = created_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions", json=payload))
 
 
-def project_snippet_discussions_edit_note(project_id: str | int, snippet_id: str | int, discussion_id: str | int, note_id: str | int, **options):
-    """ProjectSnippetDiscussions.editNote (PUT projects/${projectId}/snippets/${snippetId}/discussions/${discussionId}/notes/${noteId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", json=options))
+def project_snippet_discussions_edit_note(project_id: str | int, snippet_id: str | int, discussion_id: str | int, note_id: str | int, sudo: str | int = _UNSET, body: str = _UNSET, resolved: bool = _UNSET):
+    """ProjectSnippetDiscussions.editNote (PUT projects/${projectId}/snippets/${snippetId}/discussions/${discussionId}/notes/${noteId}). Body fields: sudo, body, resolved."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if body is not _UNSET:
+        payload["body"] = body
+    if resolved is not _UNSET:
+        payload["resolved"] = resolved
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", json=payload))
 
 
-def project_snippet_discussions_remove_note(project_id: str | int, snippet_id: str | int, discussion_id: str | int, note_id: str | int, **options):
-    """ProjectSnippetDiscussions.removeNote (DELETE projects/${projectId}/snippets/${snippetId}/discussions/${discussionId}/notes/${noteId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", params=options))
+def project_snippet_discussions_remove_note(project_id: str | int, snippet_id: str | int, discussion_id: str | int, note_id: str | int, sudo: str | int = _UNSET):
+    """ProjectSnippetDiscussions.removeNote (DELETE projects/${projectId}/snippets/${snippetId}/discussions/${discussionId}/notes/${noteId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions/{_enc(discussion_id)}/notes/{_enc(note_id)}", params=payload))
 
 
-def project_snippet_discussions_show(project_id: str | int, snippet_id: str | int, discussion_id: str | int, **options):
-    """ProjectSnippetDiscussions.show (GET projects/${projectId}/snippets/${snippetId}/discussions/${discussionId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions/{_enc(discussion_id)}", params=options))
+def project_snippet_discussions_show(project_id: str | int, snippet_id: str | int, discussion_id: str | int, sudo: str | int = _UNSET):
+    """ProjectSnippetDiscussions.show (GET projects/${projectId}/snippets/${snippetId}/discussions/${discussionId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/discussions/{_enc(discussion_id)}", params=payload))
 
 
 # ── ProjectSnippetNotes ───────────────────────────────────────────────────
 
-def project_snippet_notes_all(project_id: str | int, snippet_id: str | int, **options):
-    """ProjectSnippetNotes.all (GET projects/${projectId}/snippets/${snippetId}/notes)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/notes", params=options))
+def project_snippet_notes_all(project_id: str | int, snippet_id: str | int, sort: Literal["asc", "desc"] = _UNSET, order_by: Literal["created_at", "updated_at"] = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """ProjectSnippetNotes.all (GET projects/${projectId}/snippets/${snippetId}/notes). Body fields: sort, order_by, pagination, per_page, max_pages, sudo, page."""
+    payload: dict = {}
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/notes", params=payload))
 
 
-def project_snippet_notes_create(project_id: str | int, snippet_id: str | int, body: str | int, **options):
-    """ProjectSnippetNotes.create (POST projects/${projectId}/snippets/${snippetId}/notes). Body fields: body."""
-    payload = {**options}
+def project_snippet_notes_create(project_id: str | int, snippet_id: str | int, body: str, internal: bool = _UNSET, created_at: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectSnippetNotes.create (POST projects/${projectId}/snippets/${snippetId}/notes). Body fields: body, internal, created_at, sudo."""
+    payload: dict = {}
     payload["body"] = body
+    if internal is not _UNSET:
+        payload["internal"] = internal
+    if created_at is not _UNSET:
+        payload["created_at"] = created_at
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/notes", json=payload))
 
 
-def project_snippet_notes_edit(project_id: str | int, snippet_id: str | int, note_id: str | int, **options):
-    """ProjectSnippetNotes.edit (PUT projects/${projectId}/snippets/${snippetId}/notes/${noteId})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/notes/{_enc(note_id)}", json=options))
+def project_snippet_notes_edit(project_id: str | int, snippet_id: str | int, note_id: str | int, body: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectSnippetNotes.edit (PUT projects/${projectId}/snippets/${snippetId}/notes/${noteId}). Body fields: body, sudo."""
+    payload: dict = {}
+    if body is not _UNSET:
+        payload["body"] = body
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/notes/{_enc(note_id)}", json=payload))
 
 
-def project_snippet_notes_remove(project_id: str | int, snippet_id: str | int, note_id: str | int, **options):
-    """ProjectSnippetNotes.remove (DELETE projects/${projectId}/snippets/${snippetId}/notes/${noteId})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/notes/{_enc(note_id)}", params=options))
+def project_snippet_notes_remove(project_id: str | int, snippet_id: str | int, note_id: str | int, sudo: str | int = _UNSET):
+    """ProjectSnippetNotes.remove (DELETE projects/${projectId}/snippets/${snippetId}/notes/${noteId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/notes/{_enc(note_id)}", params=payload))
 
 
-def project_snippet_notes_show(project_id: str | int, snippet_id: str | int, note_id: str | int, **options):
-    """ProjectSnippetNotes.show (GET projects/${projectId}/snippets/${snippetId}/notes/${noteId})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/notes/{_enc(note_id)}", params=options))
+def project_snippet_notes_show(project_id: str | int, snippet_id: str | int, note_id: str | int, sudo: str | int = _UNSET):
+    """ProjectSnippetNotes.show (GET projects/${projectId}/snippets/${snippetId}/notes/${noteId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/snippets/{_enc(snippet_id)}/notes/{_enc(note_id)}", params=payload))
 
 
 # ── ProjectSnippets ───────────────────────────────────────────────────────
@@ -7032,34 +8735,88 @@ def project_terraform_state_show_version(project_id: str | int, name: str | int,
 
 # ── ProjectVariables ──────────────────────────────────────────────────────
 
-def project_variables_all(project_id: str | int, **options):
-    """ProjectVariables.all (GET projects/${projectId}/variables)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/variables", params=options))
+def project_variables_all(project_id: str | int, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """ProjectVariables.all (GET projects/${projectId}/variables). Body fields: sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/variables", params=payload))
 
 
-def project_variables_create(project_id: str | int, key: str | int, value: str | int, **options):
-    """ProjectVariables.create (POST projects/${projectId}/variables). Body fields: key, value."""
-    payload = {**options}
+def project_variables_create(project_id: str | int, key: str, value: str, variable_type: Literal["file", "env_var"] = _UNSET, protected: bool = _UNSET, masked: bool = _UNSET, environment_scope: str = _UNSET, description: str = _UNSET, raw: bool = _UNSET, sudo: str | int = _UNSET):
+    """ProjectVariables.create (POST projects/${projectId}/variables). Body fields: key, value, variable_type, protected, masked, environment_scope, description, raw, sudo."""
+    payload: dict = {}
     payload["key"] = key
     payload["value"] = value
+    if variable_type is not _UNSET:
+        payload["variable_type"] = variable_type
+    if protected is not _UNSET:
+        payload["protected"] = protected
+    if masked is not _UNSET:
+        payload["masked"] = masked
+    if environment_scope is not _UNSET:
+        payload["environment_scope"] = environment_scope
+    if description is not _UNSET:
+        payload["description"] = description
+    if raw is not _UNSET:
+        payload["raw"] = raw
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/variables", json=payload))
 
 
-def project_variables_edit(project_id: str | int, key: str | int, value: str | int, **options):
-    """ProjectVariables.edit (PUT projects/${projectId}/variables/${key}). Body fields: value."""
-    payload = {**options}
+def project_variables_edit(project_id: str | int, key: str | int, value: str, filter: dict, variable_type: Literal["file", "env_var"] = _UNSET, protected: bool = _UNSET, masked: bool = _UNSET, environment_scope: str = _UNSET, description: str = _UNSET, raw: bool = _UNSET, sudo: str | int = _UNSET):
+    """ProjectVariables.edit (PUT projects/${projectId}/variables/${key}). Body fields: value, filter, variable_type, protected, masked, environment_scope, description, raw, sudo."""
+    payload: dict = {}
     payload["value"] = value
+    payload["filter"] = filter
+    if variable_type is not _UNSET:
+        payload["variable_type"] = variable_type
+    if protected is not _UNSET:
+        payload["protected"] = protected
+    if masked is not _UNSET:
+        payload["masked"] = masked
+    if environment_scope is not _UNSET:
+        payload["environment_scope"] = environment_scope
+    if description is not _UNSET:
+        payload["description"] = description
+    if raw is not _UNSET:
+        payload["raw"] = raw
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/variables/{_enc(key)}", json=payload))
 
 
-def project_variables_remove(project_id: str | int, key: str | int, **options):
-    """ProjectVariables.remove (DELETE projects/${projectId}/variables/${key})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/variables/{_enc(key)}", params=options))
+def project_variables_remove(project_id: str | int, key: str | int, filter: dict = _UNSET, sudo: str | int = _UNSET):
+    """ProjectVariables.remove (DELETE projects/${projectId}/variables/${key}). Body fields: filter, sudo."""
+    payload: dict = {}
+    if filter is not _UNSET:
+        payload["filter"] = filter
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/variables/{_enc(key)}", params=payload))
 
 
-def project_variables_show(project_id: str | int, key: str | int, **options):
-    """ProjectVariables.show (GET projects/${projectId}/variables/${key})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/variables/{_enc(key)}", params=options))
+def project_variables_show(project_id: str | int, key: str | int, filter: dict = _UNSET, sudo: str | int = _UNSET):
+    """ProjectVariables.show (GET projects/${projectId}/variables/${key}). Body fields: filter, sudo."""
+    payload: dict = {}
+    if filter is not _UNSET:
+        payload["filter"] = filter
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/variables/{_enc(key)}", params=payload))
 
 
 # ── ProjectVulnerabilities ────────────────────────────────────────────────
@@ -7095,37 +8852,83 @@ def project_vulnerabilities_create(project_id: str | int, finding_id: int, sudo:
 
 # ── ProjectWikis ──────────────────────────────────────────────────────────
 
-def project_wikis_all(project_id: str | int, **options):
-    """ProjectWikis.all (GET projects/${projectId}/wikis)."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/wikis", params=options))
+def project_wikis_all(project_id: str | int, with_content: bool = _UNSET, sudo: str | int = _UNSET, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, page: str | int = _UNSET):
+    """ProjectWikis.all (GET projects/${projectId}/wikis). Body fields: with_content, sudo, pagination, per_page, max_pages, order_by, sort, page."""
+    payload: dict = {}
+    if with_content is not _UNSET:
+        payload["with_content"] = with_content
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/wikis", params=payload))
 
 
-def project_wikis_create(project_id: str | int, content: str | int, title: str | int, **options):
-    """ProjectWikis.create (POST projects/${projectId}/wikis). Body fields: content, title."""
-    payload = {**options}
+def project_wikis_create(project_id: str | int, content: str, title: str, format: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectWikis.create (POST projects/${projectId}/wikis). Body fields: content, title, format, sudo."""
+    payload: dict = {}
     payload["content"] = content
     payload["title"] = title
+    if format is not _UNSET:
+        payload["format"] = format
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/wikis", json=payload))
 
 
-def project_wikis_edit(project_id: str | int, slug: str | int, **options):
-    """ProjectWikis.edit (PUT projects/${projectId}/wikis/${slug})."""
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/wikis/{_enc(slug)}", json=options))
+def project_wikis_edit(project_id: str | int, slug: str | int, title: str = _UNSET, content: str = _UNSET, format: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectWikis.edit (PUT projects/${projectId}/wikis/${slug}). Body fields: title, content, format, sudo."""
+    payload: dict = {}
+    if title is not _UNSET:
+        payload["title"] = title
+    if content is not _UNSET:
+        payload["content"] = content
+    if format is not _UNSET:
+        payload["format"] = format
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/wikis/{_enc(slug)}", json=payload))
 
 
-def project_wikis_remove(project_id: str | int, slug: str | int, **options):
-    """ProjectWikis.remove (DELETE projects/${projectId}/wikis/${slug})."""
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/wikis/{_enc(slug)}", params=options))
+def project_wikis_remove(project_id: str | int, slug: str | int, sudo: str | int = _UNSET):
+    """ProjectWikis.remove (DELETE projects/${projectId}/wikis/${slug}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/wikis/{_enc(slug)}", params=payload))
 
 
-def project_wikis_show(project_id: str | int, slug: str | int, **options):
-    """ProjectWikis.show (GET projects/${projectId}/wikis/${slug})."""
-    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/wikis/{_enc(slug)}", params=options))
+def project_wikis_show(project_id: str | int, slug: str | int, render_html: bool = _UNSET, version: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectWikis.show (GET projects/${projectId}/wikis/${slug}). Body fields: render_html, version, sudo."""
+    payload: dict = {}
+    if render_html is not _UNSET:
+        payload["render_html"] = render_html
+    if version is not _UNSET:
+        payload["version"] = version
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/wikis/{_enc(slug)}", params=payload))
 
 
-def project_wikis_upload_attachment(project_id: str | int, **options):
-    """ProjectWikis.uploadAttachment (POST projects/${projectId}/wikis/attachments)."""
-    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/wikis/attachments", json=options))
+def project_wikis_upload_attachment(project_id: str | int, file: dict, branch: str = _UNSET, sudo: str | int = _UNSET):
+    """ProjectWikis.uploadAttachment (POST projects/${projectId}/wikis/attachments). Body fields: file, branch, sudo."""
+    payload: dict = {}
+    payload["file"] = file
+    if branch is not _UNSET:
+        payload["branch"] = branch
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/wikis/attachments", json=payload))
 
 
 # ── ProtectedBranches ─────────────────────────────────────────────────────
@@ -7960,24 +9763,24 @@ def service_data_show_usage_data_non_sql_metrics(sudo: str | int = _UNSET):
 
 # ── SidekiqMetrics ────────────────────────────────────────────────────────
 
-def sidekiq_metrics_compound_metrics(**options):
+def sidekiq_metrics_compound_metrics():
     """SidekiqMetrics.compoundMetrics (GET sidekiq/compound_metrics)."""
-    return _ok(_get_client().request("GET", f"/sidekiq/compound_metrics", params=options))
+    return _ok(_get_client().request("GET", f"/sidekiq/compound_metrics"))
 
 
-def sidekiq_metrics_job_stats(**options):
+def sidekiq_metrics_job_stats():
     """SidekiqMetrics.jobStats (GET sidekiq/job_stats)."""
-    return _ok(_get_client().request("GET", f"/sidekiq/job_stats", params=options))
+    return _ok(_get_client().request("GET", f"/sidekiq/job_stats"))
 
 
-def sidekiq_metrics_process_metrics(**options):
+def sidekiq_metrics_process_metrics():
     """SidekiqMetrics.processMetrics (GET sidekiq/process_metrics)."""
-    return _ok(_get_client().request("GET", f"/sidekiq/process_metrics", params=options))
+    return _ok(_get_client().request("GET", f"/sidekiq/process_metrics"))
 
 
-def sidekiq_metrics_queue_metrics(**options):
+def sidekiq_metrics_queue_metrics():
     """SidekiqMetrics.queueMetrics (GET sidekiq/queue_metrics)."""
-    return _ok(_get_client().request("GET", f"/sidekiq/queue_metrics", params=options))
+    return _ok(_get_client().request("GET", f"/sidekiq/queue_metrics"))
 
 
 # ── SidekiqQueues ─────────────────────────────────────────────────────────
@@ -8006,9 +9809,12 @@ def sidekiq_queues_remove(queue_name: str | int, user: str = _UNSET, project: st
 
 # ── SnippetRepositoryStorageMoves ─────────────────────────────────────────
 
-def snippet_repository_storage_moves_show(repository_storage_id: str | int, **options):
-    """SnippetRepositoryStorageMoves.show (GET snippets//${repositoryStorageId})."""
-    return _ok(_get_client().request("GET", f"/snippets//{_enc(repository_storage_id)}", params=options))
+def snippet_repository_storage_moves_show(repository_storage_id: str | int, sudo: str | int = _UNSET):
+    """SnippetRepositoryStorageMoves.show (GET snippets//${repositoryStorageId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/snippets//{_enc(repository_storage_id)}", params=payload))
 
 
 # ── Snippets ──────────────────────────────────────────────────────────────
@@ -8366,26 +10172,49 @@ def topics_show(topic_id: str | int, sudo: str | int = _UNSET):
 
 # ── UserCustomAttributes ──────────────────────────────────────────────────
 
-def user_custom_attributes_all(user_id: str | int, **options):
-    """UserCustomAttributes.all (GET users/${userId}/custom_attributes)."""
-    return _ok(_get_client().request("GET", f"/users/{_enc(user_id)}/custom_attributes", params=options))
+def user_custom_attributes_all(user_id: str | int, pagination: Any = _UNSET, per_page: str | int = _UNSET, max_pages: int = _UNSET, order_by: str = _UNSET, sort: Literal["asc", "desc"] = _UNSET, sudo: str | int = _UNSET, page: str | int = _UNSET):
+    """UserCustomAttributes.all (GET users/${userId}/custom_attributes). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+    payload: dict = {}
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
+    if per_page is not _UNSET:
+        payload["per_page"] = per_page
+    if max_pages is not _UNSET:
+        payload["max_pages"] = max_pages
+    if order_by is not _UNSET:
+        payload["order_by"] = order_by
+    if sort is not _UNSET:
+        payload["sort"] = sort
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    if page is not _UNSET:
+        payload["page"] = page
+    return _ok(_get_client().request("GET", f"/users/{_enc(user_id)}/custom_attributes", params=payload))
 
 
-def user_custom_attributes_remove(user_id: str | int, custom_attribute_id: str | int, **options):
-    """UserCustomAttributes.remove (DELETE users/${userId}/custom_attributes/${customAttributeId})."""
-    return _ok(_get_client().request("DELETE", f"/users/{_enc(user_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=options))
+def user_custom_attributes_remove(user_id: str | int, custom_attribute_id: str | int, sudo: str | int = _UNSET):
+    """UserCustomAttributes.remove (DELETE users/${userId}/custom_attributes/${customAttributeId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("DELETE", f"/users/{_enc(user_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=payload))
 
 
-def user_custom_attributes_set(user_id: str | int, custom_attribute_id: str | int, value: str | int, **options):
-    """UserCustomAttributes.set (PUT users/${userId}/custom_attributes/${customAttributeId}). Body fields: value."""
-    payload = {**options}
+def user_custom_attributes_set(user_id: str | int, custom_attribute_id: str | int, value: str, sudo: str | int = _UNSET):
+    """UserCustomAttributes.set (PUT users/${userId}/custom_attributes/${customAttributeId}). Body fields: value, sudo."""
+    payload: dict = {}
     payload["value"] = value
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
     return _ok(_get_client().request("PUT", f"/users/{_enc(user_id)}/custom_attributes/{_enc(custom_attribute_id)}", json=payload))
 
 
-def user_custom_attributes_show(user_id: str | int, custom_attribute_id: str | int, **options):
-    """UserCustomAttributes.show (GET users/${userId}/custom_attributes/${customAttributeId})."""
-    return _ok(_get_client().request("GET", f"/users/{_enc(user_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=options))
+def user_custom_attributes_show(user_id: str | int, custom_attribute_id: str | int, sudo: str | int = _UNSET):
+    """UserCustomAttributes.show (GET users/${userId}/custom_attributes/${customAttributeId}). Body fields: sudo."""
+    payload: dict = {}
+    if sudo is not _UNSET:
+        payload["sudo"] = sudo
+    return _ok(_get_client().request("GET", f"/users/{_enc(user_id)}/custom_attributes/{_enc(custom_attribute_id)}", params=payload))
 
 
 # ── UserEmails ────────────────────────────────────────────────────────────
