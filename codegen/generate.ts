@@ -82,6 +82,10 @@ interface ParsedMethod {
   conditionalBranches: ConditionalBranch[] | null; // parsed branches for dispatch
   conditionalSuffix: string; // appended after each branch path (Search.all: 'search')
   conditionalBodyFields: BodyField[]; // explicit fields in the return-call body literal
+  // Resource* expansion: base class + substitution map so TS resolution can
+  // fall back to the base when the subclass has no own declaration.
+  baseKlass?: string;
+  tsArgRename?: Record<string, string>;
 }
 
 interface ConditionalBranch {
@@ -752,6 +756,9 @@ function expandResourceSubclasses(): number {
         return a;
       });
 
+      const tsArgRename: Record<string, string> = { resourceId: primaryArg };
+      if (secondaryArg) tsArgRename.resource2Id = secondaryArg;
+
       methods.push({
         klass: concreteName,
         name: bm.name,
@@ -768,6 +775,8 @@ function expandResourceSubclasses(): number {
         conditionalBranches: null,
         conditionalSuffix: "",
         conditionalBodyFields: [],
+        baseKlass: baseName,
+        tsArgRename,
       });
       expanded++;
       stats.methodsParsed++;
@@ -1099,11 +1108,19 @@ function emitFn(pm: ParsedMethod): Emitted | null {
     .filter((a) => argsInPath.has(a))
     .map(toSnake);
 
-  // Try to resolve TS types for this method. Resource* base classes don't
-  // appear under their concrete subclass names in the .d.ts, so for expanded
-  // methods we look up the parsed klass name (e.g. ProjectLabels) directly —
-  // when missing, we fall back gracefully.
-  const typeInfo = resolveMethod(checker, tsSource, pm.klass, pm.name);
+  let typeInfo = resolveMethod(checker, tsSource, pm.klass, pm.name);
+  if (!typeInfo && pm.baseKlass) {
+    const baseInfo = resolveMethod(checker, tsSource, pm.baseKlass, pm.name);
+    if (baseInfo && pm.tsArgRename) {
+      const rename = pm.tsArgRename;
+      baseInfo.positionalArgs = baseInfo.positionalArgs.map((pa) => {
+        const renamed = rename[pa.name];
+        if (!renamed) return pa;
+        return { name: renamed, pyName: toSnake(renamed), pyType: pa.pyType };
+      });
+    }
+    typeInfo = baseInfo;
+  }
 
   // Conditional dispatch: gitbeaker picks URL based on which selector option
   // is set (e.g. DeployKeys.all → /projects/{id}/deploy_keys or
@@ -1199,7 +1216,8 @@ function emitFn(pm: ParsedMethod): Emitted | null {
       seenPy.add(py);
       requiredBody.push({ pyName: py, wireName, pyType: "str | int" });
     }
-    useVarKwargs = true;
+    // No body fields parsed and no TS options: nothing to forward → drop **options.
+    useVarKwargs = pm.bodyFields.length > 0;
   }
 
   const snakeClass = toSnake(pm.klass);
