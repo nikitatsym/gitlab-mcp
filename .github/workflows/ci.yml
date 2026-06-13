@@ -26,6 +26,8 @@ jobs:
         run: |
           uv tool install ruff
           uv tool run ruff check src/ tests/ scripts/
+      - name: Type check (mypy)
+        run: uv run mypy src/gitlab_mcp tests scripts
       - name: Unit tests
         run: uv run pytest tests/ -m 'not integration' -v
 
@@ -45,7 +47,7 @@ jobs:
 
   integration-gitlab:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -55,14 +57,36 @@ jobs:
         run: docker compose -f tests/docker-compose.yml up -d gitlab
       - name: Bootstrap PAT
         run: uv run python scripts/bootstrap.py gitlab
-      - name: Integration tests
+      - name: Integration tests (gitlab)
         run: uv run pytest -m integration tests/test_integration_gitlab.py -v
+      - name: Register CI runner
+        run: uv run python scripts/register_runner.py
+      - name: Integration tests (waiters, CI runner)
+        run: uv run pytest -m integration tests/test_integration_waiters.py -v
       - name: Tear down
         if: always()
-        run: docker compose -f tests/docker-compose.yml down -v
+        run: docker compose -f tests/docker-compose.yml --profile ci down -v
+
+  integration-heptapod:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install
+        run: uv sync
+      - name: Start Heptapod
+        run: docker compose -f tests/docker-compose.yml --profile heptapod up -d heptapod
+      - name: Bootstrap PAT
+        run: uv run python scripts/bootstrap.py heptapod
+      - name: Integration tests (heptapod)
+        run: uv run pytest -m integration tests/test_integration_heptapod.py -v
+      - name: Tear down
+        if: always()
+        run: docker compose -f tests/docker-compose.yml --profile heptapod down -v
 
   release:
-    needs: [unit, codegen-drift, integration-gitlab]
+    needs: [unit, codegen-drift, integration-gitlab, integration-heptapod]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

@@ -16,6 +16,7 @@ import os
 import subprocess
 import sys
 import time
+import typing
 from pathlib import Path
 
 import httpx
@@ -24,7 +25,14 @@ ROOT = Path(__file__).resolve().parent.parent
 COMPOSE_FILE = ROOT / "tests" / "docker-compose.yml"
 ENV_FILE = ROOT / "tests" / ".env"
 
-INSTANCES = {
+class _Instance(typing.TypedDict):
+    url: str
+    service: str
+    compose_profile: str | None
+    readiness_timeout: int
+
+
+INSTANCES: dict[str, _Instance] = {
     "gitlab": {
         "url": "http://localhost:8929",
         "service": "gitlab",
@@ -52,18 +60,24 @@ def _compose_exec(service: str, profile: str | None, *args: str) -> subprocess.C
 
 
 def wait_for_ready(url: str, timeout: int) -> None:
-    """Poll /-/readiness until the instance returns 2xx."""
+    """Poll the API until the instance accepts requests.
+
+    Probes `/api/v4/version` rather than `/-/readiness`: GitLab CE serves both
+    publicly, but Heptapod's nginx (since 17-0-latest) only serves `/-/...`
+    from inside the container. A 401 here is just as good as a 200 — Rails is
+    up enough to authenticate, which is all bootstrap needs.
+    """
     deadline = time.time() + timeout
     last_error: str = "(no attempt yet)"
     attempts = 0
     while time.time() < deadline:
         attempts += 1
         try:
-            r = httpx.get(f"{url}/-/readiness", timeout=5, follow_redirects=False)
-            if r.status_code < 400:
+            r = httpx.get(f"{url}/api/v4/version", timeout=5, follow_redirects=False)
+            if r.status_code in (200, 401):
                 elapsed = int(timeout - (deadline - time.time()))
                 print(f"[bootstrap] ready after {elapsed}s ({attempts} attempts)")
-                # Extra grace period — readiness can be green before rails fully accepts writes.
+                # Extra grace period — API may answer before rails fully accepts writes.
                 time.sleep(5)
                 return
             last_error = f"HTTP {r.status_code}"
@@ -134,12 +148,12 @@ def main() -> int:
     print(f"[bootstrap] target: {url}")
 
     try:
-        wait_for_ready(url, inst["readiness_timeout"])  # type: ignore[arg-type]
+        wait_for_ready(url, inst["readiness_timeout"])
     except TimeoutError as e:
         print(f"[bootstrap] FAILED: {e}", file=sys.stderr)
         return 1
 
-    token = bootstrap_pat(inst["service"], inst["compose_profile"])  # type: ignore[arg-type]
+    token = bootstrap_pat(inst["service"], inst["compose_profile"])
     write_env_file(url, token)
     print(f"[bootstrap] OK — token written to {ENV_FILE}")
     print(f"[bootstrap] For interactive shell: `source {ENV_FILE.relative_to(ROOT)}`")

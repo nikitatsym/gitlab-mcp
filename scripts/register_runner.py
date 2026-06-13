@@ -102,7 +102,7 @@ def _create_runner_token(url: str, pat: str) -> str:
         )
     body = r.json()
     token = body.get("token")
-    if not token:
+    if not isinstance(token, str) or not token:
         sys.exit(f"runner create response missing token: {body}")
     print(f"[runner] created runner id={body.get('id')} desc={RUNNER_DESC!r}")
     return token

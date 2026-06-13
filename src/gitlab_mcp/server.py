@@ -11,7 +11,7 @@ Adapted from komodo-mcp's server.py with two extensions:
 import inspect
 import types as _types
 import typing
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from mcp.server.fastmcp import Context, FastMCP
 from pydantic import (
@@ -75,9 +75,9 @@ def _build_params_model(fn) -> type[BaseModel]:
         else:
             field_spec = p.default
         fields[name] = (ann, field_spec)
-    extra = "allow" if has_var_keyword else "forbid"
+    extra: Literal["allow", "forbid"] = "allow" if has_var_keyword else "forbid"
 
-    @field_validator("*", mode="before")
+    @field_validator("*", mode="before")  # type: ignore[misc]
     @classmethod
     def _coerce_string_bool(cls, v, info):
         if not isinstance(v, str):
@@ -93,12 +93,13 @@ def _build_params_model(fn) -> type[BaseModel]:
             return False
         return v
 
-    return create_model(
+    model: type[BaseModel] = create_model(  # type: ignore[call-overload]
         f"{_to_pascal(fn.__name__)}Params",
         __config__=ConfigDict(extra=extra, arbitrary_types_allowed=True),
         __validators__={"_coerce_string_bool": _coerce_string_bool},
         **fields,
     )
+    return model
 
 
 def _format_validation_error(err: ValidationError, fn) -> str:
@@ -333,9 +334,10 @@ def _format_help_full(ops: dict, group_name: str, scope_desc: str) -> str:
     lines = [
         f"{len(ops)} operations in {group_name} {scope_desc}:",
         "",
-        "NOTE: `**options` in a signature means the op accepts additional "
-        "body fields (e.g. description, labels, assignee_ids). Pass them as "
-        "TOP-LEVEL params; do NOT nest them under an 'options' key.",
+        "NOTE: every signature is closed — only the listed fields are accepted. "
+        "Unknown kwargs are rejected before any HTTP call. If a field you need "
+        "is missing, the codegen source (OpenAPI / gitbeaker TS) didn't list it "
+        "at the current pin; raise an issue or add it to MANUAL_PARAMS.",
         "",
     ]
     for pascal_name in sorted(ops):

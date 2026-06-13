@@ -1,12 +1,13 @@
 """Integration test fixtures.
 
-This conftest does NOT manage the Docker lifecycle. It assumes that a
-GitLab/Heptapod instance is already running at `GITLAB_URL` with a valid
-`GITLAB_TOKEN`. Use the npm scripts (`npm run gitlab:up` / `npm run gitlab:down`)
-or the bootstrap script (`scripts/bootstrap.py`) to manage containers.
+This conftest does NOT manage the Docker lifecycle. It assumes a
+GitLab/Heptapod instance is running at `GITLAB_URL` with a valid
+`GITLAB_TOKEN`. Use the npm scripts (`npm run gitlab:up` / `npm run heptapod:up`)
+or `scripts/bootstrap.py` to bring containers up.
 
-Tests marked `@pytest.mark.integration` are skipped automatically if the env
-vars are not present.
+Tests marked `@pytest.mark.integration` HARD-FAIL when prerequisites are
+missing — no silent skips. Missing env vars, unreachable instance, or missing
+runner container all surface as fixture errors so the dev sees what to fix.
 """
 
 from __future__ import annotations
@@ -91,9 +92,12 @@ class AgentSimulator:
 def _require_env(*names: str) -> dict[str, str]:
     missing = [n for n in names if not os.environ.get(n)]
     if missing:
-        pytest.skip(
+        pytest.fail(
             f"Integration test requires env vars {missing}. "
-            f"Start GitLab with `npm run gitlab:up` or set them manually."
+            f"Start GitLab with `npm run gitlab:up` (or Heptapod with "
+            f"`npm run heptapod:up`); both write tests/.env. "
+            f"Do NOT skip: set up the prereq, do not paper over it.",
+            pytrace=False,
         )
     return {n: os.environ[n] for n in names}
 
@@ -123,9 +127,7 @@ def gitlab_instance():
 
 @pytest.fixture(scope="session")
 def heptapod_instance():
-    """URL/token for a running Heptapod. Gated on RUN_HEPTAPOD_TESTS=1."""
-    if not os.environ.get("RUN_HEPTAPOD_TESTS"):
-        pytest.skip("Heptapod integration gated: set RUN_HEPTAPOD_TESTS=1 to run")
+    """URL/token for a running Heptapod. Hard-fail when not bootstrapped."""
     env = _require_env("GITLAB_URL", "GITLAB_TOKEN")
     return {"url": env["GITLAB_URL"], "token": env["GITLAB_TOKEN"]}
 

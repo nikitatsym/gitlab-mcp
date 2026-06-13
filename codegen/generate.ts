@@ -42,7 +42,15 @@ import { execSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { EE_EXCLUDED_CLASSES } from "./ee_exclusions.ts";
-import { loadChecker, resolveMethod } from "./typeResolver.ts";
+import {
+  loadChecker,
+  resolveMethod,
+  type MethodTypeInfo,
+  type PropertySpec,
+  type PositionalArgSpec,
+} from "./typeResolver.ts";
+import { loadOpenApi, resolveOpenApi, type OpenApiLookup } from "./openApiResolver.ts";
+import { MANUAL_PARAMS, MANUAL_OPS, MANUAL_SKIP } from "./manual_ops.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const IMPL_PATH = join(
@@ -53,6 +61,7 @@ const TYPES_PATH = join(
   __dirname,
   "node_modules/@gitbeaker/core/dist/index.d.ts"
 );
+const OPENAPI_PATH = join(__dirname, "openapi/openapi_v3.yaml");
 const OUT_PY = join(__dirname, "../src/gitlab_mcp/_generated.py");
 const OUT_GROUPS = join(__dirname, "../src/gitlab_mcp/_generated_groups.py");
 
@@ -62,6 +71,11 @@ const IMPL = readFileSync(IMPL_PATH, "utf-8");
 
 // Load the TS Compiler API once; resolveMethod() walks it per method.
 const { checker, source: tsSource } = loadChecker(TYPES_PATH);
+
+// Load the OpenAPI v3 spec — primary source of truth for body schemas. The
+// resolver builds a `(verb, normalized-path) → params` lookup; gitbeaker TS
+// types remain as a fallback for fields OpenAPI doesn't describe.
+const openapi: OpenApiLookup = loadOpenApi(OPENAPI_PATH);
 
 // ── Parsing ────────────────────────────────────────────────────────────────
 
@@ -178,10 +192,14 @@ const stats = {
   methodsTotal: 0,
   methodsParsed: 0,
   methodsSkipped: 0,
-  methodsTyped: 0,           // resolved via TS + emitted with typed params
-  methodsKeptOptions: 0,     // resolved but options has [k:string]:any → kept **options
-  methodsTypeFallback: 0,    // typeResolver returned null/!resolved → legacy shape
-  methodsConditionalPath: 0, // JS impl selects URL based on selector field → forced **options
+  methodsConditionalPath: 0, // JS impl selects URL based on selector field
+  // Source-of-truth provenance for the merged surface that emitFn ships:
+  methodsFromOpenApi: 0,     // OpenAPI resolved at least one body/query field
+  methodsTsOverflow: 0,      // gitbeaker TS contributed at least one field OpenAPI didn't
+  methodsManualMerged: 0,    // MANUAL_PARAMS contributed a field
+  methodsNoSource: 0,        // neither OpenAPI nor TS nor manual → emit skipped
+  methodsManualOps: 0,       // standalone ops from MANUAL_OPS
+  methodsManualSkip: 0,      // explicit MANUAL_SKIP hits
 };
 
 let m: RegExpExecArray | null;
@@ -848,6 +866,139 @@ function splitPathQuery(tpl: string): {
   return { pathTpl, queryVars };
 }
 
+// ── Build merged closed type surface ──────────────────────────────────────
+
+/**
+ * Compose the typed parameter surface for an emitted op by unioning three
+ * sources in priority order:
+ *   1. OpenAPI v3 (primary)        — body+query params with real types/enums
+ *   2. gitbeaker TS *Options       — fills fields OpenAPI doesn't describe
+ *   3. MANUAL_PARAMS[OpName]       — hand-written additions/overrides
+ *
+ * Returns null when no source contributes anything — caller skips emission
+ * and the op shows up under `needs_manual` in the run summary. The returned
+ * MethodTypeInfo is ALWAYS closed (`hasIndexSignature: false`); callers must
+ * emit a strict signature without `**options`.
+ */
+function buildTypeSurface(pm: ParsedMethod, opPascal: string): MethodTypeInfo | null {
+  const oa = resolveOpenApi(openapi, pm.verb, pm.pathTpl);
+
+  // TS resolution (with Resource* base-class fallback when subclass has none).
+  let ts: MethodTypeInfo | null = resolveMethod(checker, tsSource, pm.klass, pm.name);
+  if (!ts && pm.baseKlass) {
+    const baseInfo = resolveMethod(checker, tsSource, pm.baseKlass, pm.name);
+    if (baseInfo && pm.tsArgRename) {
+      const rename = pm.tsArgRename;
+      baseInfo.positionalArgs = baseInfo.positionalArgs.map((pa) => {
+        const renamed = rename[pa.name];
+        if (!renamed) return pa;
+        return { name: renamed, pyName: toSnake(renamed), pyType: pa.pyType };
+      });
+    }
+    ts = baseInfo;
+  }
+
+  const manual = MANUAL_PARAMS[opPascal] ?? [];
+  const tsResolved = ts?.options?.resolved === true;
+  const tsHasContent =
+    tsResolved &&
+    (ts!.options.properties.length > 0 || ts!.positionalArgs.length > 0);
+
+  if (!oa && !tsHasContent && pm.bodyFields.length === 0 && manual.length === 0) {
+    return null;
+  }
+
+  // Build a TS-confirmation set BEFORE merging OpenAPI: a body field is only
+  // marked required when both OpenAPI and gitbeaker TS list it as required.
+  // GitLab's OpenAPI spec frequently over-marks body fields as required
+  // (e.g. PUT /repository/files/{file_path} marks `file` required for the
+  // multipart upload variant, but the JSON variant doesn't need it). Trusting
+  // OpenAPI alone breaks valid calls; intersecting with TS recovers safety.
+  // Path and query params keep OpenAPI's required marking — those are usually
+  // accurate and important for routing.
+  const wireByJsVar = new Map<string, string>();
+  for (const bf of pm.bodyFields) wireByJsVar.set(bf.variable, bf.name);
+  const tsConfirmsRequired = new Set<string>();
+  if (tsResolved) {
+    for (const pa of ts!.positionalArgs) {
+      const wire = toSnake(wireByJsVar.get(pa.name) ?? pa.name);
+      tsConfirmsRequired.add(wire);
+    }
+    for (const p of ts!.options.properties) {
+      if (p.optional === false) tsConfirmsRequired.add(p.name);
+    }
+  }
+
+  // Merge by wire name. Insertion order matters: OpenAPI first; TS supplements;
+  // manual overrides anything else by setting the same key.
+  const seen = new Map<string, PropertySpec>();
+  let fromOpenApi = false;
+  let fromTs = false;
+
+  if (oa) {
+    for (const p of oa.params) {
+      if (p.location === "path") continue;
+      const required =
+        p.required && (p.location === "query" || tsConfirmsRequired.has(p.name));
+      seen.set(p.name, {
+        name: p.name,
+        pyName: p.pyName,
+        pyType: p.pyType,
+        optional: !required,
+        nullable: p.nullable,
+      });
+      fromOpenApi = true;
+    }
+  }
+
+  if (tsResolved) {
+    for (const p of ts!.options.properties) {
+      if (seen.has(p.name)) continue;
+      seen.set(p.name, p);
+      fromTs = true;
+    }
+  } else {
+    // No TS *Options interface. Fall back to gitbeaker's JS-parsed body
+    // literal, typed `str | int` (the legacy-fallback behavior). Closed.
+    for (const bf of pm.bodyFields) {
+      const wire = toSnake(bf.name);
+      if (seen.has(wire)) continue;
+      seen.set(wire, {
+        name: wire,
+        pyName: PY_KEYWORDS.has(wire) ? wire + "_" : wire,
+        pyType: "str | int",
+        optional: false,
+        nullable: false,
+      });
+      fromTs = true;
+    }
+  }
+
+  for (const m of manual) {
+    const pyN = PY_KEYWORDS.has(m.name) ? m.name + "_" : m.name;
+    seen.set(m.name, {
+      name: m.name,
+      pyName: pyN,
+      pyType: m.pyType,
+      optional: !(m.required === true),
+      nullable: m.nullable === true,
+    });
+  }
+
+  if (fromOpenApi) stats.methodsFromOpenApi++;
+  if (fromOpenApi && fromTs) stats.methodsTsOverflow++;
+  if (manual.length > 0) stats.methodsManualMerged++;
+
+  return {
+    positionalArgs: ts?.positionalArgs ?? [],
+    options: {
+      properties: [...seen.values()],
+      hasIndexSignature: false,
+      resolved: true,
+    },
+  };
+}
+
 // ── Generate Python wrapper function ──────────────────────────────────────
 
 interface Emitted {
@@ -856,6 +1007,8 @@ interface Emitted {
   klass: string;
   verb: string; // lowercase
   pyLines: string[];
+  sigParts: string[];      // exact param list (used by delegation aliases)
+  callKwargs: string[];    // names to forward through an alias (e.g. ["a", "b"])
 }
 
 interface BodyParam {
@@ -1023,13 +1176,31 @@ function emitConditionalDispatch(
   const payloadKwarg =
     httpMethod === "GET" || httpMethod === "DELETE" ? "params" : "json";
 
-  // Signature: path-only → required body → selectors → query-only → **options.
+  // Extra typed-optional body fields surfaced via the merged type surface
+  // (OpenAPI + TS + manual). For conditional methods these arrive optional
+  // — they may only apply on one branch; forcing required would lie about
+  // the contract. Deduped against everything already in seenPy.
+  type ExtraOpt = { pyName: string; wireName: string; pyType: string };
+  const extraOptional: ExtraOpt[] = [];
+  if (typeInfo) {
+    for (const p of typeInfo.options.properties) {
+      if (SKIP_PROPS.has(p.pyName)) continue;
+      if (seenPy.has(p.pyName)) continue;
+      seenPy.add(p.pyName);
+      const pyType = p.nullable ? `${p.pyType} | None` : p.pyType;
+      extraOptional.push({ pyName: p.pyName, wireName: p.name, pyType });
+    }
+  }
+
+  // Strict-closed signature: path-only -> required body -> selectors ->
+  // query-only -> extra optional body. No `**options` at any layer.
+  // Optionals append ` | _Unset` so mypy accepts the sentinel default.
   const sigParts: string[] = [];
   for (const a of pathOnlyArgs) sigParts.push(`${a.pyName}: ${a.pyType}`);
   for (const b of requiredBody) sigParts.push(`${b.pyName}: ${b.pyType}`);
-  for (const s of selectors) sigParts.push(`${s.pyName}: ${s.pyType} = _UNSET`);
-  for (const a of queryOnlyArgs) sigParts.push(`${a.pyName}: ${a.pyType} = _UNSET`);
-  sigParts.push("**options");
+  for (const s of selectors) sigParts.push(`${s.pyName}: ${s.pyType} | _Unset = _UNSET`);
+  for (const a of queryOnlyArgs) sigParts.push(`${a.pyName}: ${a.pyType} | _Unset = _UNSET`);
+  for (const e of extraOptional) sigParts.push(`${e.pyName}: ${e.pyType} | _Unset = _UNSET`);
 
   const docBranches = pm.conditionalBranches
     .map((b) => (b.selectorVar ? `if ${toSnake(b.selectorVar)}: ` : "else: ") + b.pathTpl + pm.conditionalSuffix)
@@ -1040,9 +1211,10 @@ function emitConditionalDispatch(
     `    """${pm.klass}.${pm.name} (${httpMethod}; selector-driven path: ${docBranches})."""`,
   );
 
-  // Payload: **options first; explicit typed body fields next; selectors
-  // that ALSO appear in gitbeaker's body literal go in payload when set.
-  lines.push(`    payload = {**options}`);
+  // Payload starts empty (strict mode); explicit typed body fields next;
+  // selectors that ALSO appear in gitbeaker's body literal go in payload
+  // when set; extra-optional fields added below.
+  lines.push(`    payload: dict = {}`);
   for (const b of requiredBody) {
     lines.push(`    payload[${JSON.stringify(b.wireName)}] = ${b.pyName}`);
   }
@@ -1050,6 +1222,10 @@ function emitConditionalDispatch(
     if (!s.alsoBody) continue;
     lines.push(`    if ${s.pyName} is not _UNSET:`);
     lines.push(`        payload[${JSON.stringify(toSnake(s.jsName))}] = ${s.pyName}`);
+  }
+  for (const e of extraOptional) {
+    lines.push(`    if ${e.pyName} is not _UNSET:`);
+    lines.push(`        payload[${JSON.stringify(e.wireName)}] = ${e.pyName}`);
   }
 
   // Branch predicates mirror JS truthiness (`if (owned)`), not "was provided"
@@ -1090,12 +1266,17 @@ function emitConditionalDispatch(
     );
   }
 
+  // Extract kwarg names from sigParts for any alias delegations.
+  const callKwargs = sigParts.map((p) => p.split(":")[0].trim());
+
   return {
     snakeName: fnSnake,
     pascalName: fnPascal,
     klass: pm.klass,
     verb: pm.verb,
     pyLines: lines,
+    sigParts,
+    callKwargs,
   };
 }
 
@@ -1108,19 +1289,20 @@ function emitFn(pm: ParsedMethod): Emitted | null {
     .filter((a) => argsInPath.has(a))
     .map(toSnake);
 
-  let typeInfo = resolveMethod(checker, tsSource, pm.klass, pm.name);
-  if (!typeInfo && pm.baseKlass) {
-    const baseInfo = resolveMethod(checker, tsSource, pm.baseKlass, pm.name);
-    if (baseInfo && pm.tsArgRename) {
-      const rename = pm.tsArgRename;
-      baseInfo.positionalArgs = baseInfo.positionalArgs.map((pa) => {
-        const renamed = rename[pa.name];
-        if (!renamed) return pa;
-        return { name: renamed, pyName: toSnake(renamed), pyType: pa.pyType };
-      });
-    }
-    typeInfo = baseInfo;
+  const snakeClass = toSnake(pm.klass);
+  const snakeMethod = toSnake(pm.name);
+  const fnSnake = `${snakeClass}_${snakeMethod}`;
+  const fnPascal = toPascal(fnSnake);
+
+  if (MANUAL_SKIP.has(fnPascal)) {
+    stats.methodsManualSkip++;
+    return null;
   }
+
+  // Merge OpenAPI + gitbeaker TS + MANUAL_PARAMS into one closed surface.
+  // Null = no source described this op anywhere → skip emission (the op
+  // shows up in the run summary under needs_manual).
+  const typeInfo = buildTypeSurface(pm, fnPascal);
 
   // Conditional dispatch: gitbeaker picks URL based on which selector option
   // is set (e.g. DeployKeys.all → /projects/{id}/deploy_keys or
@@ -1132,109 +1314,79 @@ function emitFn(pm: ParsedMethod): Emitted | null {
       stats.methodsConditionalPath++;
       return em;
     }
-    // If emission failed (very rare — unsafe template after substitution),
-    // fall through to the legacy `**options`-only path below.
+    // Conditional emission failed (rare — unsafe template after substitution);
+    // fall through to the flat strict-closed shape below.
+  }
+
+  if (!typeInfo) {
+    stats.methodsNoSource++;
+    return null;
   }
 
   const requiredBody: BodyParam[] = [];
   const optionalBody: BodyParam[] = [];
   const seenPy = new Set<string>(pathArgs);
-  let useVarKwargs = true;
-  let resolvedTyped = false;
 
   // Belt-and-suspenders skip list (snake-cased). Matches the gitbeaker-only
   // filter in typeResolver — `sudo` deliberately NOT here: it's a real
   // GitLab API param that we keep as a typed optional.
   const SKIP_PROPS = new Set(["options", "show_expanded", "as_admin", "as_stream", "is_form"]);
 
-  // gitbeaker often renames body fields in the request literal (e.g.
-  // `{ branch: branchName, ref }`), so the wire key is `branch` while the
-  // TS positional arg is `branchName`. Look it up by JS variable so the
-  // Python param name + wire key both match the GitLab REST docs instead
-  // of leaking gitbeaker's internal naming.
+  // gitbeaker renames body fields in the request literal (e.g.
+  // `{ branch: branchName, ref }`); the wire key is `branch`, the TS
+  // positional is `branchName`. Look it up by JS variable so the Python
+  // param name + wire key match the REST docs instead of leaking
+  // gitbeaker's internal naming. (Used only for TS-positional surfacing —
+  // OpenAPI-derived properties already arrive under their wire names.)
   const wireByJsVar = new Map<string, string>();
   for (const bf of pm.bodyFields) {
     wireByJsVar.set(bf.variable, bf.name);
   }
 
-  if (typeInfo && typeInfo.options.resolved) {
-    resolvedTyped = true;
-    // Non-path positionals get their TS types. Path positionals stay
-    // `str | int` (handled below in signature build).
-    for (const pa of typeInfo.positionalArgs) {
-      if (argsInPath.has(pa.name)) continue;
-      const wire = toSnake(wireByJsVar.get(pa.name) ?? pa.name);
-      const py = PY_KEYWORDS.has(wire) ? wire + "_" : wire;
-      if (SKIP_PROPS.has(py)) continue;
-      if (seenPy.has(py)) continue;
-      seenPy.add(py);
-      requiredBody.push({
-        pyName: py,
-        wireName: wire,
-        pyType: pa.pyType,
-      });
-    }
-    // Options properties — skipped entirely for conditional-path methods
-    // (we can't distinguish path-selector options from legit body fields).
-    if (!pm.conditionalPath) {
-      for (const p of typeInfo.options.properties) {
-        if (SKIP_PROPS.has(p.pyName)) continue;
-        if (seenPy.has(p.pyName)) continue;
-        seenPy.add(p.pyName);
-        const pyType = p.nullable ? `${p.pyType} | None` : p.pyType;
-        if (p.optional) {
-          optionalBody.push({ pyName: p.pyName, wireName: p.name, pyType });
-        } else {
-          requiredBody.push({ pyName: p.pyName, wireName: p.name, pyType });
-        }
-      }
-    }
-    if (pm.conditionalPath) {
-      stats.methodsConditionalPath++;
-      useVarKwargs = true; // always keep **options for selector-driven methods
-    } else {
-      useVarKwargs = typeInfo.options.hasIndexSignature;
-      if (useVarKwargs) {
-        stats.methodsKeptOptions++;
-      } else {
-        stats.methodsTyped++;
-      }
-    }
-  } else {
-    // Legacy fallback: JS-parsed bodyFields as required `str | int` body params.
-    if (pm.conditionalPath) {
-      stats.methodsConditionalPath++;
-    } else {
-      stats.methodsTypeFallback++;
-    }
-    for (const bf of pm.bodyFields) {
-      const wireName = toSnake(bf.name);
-      let py = wireName;
-      if (PY_KEYWORDS.has(py)) py = py + "_";
-      if (SKIP_PROPS.has(py)) continue;
-      if (seenPy.has(py)) continue;
-      seenPy.add(py);
-      requiredBody.push({ pyName: py, wireName, pyType: "str | int" });
-    }
-    // No body fields parsed and no TS options: nothing to forward → drop **options.
-    useVarKwargs = pm.bodyFields.length > 0;
+  // Non-path positionals from gitbeaker TS become required body fields.
+  // (For OpenAPI-resolved methods these will usually have been pre-empted
+  // by an OpenAPI body property under the same wire name — and we skip on
+  // seenPy collision below.)
+  for (const pa of typeInfo.positionalArgs) {
+    if (argsInPath.has(pa.name)) continue;
+    const wire = toSnake(wireByJsVar.get(pa.name) ?? pa.name);
+    const py = PY_KEYWORDS.has(wire) ? wire + "_" : wire;
+    if (SKIP_PROPS.has(py)) continue;
+    if (seenPy.has(py)) continue;
+    seenPy.add(py);
+    requiredBody.push({ pyName: py, wireName: wire, pyType: pa.pyType });
   }
 
-  const snakeClass = toSnake(pm.klass);
-  const snakeMethod = toSnake(pm.name);
-  const fnSnake = `${snakeClass}_${snakeMethod}`;
-  const fnPascal = toPascal(fnSnake);
+  // For conditional-path methods, surface OpenAPI/TS properties as OPTIONAL
+  // — they may only apply to one branch and forcing them required would
+  // misrepresent the contract. Selector dispatch is handled in
+  // emitConditionalDispatch; the flat path here covers the rare case where
+  // conditional emission fell through.
+  for (const p of typeInfo.options.properties) {
+    if (SKIP_PROPS.has(p.pyName)) continue;
+    if (seenPy.has(p.pyName)) continue;
+    seenPy.add(p.pyName);
+    const pyType = p.nullable ? `${p.pyType} | None` : p.pyType;
+    const required = p.optional === false && !pm.conditionalPath;
+    if (required) {
+      requiredBody.push({ pyName: p.pyName, wireName: p.name, pyType });
+    } else {
+      optionalBody.push({ pyName: p.pyName, wireName: p.name, pyType });
+    }
+  }
 
   const httpMethod = pm.verb === "del" ? "DELETE" : pm.verb.toUpperCase();
   const payloadKwarg =
     httpMethod === "GET" || httpMethod === "DELETE" ? "params" : "json";
 
-  // 4-tier signature: path → required body → optional (= _UNSET) → **options
+  // Strict-closed signature: path -> required body -> optional (= _UNSET).
+  // No `**options` at any layer; every accepted field is explicitly listed.
+  // Optional params append ` | _Unset` to the annotation so the sentinel
+  // default is type-compatible (mypy enforces default-vs-annotation match).
   const sigParts: string[] = [];
   for (const a of pathArgs) sigParts.push(`${a}: str | int`);
   for (const b of requiredBody) sigParts.push(`${b.pyName}: ${b.pyType}`);
-  for (const b of optionalBody) sigParts.push(`${b.pyName}: ${b.pyType} = _UNSET`);
-  if (useVarKwargs) sigParts.push("**options");
+  for (const b of optionalBody) sigParts.push(`${b.pyName}: ${b.pyType} | _Unset = _UNSET`);
   const sig = `def ${fnSnake}(${sigParts.join(", ")}):`;
 
   const lines: string[] = [];
@@ -1251,24 +1403,11 @@ function emitFn(pm: ParsedMethod): Emitted | null {
   }
 
   if (allBody.length === 0) {
-    if (useVarKwargs) {
-      lines.push(
-        `    return _ok(_get_client().request("${httpMethod}", f"${pathStr}", ${payloadKwarg}=options))`
-      );
-    } else {
-      lines.push(
-        `    return _ok(_get_client().request("${httpMethod}", f"${pathStr}"))`
-      );
-    }
+    lines.push(
+      `    return _ok(_get_client().request("${httpMethod}", f"${pathStr}"))`
+    );
   } else {
-    // Spread **options FIRST so explicitly typed params can't be silently
-    // shadowed by an extra (matters for keyword-collision renames like
-    // from_ → wire "from"). For closed types we start from an empty dict.
-    if (useVarKwargs) {
-      lines.push(`    payload = {**options}`);
-    } else {
-      lines.push(`    payload: dict = {}`);
-    }
+    lines.push(`    payload: dict = {}`);
     for (const b of requiredBody) {
       lines.push(`    payload[${JSON.stringify(b.wireName)}] = ${b.pyName}`);
     }
@@ -1281,12 +1420,16 @@ function emitFn(pm: ParsedMethod): Emitted | null {
     );
   }
 
+  const callKwargs = sigParts.map((p) => p.split(":")[0].trim());
+
   return {
     snakeName: fnSnake,
     pascalName: fnPascal,
     klass: pm.klass,
     verb: pm.verb,
     pyLines: lines,
+    sigParts,
+    callKwargs,
   };
 }
 
@@ -1307,6 +1450,104 @@ for (const pm of methods) {
   emittedByClassMethod.set(`${pm.klass}.${pm.name}`, em);
 }
 
+// ── MANUAL_OPS: standalone hand-written ops not in gitbeaker ──────────────
+
+function emitManualOp(mo: ManualOp): Emitted {
+  const snake = `${toSnake(mo.klass)}_${toSnake(mo.method)}`;
+  const pascal = toPascal(snake);
+
+  // pyPath operates on `${var}` gitbeaker-style templates; convert OpenAPI
+  // `{var}` placeholders to gitbeaker form so it tracks path args.
+  const gbStyle = mo.path.replace(/\{(\w+)\}/g, "${$1}");
+  const argsInPath = new Set<string>();
+  const pathStr = pyPath(gbStyle, argsInPath);
+
+  // Path params come from MANUAL_PARAM entries marked location:"path", in
+  // the order they appear in the template.
+  const pathOrder: string[] = [];
+  for (const m of mo.path.matchAll(/\{(\w+)\}/g)) pathOrder.push(toSnake(m[1]));
+
+  const pathArgs: { pyName: string; pyType: string }[] = [];
+  const bodyParams: { pyName: string; wireName: string; pyType: string; required: boolean }[] = [];
+  for (const p of mo.params) {
+    const wire = p.name;
+    const pyN = PY_KEYWORDS.has(wire) ? wire + "_" : wire;
+    if ((p.location ?? "body") === "path") {
+      pathArgs.push({ pyName: pyN, pyType: p.pyType });
+    } else {
+      const pyType = p.nullable ? `${p.pyType} | None` : p.pyType;
+      bodyParams.push({
+        pyName: pyN,
+        wireName: wire,
+        pyType,
+        required: p.required === true,
+      });
+    }
+  }
+  // Stable order: path args follow the URL template order.
+  pathArgs.sort(
+    (a, b) => pathOrder.indexOf(a.pyName) - pathOrder.indexOf(b.pyName),
+  );
+
+  const httpMethod = mo.verb.toUpperCase();
+  const payloadKwarg =
+    httpMethod === "GET" || httpMethod === "DELETE" ? "params" : "json";
+
+  const sigParts: string[] = [];
+  for (const a of pathArgs) sigParts.push(`${a.pyName}: ${a.pyType}`);
+  for (const b of bodyParams) {
+    if (b.required) sigParts.push(`${b.pyName}: ${b.pyType}`);
+  }
+  for (const b of bodyParams) {
+    if (!b.required) sigParts.push(`${b.pyName}: ${b.pyType} | _Unset = _UNSET`);
+  }
+
+  const callKwargs = sigParts.map((p) => p.split(":")[0].trim());
+
+  const lines: string[] = [];
+  lines.push(`def ${snake}(${sigParts.join(", ")}):`);
+  const wireList = bodyParams.map((b) => b.wireName).join(", ");
+  lines.push(
+    `    """${mo.klass}.${mo.method} (${httpMethod} ${mo.path}) [manual].${wireList ? ` Body fields: ${wireList}.` : ""}"""`,
+  );
+
+  if (bodyParams.length === 0) {
+    lines.push(`    return _ok(_get_client().request("${httpMethod}", f"${pathStr}"))`);
+  } else {
+    lines.push(`    payload: dict = {}`);
+    for (const b of bodyParams) {
+      if (b.required) {
+        lines.push(`    payload[${JSON.stringify(b.wireName)}] = ${b.pyName}`);
+      } else {
+        lines.push(`    if ${b.pyName} is not _UNSET:`);
+        lines.push(`        payload[${JSON.stringify(b.wireName)}] = ${b.pyName}`);
+      }
+    }
+    lines.push(
+      `    return _ok(_get_client().request("${httpMethod}", f"${pathStr}", ${payloadKwarg}=payload))`,
+    );
+  }
+
+  return {
+    snakeName: snake,
+    pascalName: pascal,
+    klass: mo.klass,
+    verb: mo.verb === "delete" ? "del" : mo.verb,
+    pyLines: lines,
+    sigParts,
+    callKwargs,
+  };
+}
+
+for (const mo of MANUAL_OPS) {
+  const em = emitManualOp(mo);
+  if (seenNames.has(em.snakeName)) continue;
+  seenNames.add(em.snakeName);
+  emitted.push(em);
+  emittedByClassMethod.set(`${mo.klass}.${mo.method}`, em);
+  stats.methodsManualOps++;
+}
+
 // ── Resolve delegations ───────────────────────────────────────────────────
 
 let aliasesEmitted = 0;
@@ -1321,20 +1562,14 @@ for (const d of delegations) {
   if (seenNames.has(aliasSnake)) continue;
 
   const aliasPascal = toPascal(aliasSnake);
-  const pyArgs = d.args
-    .filter((a) => /^\w+$/.test(a))
-    .map(toSnake);
-  const pyParams = [
-    ...pyArgs.filter((a) => a !== "options").map((a) => `${a}`),
-    "**options",
-  ];
-  const passArgs = [
-    ...pyArgs.filter((a) => a !== "options").map((a) => `${a}`),
-    "**options",
-  ];
+
+  // Mirror the target's exact strict-closed signature; forward each kwarg
+  // by name (omits `_UNSET` defaults if caller didn't pass them — Python
+  // semantics carry through).
+  const passArgs = targetEm.callKwargs.map((k) => `${k}=${k}`);
 
   const lines: string[] = [];
-  lines.push(`def ${aliasSnake}(${pyParams.join(", ")}):`);
+  lines.push(`def ${aliasSnake}(${targetEm.sigParts.join(", ")}):`);
   lines.push(
     `    """${d.klass}.${d.name} (alias for ${d.klass}.${d.target})."""`
   );
@@ -1346,6 +1581,8 @@ for (const d of delegations) {
     klass: d.klass,
     verb: targetEm.verb,
     pyLines: lines,
+    sigParts: targetEm.sigParts,
+    callKwargs: targetEm.callKwargs,
   });
   seenNames.add(aliasSnake);
   aliasesEmitted++;
@@ -1367,7 +1604,7 @@ const pyLines: string[] = [
   "from urllib.parse import quote as _q",
   "",
   "from .client import get_client as _get_client",
-  "from .registry import _UNSET",
+  "from .registry import _UNSET, _Unset",
   "",
   "",
   "def _enc(v) -> str:",
@@ -1510,9 +1747,13 @@ console.log(
     `  gitlab_delete:  ${groupMap.gitlab_delete.length}`
 );
 console.log("─".repeat(60));
-console.log(`Methods with typed body params:  ${stats.methodsTyped}`);
-console.log(`Methods kept **options (index sig): ${stats.methodsKeptOptions}`);
-console.log(`Type-resolution fallback:        ${stats.methodsTypeFallback}`);
+console.log(`Type-surface source provenance (strict-closed, no **options):`);
+console.log(`  From OpenAPI v3 (primary):     ${stats.methodsFromOpenApi}`);
+console.log(`  + gitbeaker TS overflow:       ${stats.methodsTsOverflow}`);
+console.log(`  + MANUAL_PARAMS merged:        ${stats.methodsManualMerged}`);
+console.log(`  Standalone MANUAL_OPS:         ${stats.methodsManualOps}`);
+console.log(`  Skipped (MANUAL_SKIP hit):     ${stats.methodsManualSkip}`);
+console.log(`  Skipped (no source available): ${stats.methodsNoSource}  <-- add to MANUAL_PARAMS / MANUAL_OPS to recover`);
 console.log(`Conditional-path dispatch:       ${stats.methodsConditionalPath}`);
 
 if (process.argv.includes("--show-skipped") && skippedMethods.length > 0) {

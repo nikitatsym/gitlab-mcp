@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 from urllib.parse import quote
 
 if TYPE_CHECKING:
@@ -44,10 +44,12 @@ def detect_instance(client: "GitLabClient") -> InstanceInfo:
     try:
         stats = client.get("/projects/vcs_type_stats")
         backend: Backend = "heptapod"
-        if isinstance(stats, dict):
-            vcs_types = set(stats.keys())
-        else:
-            vcs_types = {"git", "hg", "hg_git"}
+        # A fresh Heptapod with no projects returns {}; that doesn't mean it
+        # lacks hg support, just that nothing's been created yet. Heptapod
+        # always supports the full git/hg/hg_git matrix at the instance level.
+        vcs_types: set[str] = {"git", "hg", "hg_git"}
+        if isinstance(stats, dict) and stats:
+            vcs_types = set(stats.keys()) | vcs_types
     except GitLabError as e:
         if e.status == 404:
             backend = "gitlab"
@@ -65,7 +67,7 @@ def detect_instance(client: "GitLabClient") -> InstanceInfo:
     )
 
 
-def project_vcs_type(client: "GitLabClient", project_id: str) -> VcsType:
+def project_vcs_type(client: "GitLabClient", project_id: str | int) -> VcsType:
     """Determine the VCS type of a specific project on a Heptapod instance.
 
     Tries the `vcs_type` field on /projects/:id first; falls back to probing
@@ -84,7 +86,7 @@ def project_vcs_type(client: "GitLabClient", project_id: str) -> VcsType:
     if isinstance(proj, dict):
         vcs = proj.get("vcs_type")
         if vcs in _VALID_VCS:
-            return vcs  # type: ignore[return-value]
+            return cast(VcsType, vcs)
         if vcs is not None:
             raise RuntimeError(
                 f"Unknown vcs_type {vcs!r} returned by API for project {project_id}"

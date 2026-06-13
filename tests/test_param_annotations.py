@@ -91,7 +91,7 @@ class TestWrapParamAnnotations:
             assert meta.description == "A test description."
         finally:
             tools.PARAM_ANNOTATIONS.pop("synthetic_wrap_op", None)
-            del tools.synthetic_wrap_op
+            del tools.synthetic_wrap_op  # type: ignore[attr-defined]
 
     def test_wrap_is_idempotent(self):
         """Running twice → single Annotated layer, description preserved."""
@@ -122,7 +122,7 @@ class TestWrapParamAnnotations:
             assert args[1].description == "Second."
         finally:
             tools.PARAM_ANNOTATIONS.pop("synthetic_wrap_op2", None)
-            del tools.synthetic_wrap_op2
+            del tools.synthetic_wrap_op2  # type: ignore[attr-defined]
 
 
 # ── Pydantic model surfaces description ────────────────────────────────────

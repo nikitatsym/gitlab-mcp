@@ -218,7 +218,7 @@ class TestJobLogTail:
         _seed("gitlab", handler)
         from gitlab_mcp.tools import jobs_show_log
 
-        result = jobs_show_log(project_id=1, job_id=42, tail=5)
+        result = jobs_show_log(project_id=1, job_id=42, tail=5)  # type: ignore[call-arg]
         assert result["truncated"] is True
         assert result["total_lines"] == 100
         assert result["tail"] == 5
@@ -231,7 +231,7 @@ class TestJobLogTail:
         from gitlab_mcp.tools import jobs_show_log
 
         with pytest.raises(ValueError, match="tail must be >= 0"):
-            jobs_show_log(project_id=1, job_id=42, tail=-1)
+            jobs_show_log(project_id=1, job_id=42, tail=-1)  # type: ignore[call-arg]
 
     def test_tail_larger_than_total_returns_full(self):
         text = "only\ntwo\n"
@@ -242,7 +242,7 @@ class TestJobLogTail:
         _seed("gitlab", handler)
         from gitlab_mcp.tools import jobs_show_log
 
-        result = jobs_show_log(project_id=1, job_id=42, tail=100)
+        result = jobs_show_log(project_id=1, job_id=42, tail=100)  # type: ignore[call-arg]
         assert result["truncated"] is False
         assert result["total_lines"] == 2
 
