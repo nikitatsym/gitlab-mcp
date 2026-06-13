@@ -149,7 +149,9 @@ class TestHgOpsViaDispatch:
             "HgGetConfig", "gitlab_read", {"project_id": 42},
         )
         assert result == {"vcs_type": "hg"}
-        assert "/projects/42/hg_heptapod_config" in sent_paths[-1]
+        # hg_get_config -> /hgrc (structured config with defaults).
+        # /hg_heptapod_config (overrides only) is hg_get_raw_hgrc's endpoint.
+        assert "/projects/42/hgrc" in sent_paths[-1]
 
 
 # ── Fully-typed generated ops reject extras ───────────────────────────────

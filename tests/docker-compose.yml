@@ -50,11 +50,10 @@ services:
       - ci
 
   heptapod:
-    # `latest-stable` was retired by Octobus; `17-0-latest` is the newest
-    # publicly-pullable tag on Docker Hub (Aug 2024). Pin to a concrete
-    # version so CI is reproducible; bump when Octobus publishes a new public
-    # 17.x or later.
-    image: octobus/heptapod:17-0-latest
+    # `octobus/heptapod` stopped past 17.0.6; the live image lineage moved
+    # to `heptapod/heptapod` on Hub. Pin to a concrete tag so CI is
+    # reproducible; bump when a newer minor lands.
+    image: heptapod/heptapod:18-7-latest
     hostname: heptapod.test
     ports:
       - "8930:80"

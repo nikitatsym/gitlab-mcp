@@ -83,6 +83,25 @@ def _await_pipeline_id(agent, project_id: int, timeout: int = 60) -> int:
     raise AssertionError("no pipeline created within 60s of push")
 
 
+def _await_project_ready(agent, project_id, timeout=30):
+    """Wait until the project has its initial commit on `main`. `initialize_with_readme`
+    is async — pushing files immediately after create races with the seed commit
+    and fails 400 (no branch) or 500 (repo not yet writable)."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            proj = agent.call("projects_show", project_id=project_id)
+            if isinstance(proj, dict) and proj.get("default_branch") == "main":
+                # default_branch is set the moment the repo has its first commit
+                return
+        except Exception:
+            pass
+        time.sleep(0.5)
+    raise AssertionError(
+        f"project {project_id} did not finish seed-commit within {timeout}s"
+    )
+
+
 @pytest.fixture(scope="module")
 def project_with_pipeline(agent_gitlab):
     """Create a project, push a CI config that has one passing + one failing
@@ -96,6 +115,8 @@ def project_with_pipeline(agent_gitlab):
         visibility="private",
     )
     project_id = result["id"]
+
+    _await_project_ready(agent_gitlab, project_id)
 
     agent_gitlab.call(
         "repository_files_create",
@@ -250,6 +271,7 @@ def test_pipelines_wait_start_and_poll_full_flow(agent_gitlab):
         visibility="private",
     )
     project_id = project["id"]
+    _await_project_ready(agent_gitlab, project_id)
 
     try:
         agent_gitlab.call(
