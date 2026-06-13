@@ -591,8 +591,8 @@ class TestWaitResource:
 class TestWaitDispatch:
     def test_start_then_poll_through_dispatch(self):
         """End-to-end via server.dispatch — ensures the meta-tool wires the
-        new operations into the right groups (start/cancel → gitlab_execute,
-        poll → gitlab_read)."""
+        wait operations into gitlab_read (waits only GET the service; see
+        the group-assignment note in tools.py)."""
         scripts = {
             "/api/v4/projects/1/pipelines/42": [(200, _pipeline(42, "success"))],
             "/api/v4/projects/1/jobs": [(200, [])],
@@ -604,7 +604,7 @@ class TestWaitDispatch:
         async def flow():
             start_coro = server._dispatch(
                 "PipelinesWaitStart",
-                "gitlab_execute",
+                "gitlab_read",
                 {"project_id": 1, "pipeline_id": 42, "interval": 0.01},
             )
             assert asyncio.iscoroutine(start_coro)
@@ -625,13 +625,14 @@ class TestWaitDispatch:
 
     def test_start_in_wrong_group_routes_to_correct(self):
         """The dispatch's cross-group hint should tell callers where the op
-        actually lives."""
+        actually lives — including agents that look for waits in execute,
+        where they lived before the move to gitlab_read."""
         _seed(_handler({}))
         from gitlab_mcp import server
         server._register_tools()
-        with pytest.raises(ValueError, match="belongs to 'gitlab_execute'"):
+        with pytest.raises(ValueError, match="belongs to 'gitlab_read'"):
             server._dispatch(
-                "PipelinesWaitStart", "gitlab_read",
+                "PipelinesWaitStart", "gitlab_execute",
                 {"project_id": 1, "pipeline_id": 42},
             )
 
