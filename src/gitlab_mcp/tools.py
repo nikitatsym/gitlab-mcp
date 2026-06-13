@@ -27,7 +27,7 @@ from . import _generated
 from ._generated import *  # noqa: F401,F403 — re-export all generated ops
 from ._generated_groups import DEFAULT_GROUPS
 from .annotations import ANNOTATIONS
-from .client import get_client
+from .client import GitLabError, get_client
 from .param_annotations import PARAM_ANNOTATIONS
 from .prepare import (
     _categorize_branches,
@@ -998,6 +998,30 @@ _TERMINAL_LOG_LEVEL: dict[str, str] = {
     "scheduled": "info",
 }
 
+# Transient infrastructure blips (proxy 502s, connection resets, read
+# timeouts) are routine over a CI wait that spans many minutes; a single one
+# must not kill the wait. Non-transient API errors will not heal on retry
+# and fail immediately - see _poll_error_is_fatal.
+_MAX_POLL_FAILURES_DEFAULT = 3
+# Background waits poll until terminal; a pipeline stuck in `pending` with no
+# runner would otherwise keep a task polling forever. 2h covers any sane CI
+# run while still bounding the orphan case. 0 disables the cap.
+_MAX_LIFETIME_DEFAULT = 7200.0
+
+
+def _poll_error_is_fatal(e: Exception) -> bool:
+    """True for poll errors that retrying cannot fix (4xx other than 429).
+
+    Everything else - connect/read timeouts, connection resets, 5xx, 429 -
+    counts against the consecutive-failure budget instead of failing the
+    wait outright.
+    """
+    return (
+        isinstance(e, GitLabError)
+        and 400 <= e.status < 500
+        and e.status != 429
+    )
+
 
 async def _emit_progress(
     ctx: Context | None, progress: float, total: float | None, message: str
@@ -1054,6 +1078,10 @@ async def pipelines_wait(
         float,
         Field(description="Seconds between polls. Lower = faster reaction, more API calls."),
     ] = 5.0,
+    max_poll_failures: Annotated[
+        int,
+        Field(description="Consecutive transient poll failures (network errors, 5xx, 429) tolerated before the wait fails. Other 4xx errors fail immediately."),
+    ] = _MAX_POLL_FAILURES_DEFAULT,
     include_jobs: Annotated[
         bool,
         Field(description="When terminated, include the pipeline's jobs in the response."),
@@ -1070,11 +1098,21 @@ async def pipelines_wait(
 ):
     """Block until a pipeline reaches a terminal status.
 
+    Holds the MCP tool call open for the whole wait (up to `timeout`
+    seconds). If the agent should stay free to do other work during a long
+    CI run, use `pipelines_wait_start` + `pipelines_wait_poll(max_block=...)`
+    instead - same data, no long-held call.
+
     Polls `pipelines_show` every `interval` seconds for up to `timeout`
     seconds. Each status transition is streamed to the client via
     `ctx.report_progress(progress, total, message=...)` and `ctx.log(level,
     message)`. Clients without notification UI still get the full picture
     from the return value — progress and log are best-effort.
+
+    Transient poll failures (network errors, 5xx, 429) are tolerated up to
+    `max_poll_failures` consecutive misses; other 4xx errors raise
+    immediately. The HTTP calls run in a worker thread, so concurrent tool
+    calls are not stalled by a slow GitLab response.
 
     Terminal statuses: success, failed, canceled, skipped, manual, scheduled.
     `manual` and `scheduled` are terminal in the polling sense (they won't
@@ -1086,14 +1124,19 @@ async def pipelines_wait(
       terminated        True if a terminal status was reached
       timed_out         True if `timeout` expired first
       elapsed_seconds   wall-clock duration of the wait
-      polls             number of pipelines_show calls made
+      polls             number of pipelines_show calls made (incl. failed)
+      poll_failures     present when > 0: count of failed polls
+      last_poll_error   present alongside poll_failures: last failure text
       jobs              list (when include_jobs=True) of jobs in the pipeline
       failed_logs       dict[job_id, log] (when include_failed_logs=True)
+      enrichment_error  present if the post-wait jobs/log fetch failed
     """
     if timeout <= 0:
         raise ValueError(f"timeout must be > 0, got {timeout}")
     if interval <= 0:
         raise ValueError(f"interval must be > 0, got {interval}")
+    if max_poll_failures < 1:
+        raise ValueError(f"max_poll_failures must be >= 1, got {max_poll_failures}")
     if log_tail < 0:
         raise ValueError(f"log_tail must be >= 0, got {log_tail}")
 
@@ -1102,14 +1145,37 @@ async def pipelines_wait(
     pipeline: Any = {}
     status: str | None = None
     polls = 0
+    poll_failures = 0
+    consecutive_failures = 0
+    last_poll_error: str | None = None
     terminated = False
 
     while True:
         elapsed = time.monotonic() - start
-        pipeline = _generated.pipelines_show(
-            project_id=project_id, pipeline_id=pipeline_id
-        )
+        try:
+            pipeline = await asyncio.to_thread(
+                _generated.pipelines_show,
+                project_id=project_id,
+                pipeline_id=pipeline_id,
+            )
+        except Exception as e:  # noqa: BLE001 - classified below
+            polls += 1
+            poll_failures += 1
+            consecutive_failures += 1
+            last_poll_error = str(e)
+            if _poll_error_is_fatal(e) or consecutive_failures >= max_poll_failures:
+                raise
+            await _emit_log(
+                ctx, "warning",
+                f"pipeline #{pipeline_id}: poll failed "
+                f"({consecutive_failures}/{max_poll_failures} consecutive), retrying: {e}",
+            )
+            if elapsed + interval >= timeout:
+                break
+            await asyncio.sleep(interval)
+            continue
         polls += 1
+        consecutive_failures = 0
         status = pipeline.get("status") if isinstance(pipeline, dict) else None
 
         if status != previous_status:
@@ -1149,6 +1215,9 @@ async def pipelines_wait(
         "elapsed_seconds": round(elapsed_final, 2),
         "polls": polls,
     }
+    if poll_failures:
+        result["poll_failures"] = poll_failures
+        result["last_poll_error"] = last_poll_error
 
     if terminated:
         level = _TERMINAL_LOG_LEVEL.get(status or "", "info")
@@ -1165,46 +1234,58 @@ async def pipelines_wait(
         )
 
     if include_jobs:
-        jobs_raw = _generated.jobs_all(
-            project_id=project_id, pipeline_id=int(pipeline_id)
-        )
-        jobs = jobs_raw if isinstance(jobs_raw, list) else []
-        result["jobs"] = [_slim_job(j) for j in jobs]
-        if include_failed_logs:
-            failed_logs = _fetch_failed_logs(project_id, jobs, log_tail)
-            result["failed_logs"] = failed_logs
-            if failed_logs:
-                await _emit_log(
-                    ctx, "error",
-                    f"pipeline #{pipeline_id}: {len(failed_logs)} failed job(s); "
-                    f"trailing log attached (tail={log_tail})",
-                )
-
-        # Soft diagnostic for "failed before any job materialized" — a common
-        # but not exclusive signature of `.gitlab-ci.yml` validation failure.
-        # We don't auto-lint here: the waiter shouldn't read files or guess
-        # ref/content. Just point at the right tool so the caller can act.
-        yaml_errors = (
-            pipeline.get("yaml_errors") if isinstance(pipeline, dict) else None
-        )
-        if (
-            terminated
-            and status == "failed"
-            and not jobs
-            and not yaml_errors
-        ):
-            warning = (
-                f"pipeline #{pipeline_id} reached terminal status 'failed' "
-                "before any jobs were materialized. This often indicates a "
-                "`.gitlab-ci.yml` validation failure, but no `yaml_errors` "
-                "were attached to the pipeline. To get the parser error, "
-                "call gitlab_read(operation='LintCheck', params={'project_id': "
-                f"{project_id!r}}}) for the committed config, or "
-                "gitlab_read(operation='LintLint', params={'project_id': "
-                f"{project_id!r}, 'content': '<yaml>'}}) with explicit content."
+        # A blip here must not discard a wait that already completed -
+        # absorb and report instead of raising away minutes of progress.
+        try:
+            jobs_raw = await asyncio.to_thread(
+                _generated.jobs_all,
+                project_id=project_id,
+                pipeline_id=int(pipeline_id),
             )
-            result.setdefault("warnings", []).append(warning)
-            await _emit_log(ctx, "warning", warning)
+        except Exception as e:  # noqa: BLE001 - surface as content, not abort
+            result["enrichment_error"] = f"failed to fetch jobs: {e}"
+            jobs_raw = None
+        if jobs_raw is not None:
+            jobs = jobs_raw if isinstance(jobs_raw, list) else []
+            result["jobs"] = [_slim_job(j) for j in jobs]
+            if include_failed_logs:
+                failed_logs = await asyncio.to_thread(
+                    _fetch_failed_logs, project_id, jobs, log_tail
+                )
+                result["failed_logs"] = failed_logs
+                if failed_logs:
+                    await _emit_log(
+                        ctx, "error",
+                        f"pipeline #{pipeline_id}: {len(failed_logs)} failed job(s); "
+                        f"trailing log attached (tail={log_tail})",
+                    )
+
+            # Soft diagnostic for "failed before any job materialized" - a
+            # common but not exclusive signature of `.gitlab-ci.yml`
+            # validation failure. We don't auto-lint here: the waiter
+            # shouldn't read files or guess ref/content. Just point at the
+            # right tool so the caller can act.
+            yaml_errors = (
+                pipeline.get("yaml_errors") if isinstance(pipeline, dict) else None
+            )
+            if (
+                terminated
+                and status == "failed"
+                and not jobs
+                and not yaml_errors
+            ):
+                warning = (
+                    f"pipeline #{pipeline_id} reached terminal status 'failed' "
+                    "before any jobs were materialized. This often indicates a "
+                    "`.gitlab-ci.yml` validation failure, but no `yaml_errors` "
+                    "were attached to the pipeline. To get the parser error, "
+                    "call gitlab_read(operation='LintCheck', params={'project_id': "
+                    f"{project_id!r}}}) for the committed config, or "
+                    "gitlab_read(operation='LintLint', params={'project_id': "
+                    f"{project_id!r}, 'content': '<yaml>'}}) with explicit content."
+                )
+                result.setdefault("warnings", []).append(warning)
+                await _emit_log(ctx, "warning", warning)
 
     return result
 
@@ -1221,6 +1302,10 @@ async def jobs_wait(
         float,
         Field(description="Seconds between polls. Lower = faster reaction, more API calls."),
     ] = 5.0,
+    max_poll_failures: Annotated[
+        int,
+        Field(description="Consecutive transient poll failures (network errors, 5xx, 429) tolerated before the wait fails. Other 4xx errors fail immediately."),
+    ] = _MAX_POLL_FAILURES_DEFAULT,
     include_log: Annotated[
         bool,
         Field(description="Include the job's trailing log in the response when terminated."),
@@ -1233,11 +1318,19 @@ async def jobs_wait(
 ):
     """Block until a job reaches a terminal status.
 
+    Holds the MCP tool call open for the whole wait (up to `timeout`
+    seconds). If the agent should stay free to do other work during a long
+    job, use `jobs_wait_start` + `jobs_wait_poll(max_block=...)` instead.
+
     Polls `jobs_show` every `interval` seconds for up to `timeout` seconds.
     Each status transition is streamed via `ctx.report_progress(message=…)`
     and `ctx.log(level, message)`. The final result dict is the source of
     truth — clients without notification UI still get everything from the
     return value; progress / log are best-effort.
+
+    Transient poll failures (network errors, 5xx, 429) are tolerated up to
+    `max_poll_failures` consecutive misses; other 4xx errors raise
+    immediately.
 
     Terminal statuses: success, failed, canceled, skipped, manual, scheduled.
 
@@ -1247,7 +1340,9 @@ async def jobs_wait(
       terminated        True if a terminal status was reached
       timed_out         True if `timeout` expired first
       elapsed_seconds   wall-clock duration of the wait
-      polls             number of jobs_show calls made
+      polls             number of jobs_show calls made (incl. failed)
+      poll_failures     present when > 0: count of failed polls
+      last_poll_error   present alongside poll_failures: last failure text
       log               trailing log (when include_log=True), structured like
                         jobs_show_log: {text, total_lines, tail, truncated}
     """
@@ -1255,6 +1350,8 @@ async def jobs_wait(
         raise ValueError(f"timeout must be > 0, got {timeout}")
     if interval <= 0:
         raise ValueError(f"interval must be > 0, got {interval}")
+    if max_poll_failures < 1:
+        raise ValueError(f"max_poll_failures must be >= 1, got {max_poll_failures}")
     if log_tail < 0:
         raise ValueError(f"log_tail must be >= 0, got {log_tail}")
 
@@ -1263,12 +1360,35 @@ async def jobs_wait(
     job: Any = {}
     status: str | None = None
     polls = 0
+    poll_failures = 0
+    consecutive_failures = 0
+    last_poll_error: str | None = None
     terminated = False
 
     while True:
         elapsed = time.monotonic() - start
-        job = _generated.jobs_show(project_id=project_id, job_id=job_id)
+        try:
+            job = await asyncio.to_thread(
+                _generated.jobs_show, project_id=project_id, job_id=job_id
+            )
+        except Exception as e:  # noqa: BLE001 - classified below
+            polls += 1
+            poll_failures += 1
+            consecutive_failures += 1
+            last_poll_error = str(e)
+            if _poll_error_is_fatal(e) or consecutive_failures >= max_poll_failures:
+                raise
+            await _emit_log(
+                ctx, "warning",
+                f"job #{job_id}: poll failed "
+                f"({consecutive_failures}/{max_poll_failures} consecutive), retrying: {e}",
+            )
+            if elapsed + interval >= timeout:
+                break
+            await asyncio.sleep(interval)
+            continue
         polls += 1
+        consecutive_failures = 0
         status = job.get("status") if isinstance(job, dict) else None
 
         if status != previous_status:
@@ -1308,6 +1428,9 @@ async def jobs_wait(
         "elapsed_seconds": round(elapsed_final, 2),
         "polls": polls,
     }
+    if poll_failures:
+        result["poll_failures"] = poll_failures
+        result["last_poll_error"] = last_poll_error
 
     if terminated:
         level = _TERMINAL_LOG_LEVEL.get(status or "", "info")
@@ -1325,8 +1448,8 @@ async def jobs_wait(
 
     if include_log:
         try:
-            result["log"] = jobs_show_log(
-                project_id=project_id, job_id=job_id, tail=log_tail
+            result["log"] = await asyncio.to_thread(
+                jobs_show_log, project_id=project_id, job_id=job_id, tail=log_tail
             )
         except Exception as e:  # noqa: BLE001 — surface as content, not abort
             result["log"] = {"error": f"failed to fetch log: {e}"}
@@ -1341,13 +1464,17 @@ async def jobs_wait(
 # anything else for up to `timeout` seconds. The trio below splits the
 # operation into:
 #
-#   start  — one initial sync poll, spawns a background task for the rest,
+#   start  - one initial inline poll, spawns a background task for the rest,
 #            returns a `wait_id` + snapshot immediately.
 #   poll   — read current snapshot. `max_block > 0` waits efficiently on
 #            the handle's done_event so a poll can sleep up to N seconds
 #            without busy-looping.
 #   cancel — cancel the underlying task, leaves the snapshot in the
 #            registry (so the caller can still read the partial state).
+#
+# The background loop tolerates transient poll failures (budgeted via
+# `max_poll_failures`) and self-terminates after `max_lifetime` seconds so
+# an orphaned target can't keep a task polling forever.
 #
 # Each wait is also exposed as an MCP Resource at `gitlab://waits/{wait_id}`
 # (registered in server.py) so clients that support resource reads can
@@ -1361,15 +1488,19 @@ from .wait_registry import (  # noqa: E402 — defined late so registry is optio
 )
 
 
-def _do_pipeline_poll(handle: _WaitHandle) -> bool:
+async def _do_pipeline_poll(handle: _WaitHandle) -> bool:
     """One pipeline poll. Updates handle, returns True if terminal.
 
-    Sync function: the underlying httpx call blocks the event loop briefly,
-    matching the pattern used by every other tool in this module. Wrap in
-    a try/except by the caller if it should not propagate.
+    The HTTP call runs in a worker thread (`asyncio.to_thread`) so a slow
+    GitLab response never stalls the event loop. The handle is mutated only
+    after the await, back on the loop - preserving the single-writer
+    invariant documented in wait_registry. Wrap in a try/except by the
+    caller if it should not propagate.
     """
-    payload = _generated.pipelines_show(
-        project_id=handle.project_id, pipeline_id=handle.target_id
+    payload = await asyncio.to_thread(
+        _generated.pipelines_show,
+        project_id=handle.project_id,
+        pipeline_id=handle.target_id,
     )
     handle.polls += 1
     handle.last_payload = payload
@@ -1378,10 +1509,12 @@ def _do_pipeline_poll(handle: _WaitHandle) -> bool:
     return status in _TERMINAL_STATUSES
 
 
-def _do_job_poll(handle: _WaitHandle) -> bool:
+async def _do_job_poll(handle: _WaitHandle) -> bool:
     """One job poll. Updates handle, returns True if terminal."""
-    payload = _generated.jobs_show(
-        project_id=handle.project_id, job_id=handle.target_id
+    payload = await asyncio.to_thread(
+        _generated.jobs_show,
+        project_id=handle.project_id,
+        job_id=handle.target_id,
     )
     handle.polls += 1
     handle.last_payload = payload
@@ -1390,24 +1523,27 @@ def _do_job_poll(handle: _WaitHandle) -> bool:
     return status in _TERMINAL_STATUSES
 
 
-def _enrich_pipeline_final(handle: _WaitHandle) -> None:
+async def _enrich_pipeline_final(handle: _WaitHandle) -> None:
     """Populate handle.final_extras (jobs, failed_logs, warnings) after terminal.
 
     Mirrors the blocking `pipelines_wait` finalisation: optional jobs list,
     optional failed-job logs, and the soft `.gitlab-ci.yml` diagnostic
     when a pipeline reaches `failed` before any job materialised.
+    HTTP runs in worker threads; final_extras is written on the loop.
     """
     opts = handle.options
     if not opts.get("include_jobs", True):
         return
-    jobs_raw = _generated.jobs_all(
-        project_id=handle.project_id, pipeline_id=int(handle.target_id)
+    jobs_raw = await asyncio.to_thread(
+        _generated.jobs_all,
+        project_id=handle.project_id,
+        pipeline_id=int(handle.target_id),
     )
     jobs = jobs_raw if isinstance(jobs_raw, list) else []
     handle.final_extras["jobs"] = [_slim_job(j) for j in jobs]
     if opts.get("include_failed_logs", True):
-        handle.final_extras["failed_logs"] = _fetch_failed_logs(
-            handle.project_id, jobs, opts.get("log_tail", 100)
+        handle.final_extras["failed_logs"] = await asyncio.to_thread(
+            _fetch_failed_logs, handle.project_id, jobs, opts.get("log_tail", 100)
         )
 
     yaml_errors = (
@@ -1433,13 +1569,14 @@ def _enrich_pipeline_final(handle: _WaitHandle) -> None:
         handle.final_extras.setdefault("warnings", []).append(warning)
 
 
-def _enrich_job_final(handle: _WaitHandle) -> None:
+async def _enrich_job_final(handle: _WaitHandle) -> None:
     """Attach trailing job log to final_extras when include_log is set."""
     opts = handle.options
     if not opts.get("include_log", True):
         return
     try:
-        handle.final_extras["log"] = jobs_show_log(
+        handle.final_extras["log"] = await asyncio.to_thread(
+            jobs_show_log,
             project_id=handle.project_id,
             job_id=handle.target_id,
             tail=opts.get("log_tail", 100),
@@ -1448,20 +1585,45 @@ def _enrich_job_final(handle: _WaitHandle) -> None:
         handle.final_extras["log"] = {"error": f"failed to fetch log: {e}"}
 
 
-async def _pipeline_loop(handle: _WaitHandle) -> None:
-    """Background task body: sleep, poll, repeat until terminal."""
+async def _wait_loop(handle: _WaitHandle, do_poll, enrich_final) -> None:
+    """Background task body: sleep, poll, repeat until terminal.
+
+    Shared by pipeline and job waits - `do_poll` / `enrich_final` are the
+    kind-specific async callables. Tolerates `max_poll_failures` consecutive
+    transient poll errors (fatal 4xx fail immediately) and gives up with
+    `timed_out=True` once `max_lifetime` seconds have passed without a
+    terminal status.
+    """
     interval = handle.options["interval"]
+    max_failures = handle.options.get("max_poll_failures", _MAX_POLL_FAILURES_DEFAULT)
+    max_lifetime = handle.options.get("max_lifetime", _MAX_LIFETIME_DEFAULT)
+    consecutive_failures = 0
     try:
         while True:
             await asyncio.sleep(interval)
-            try:
-                terminal = _do_pipeline_poll(handle)
-            except Exception as e:  # noqa: BLE001
-                handle.mark_terminated(error=f"poll failed: {e}")
+            if max_lifetime > 0 and (time.time() - handle.started_at) >= max_lifetime:
+                handle.mark_timed_out(
+                    f"exceeded max_lifetime {max_lifetime:g}s without reaching "
+                    f"a terminal status (last status={handle.status})"
+                )
                 return
+            try:
+                terminal = await do_poll(handle)
+            except Exception as e:  # noqa: BLE001 - classified below
+                consecutive_failures += 1
+                handle.record_poll_failure(str(e))
+                if _poll_error_is_fatal(e) or consecutive_failures >= max_failures:
+                    suffix = (
+                        f" ({consecutive_failures} consecutive failures)"
+                        if consecutive_failures > 1 else ""
+                    )
+                    handle.mark_terminated(error=f"poll failed: {e}{suffix}")
+                    return
+                continue
+            consecutive_failures = 0
             if terminal:
                 try:
-                    _enrich_pipeline_final(handle)
+                    await enrich_final(handle)
                 except Exception as e:  # noqa: BLE001 — enrichment is best-effort
                     handle.final_extras["enrichment_error"] = str(e)
                 handle.mark_terminated()
@@ -1471,27 +1633,12 @@ async def _pipeline_loop(handle: _WaitHandle) -> None:
         raise
 
 
+async def _pipeline_loop(handle: _WaitHandle) -> None:
+    await _wait_loop(handle, _do_pipeline_poll, _enrich_pipeline_final)
+
+
 async def _job_loop(handle: _WaitHandle) -> None:
-    """Background task body: sleep, poll, repeat until terminal."""
-    interval = handle.options["interval"]
-    try:
-        while True:
-            await asyncio.sleep(interval)
-            try:
-                terminal = _do_job_poll(handle)
-            except Exception as e:  # noqa: BLE001
-                handle.mark_terminated(error=f"poll failed: {e}")
-                return
-            if terminal:
-                try:
-                    _enrich_job_final(handle)
-                except Exception as e:  # noqa: BLE001
-                    handle.final_extras["enrichment_error"] = str(e)
-                handle.mark_terminated()
-                return
-    except asyncio.CancelledError:
-        handle.mark_terminated(error="cancelled")
-        raise
+    await _wait_loop(handle, _do_job_poll, _enrich_job_final)
 
 
 async def _cancel_handle(handle: _WaitHandle) -> None:
@@ -1538,6 +1685,14 @@ async def pipelines_wait_start(
         float,
         Field(description="Seconds between background polls. Lower = faster reaction, more API calls."),
     ] = 5.0,
+    max_poll_failures: Annotated[
+        int,
+        Field(description="Consecutive transient poll failures (network errors, 5xx, 429) tolerated by the background loop before the wait errors out. Other 4xx errors fail immediately."),
+    ] = _MAX_POLL_FAILURES_DEFAULT,
+    max_lifetime: Annotated[
+        float,
+        Field(description="Hard cap in seconds on the background wait's total runtime; when exceeded the wait stops with timed_out=True. 0 disables the cap."),
+    ] = _MAX_LIFETIME_DEFAULT,
     include_jobs: Annotated[
         bool,
         Field(description="When the pipeline terminates, attach the slim jobs list to the final snapshot."),
@@ -1563,11 +1718,21 @@ async def pipelines_wait_start(
     the resource at `gitlab://waits/{wait_id}`. Stop with
     `pipelines_wait_cancel(wait_id)`.
 
+    The background loop tolerates `max_poll_failures` consecutive transient
+    poll failures (network errors, 5xx, 429); other 4xx errors stop the wait
+    immediately. After `max_lifetime` seconds without a terminal status the
+    wait gives up with `timed_out=True` so an orphaned pipeline (e.g. stuck
+    `pending` with no runner) can't keep a polling task alive forever.
+
     Returns the same snapshot shape as `pipelines_wait_poll`. See its
     docstring for field semantics.
     """
     if interval <= 0:
         raise ValueError(f"interval must be > 0, got {interval}")
+    if max_poll_failures < 1:
+        raise ValueError(f"max_poll_failures must be >= 1, got {max_poll_failures}")
+    if max_lifetime < 0:
+        raise ValueError(f"max_lifetime must be >= 0, got {max_lifetime}")
     if log_tail < 0:
         raise ValueError(f"log_tail must be >= 0, got {log_tail}")
 
@@ -1575,6 +1740,8 @@ async def pipelines_wait_start(
 
     options = {
         "interval": interval,
+        "max_poll_failures": max_poll_failures,
+        "max_lifetime": max_lifetime,
         "include_jobs": include_jobs,
         "include_failed_logs": include_failed_logs,
         "log_tail": log_tail,
@@ -1583,16 +1750,18 @@ async def pipelines_wait_start(
         "pipeline", project_id, pipeline_id, options
     )
 
-    # First poll synchronously so the returned snapshot carries real status.
+    # First poll inline so the returned snapshot carries real status. It
+    # fails fast (no budget): an immediate error here is feedback the agent
+    # can act on right away - wrong ID, no access, instance down.
     try:
-        terminal = _do_pipeline_poll(handle)
+        terminal = await _do_pipeline_poll(handle)
     except Exception as e:  # noqa: BLE001
         handle.mark_terminated(error=f"initial poll failed: {e}")
         return handle.snapshot()
 
     if terminal:
         try:
-            _enrich_pipeline_final(handle)
+            await _enrich_pipeline_final(handle)
         except Exception as e:  # noqa: BLE001
             handle.final_extras["enrichment_error"] = str(e)
         handle.mark_terminated()
@@ -1624,13 +1793,17 @@ async def pipelines_wait_poll(
       project_id, pipeline_id
       status            latest observed status
       terminated        True once a terminal status was reached
-      timed_out         True only if the caller's max_block elapsed before terminal
-      polls             number of pipelines_show calls made
+      timed_out         True if this poll's max_block elapsed before terminal,
+                        or if the wait gave up after max_lifetime (then `error`
+                        is set too and the wait is over)
+      polls             number of pipelines_show calls made (incl. failed)
+      poll_failures     present when > 0: count of failed polls so far
+      last_poll_error   present alongside poll_failures: last failure text
       transitions       list of {from, to, elapsed_seconds} entries
       pipeline          full pipelines_show payload from the latest poll
       started_at, ended_at, elapsed_seconds
       jobs, failed_logs, warnings   only when terminated (and include_* set on start)
-      error             set if the wait failed or was cancelled
+      error             set if the wait failed, timed out, or was cancelled
     """
     if max_block < 0:
         raise ValueError(f"max_block must be >= 0, got {max_block}")
@@ -1669,6 +1842,14 @@ async def jobs_wait_start(
         float,
         Field(description="Seconds between background polls."),
     ] = 5.0,
+    max_poll_failures: Annotated[
+        int,
+        Field(description="Consecutive transient poll failures (network errors, 5xx, 429) tolerated by the background loop before the wait errors out. Other 4xx errors fail immediately."),
+    ] = _MAX_POLL_FAILURES_DEFAULT,
+    max_lifetime: Annotated[
+        float,
+        Field(description="Hard cap in seconds on the background wait's total runtime; when exceeded the wait stops with timed_out=True. 0 disables the cap."),
+    ] = _MAX_LIFETIME_DEFAULT,
     include_log: Annotated[
         bool,
         Field(description="On termination, attach the job's trailing log to the final snapshot."),
@@ -1681,11 +1862,16 @@ async def jobs_wait_start(
     """Start a non-blocking wait for a job to reach a terminal status.
 
     Returns a handle immediately. See `pipelines_wait_start` for the same
-    pattern; observe with `jobs_wait_poll(wait_id, max_block=...)` or read
-    the resource at `gitlab://waits/{wait_id}`.
+    pattern (including `max_poll_failures` / `max_lifetime` semantics);
+    observe with `jobs_wait_poll(wait_id, max_block=...)` or read the
+    resource at `gitlab://waits/{wait_id}`.
     """
     if interval <= 0:
         raise ValueError(f"interval must be > 0, got {interval}")
+    if max_poll_failures < 1:
+        raise ValueError(f"max_poll_failures must be >= 1, got {max_poll_failures}")
+    if max_lifetime < 0:
+        raise ValueError(f"max_lifetime must be >= 0, got {max_lifetime}")
     if log_tail < 0:
         raise ValueError(f"log_tail must be >= 0, got {log_tail}")
 
@@ -1693,20 +1879,22 @@ async def jobs_wait_start(
 
     options = {
         "interval": interval,
+        "max_poll_failures": max_poll_failures,
+        "max_lifetime": max_lifetime,
         "include_log": include_log,
         "log_tail": log_tail,
     }
     handle = _WAIT_REGISTRY.new_handle("job", project_id, job_id, options)
 
     try:
-        terminal = _do_job_poll(handle)
+        terminal = await _do_job_poll(handle)
     except Exception as e:  # noqa: BLE001
         handle.mark_terminated(error=f"initial poll failed: {e}")
         return handle.snapshot()
 
     if terminal:
         try:
-            _enrich_job_final(handle)
+            await _enrich_job_final(handle)
         except Exception as e:  # noqa: BLE001
             handle.final_extras["enrichment_error"] = str(e)
         handle.mark_terminated()
@@ -1764,7 +1952,8 @@ def waits_list(
     Returns a list of compact dicts (no payload, no jobs, no logs) suitable
     for letting the agent recover after losing a wait_id. Each entry has:
       wait_id, resource_uri, kind, project_id, target_id, status,
-      terminated, polls, elapsed_seconds, started_at, ended_at.
+      terminated, timed_out, polls, elapsed_seconds, started_at, ended_at,
+      error.
 
     The wait registry has a TTL (default 1 hour after termination); after
     that, entries are reaped and no longer listed.
@@ -1786,6 +1975,7 @@ def waits_list(
             target_key: handle.target_id,
             "status": handle.status,
             "terminated": handle.terminated,
+            "timed_out": handle.timed_out,
             "polls": handle.polls,
             "elapsed_seconds": handle.elapsed_seconds,
             "started_at": handle.started_at,
