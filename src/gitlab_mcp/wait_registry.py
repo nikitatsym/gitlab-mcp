@@ -18,9 +18,11 @@ have been terminal for more than `_DEFAULT_TTL_SECONDS` so the dict
 doesn't grow without bound in long-lived servers.
 
 Concurrency note: snapshot read and field updates happen on the same
-asyncio loop. The poll task is the sole writer to mutable state on the
-handle, so no lock is needed — reads from other coroutines see a
-consistent snapshot at every await point.
+asyncio loop. The HTTP request inside a poll runs in a worker thread
+(`asyncio.to_thread`), but its result is applied to the handle back on
+the loop, and the poll task is the sole writer to mutable state - so no
+lock is needed; reads from other coroutines see a consistent snapshot
+at every await point.
 """
 
 from __future__ import annotations
@@ -52,7 +54,10 @@ class WaitHandle:
         "options",
         "status",
         "terminated",
+        "timed_out",
         "polls",
+        "poll_failures",
+        "last_poll_error",
         "started_at",
         "ended_at",
         "last_payload",
@@ -79,7 +84,10 @@ class WaitHandle:
 
         self.status: str | None = None
         self.terminated: bool = False
+        self.timed_out: bool = False
         self.polls: int = 0
+        self.poll_failures: int = 0
+        self.last_poll_error: str | None = None
         self.started_at: float = time.time()
         self.ended_at: float | None = None
         self.last_payload: Any = None
@@ -108,9 +116,24 @@ class WaitHandle:
         self.status = new_status
         return True
 
+    def record_poll_failure(self, message: str) -> None:
+        """Count a failed poll attempt. A failed HTTP call is still a call,
+        so `polls` advances too. Kept on the handle (not loop-local) so a
+        snapshot shows flakiness even after the wait recovers."""
+        self.polls += 1
+        self.poll_failures += 1
+        self.last_poll_error = message
+
     def mark_terminated(self, *, error: str | None = None) -> None:
         self.terminated = error is None
         self.error = error
+        self.ended_at = time.time()
+        self.done_event.set()
+
+    def mark_timed_out(self, message: str) -> None:
+        """The wait gave up (max_lifetime exceeded) without a terminal status."""
+        self.timed_out = True
+        self.error = message
         self.ended_at = time.time()
         self.done_event.set()
 
@@ -132,13 +155,16 @@ class WaitHandle:
             target_key: self.target_id,
             "status": self.status,
             "terminated": self.terminated,
-            "timed_out": False,  # waits don't time out themselves; see options
+            "timed_out": self.timed_out,
             "polls": self.polls,
             "elapsed_seconds": self.elapsed_seconds,
             "started_at": self.started_at,
             "ended_at": self.ended_at,
             "transitions": list(self.transitions),
         }
+        if self.poll_failures:
+            snap["poll_failures"] = self.poll_failures
+            snap["last_poll_error"] = self.last_poll_error
         if self.last_payload is not None:
             snap[payload_key] = self.last_payload
         if self.error is not None:

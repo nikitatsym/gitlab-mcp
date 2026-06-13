@@ -12,7 +12,7 @@ Full REST API coverage with VCS-aware helpers — one tool surface, two backends
 - **Pre-flight guards** — block `fork` on hg projects, validate hg topic naming on MR creation, detect silently-dropped fields in write responses
 - **Visibility default-deny** — public/internal projects/snippets/groups blocked unless `--allow-public` is passed
 - **Slim list views** — `brief=True` returns trimmed entries for projects/MRs/issues/branches/commits/etc. so the LLM doesn't drown in metadata
-- **Long-running waiters** — `pipelines_wait` / `jobs_wait` block until a CI pipeline or job reaches a terminal status, streaming each transition via MCP `report_progress` + `log` notifications. Final summary (with failed-job log tails for pipelines) is returned even if the client doesn't render notifications
+- **Long-running waiters** - `pipelines_wait` / `jobs_wait` block until a CI pipeline or job reaches a terminal status, streaming each transition via MCP `report_progress` + `log` notifications. Final summary (with failed-job log tails for pipelines) is returned even if the client doesn't render notifications. For agents that should stay responsive there is a non-blocking variant: `*_wait_start` returns a `wait_id` immediately, `*_wait_poll(wait_id, max_block=...)` reads/awaits the snapshot, `*_wait_cancel` stops it, `waits_list` recovers lost ids. Waits tolerate transient API errors (`max_poll_failures`, default 3 consecutive) and background waits self-terminate after `max_lifetime` (default 2 h)
 - Self-service helpers for SSH/GPG keys, emails, and notification settings (which gitbeaker hides behind URL helpers)
 - Zero-config install via `uvx`
 

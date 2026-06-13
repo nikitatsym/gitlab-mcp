@@ -643,3 +643,122 @@ class TestWaitDispatch:
         server._register_tools()
         result = server._dispatch("WaitsList", "gitlab_read", {})
         assert result == []
+
+
+# ── resilience: poll-failure budget and max_lifetime ──────────────────────
+
+
+class TestWaitResilience:
+    def test_transient_poll_failure_recovers(self):
+        """A single 502 mid-wait counts against the budget but the wait
+        carries on and still reaches the terminal status."""
+        scripts = {
+            "/api/v4/projects/1/pipelines/42": [
+                (200, _pipeline(42, "running")),   # initial inline poll
+                (502, {"message": "bad gateway"}),  # transient blip
+                (200, _pipeline(42, "success")),
+            ],
+            "/api/v4/projects/1/jobs": [
+                (200, [_job(101, "success")]),
+            ],
+        }
+        _seed(_handler(scripts))
+        from gitlab_mcp.tools import pipelines_wait_start, pipelines_wait_poll
+
+        async def flow():
+            snap = await pipelines_wait_start(
+                project_id=1, pipeline_id=42, interval=0.01,
+            )
+            return await pipelines_wait_poll(snap["wait_id"], max_block=5.0)
+
+        poll = asyncio.run(flow())
+        assert poll["terminated"] is True
+        assert poll["status"] == "success"
+        assert poll["poll_failures"] == 1
+        assert "502" in poll["last_poll_error"]
+
+    def test_consecutive_failures_exhaust_budget(self):
+        """max_poll_failures consecutive transient errors stop the wait with
+        an error mentioning the failure count."""
+        scripts = {
+            "/api/v4/projects/1/pipelines/42": [
+                (200, _pipeline(42, "running")),   # initial inline poll
+                (502, {"message": "bad gateway"}),  # repeats forever
+            ],
+        }
+        _seed(_handler(scripts))
+        from gitlab_mcp.tools import pipelines_wait_start, pipelines_wait_poll
+
+        async def flow():
+            snap = await pipelines_wait_start(
+                project_id=1, pipeline_id=42, interval=0.01,
+                max_poll_failures=2, include_jobs=False,
+            )
+            return await pipelines_wait_poll(snap["wait_id"], max_block=5.0)
+
+        poll = asyncio.run(flow())
+        assert poll["terminated"] is False
+        assert poll["timed_out"] is False
+        assert "2 consecutive failures" in poll["error"]
+        assert poll["poll_failures"] == 2
+
+    def test_fatal_4xx_stops_wait_immediately(self):
+        """A 404 mid-wait (pipeline deleted) must not burn through the
+        budget - it fails on the first occurrence."""
+        scripts = {
+            "/api/v4/projects/1/pipelines/42": [
+                (200, _pipeline(42, "running")),    # initial inline poll
+                (404, {"message": "404 Not Found"}),  # repeats forever
+            ],
+        }
+        _seed(_handler(scripts))
+        from gitlab_mcp.tools import pipelines_wait_start, pipelines_wait_poll
+
+        async def flow():
+            snap = await pipelines_wait_start(
+                project_id=1, pipeline_id=42, interval=0.01,
+                max_poll_failures=5, include_jobs=False,
+            )
+            return await pipelines_wait_poll(snap["wait_id"], max_block=5.0)
+
+        poll = asyncio.run(flow())
+        assert poll["terminated"] is False
+        assert poll["poll_failures"] == 1
+        assert "404" in poll["error"]
+
+    def test_max_lifetime_marks_timed_out(self):
+        """A wait whose target never terminates gives up after max_lifetime
+        with timed_out=True and a self-explanatory error."""
+        scripts = {
+            "/api/v4/projects/1/pipelines/42": [
+                (200, _pipeline(42, "running")),
+            ],
+        }
+        _seed(_handler(scripts))
+        from gitlab_mcp.tools import pipelines_wait_start, pipelines_wait_poll
+
+        async def flow():
+            snap = await pipelines_wait_start(
+                project_id=1, pipeline_id=42, interval=0.01,
+                max_lifetime=0.05, include_jobs=False,
+            )
+            return await pipelines_wait_poll(snap["wait_id"], max_block=5.0)
+
+        poll = asyncio.run(flow())
+        assert poll["timed_out"] is True
+        assert poll["terminated"] is False
+        assert "max_lifetime" in poll["error"]
+        assert poll["status"] == "running"
+
+    def test_rejects_bad_resilience_params(self):
+        _seed(_handler({}))
+        from gitlab_mcp.tools import pipelines_wait_start, jobs_wait_start
+
+        with pytest.raises(ValueError, match="max_poll_failures must be >= 1"):
+            asyncio.run(pipelines_wait_start(
+                project_id=1, pipeline_id=42, max_poll_failures=0,
+            ))
+        with pytest.raises(ValueError, match="max_lifetime must be >= 0"):
+            asyncio.run(jobs_wait_start(
+                project_id=1, job_id=7, max_lifetime=-1,
+            ))

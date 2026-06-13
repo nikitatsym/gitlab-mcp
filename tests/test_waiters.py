@@ -652,3 +652,122 @@ class TestWaitViaDispatch:
             # If coro slipped through, drain it to surface the error.
             if asyncio.iscoroutine(coro):
                 asyncio.run(coro)
+
+
+# ── poll-failure budget (blocking waiters) ─────────────────────────────────
+
+
+class TestPollFailureBudget:
+    def test_transient_blip_is_tolerated(self):
+        """One 502 mid-wait: the waiter logs a warning, keeps polling, and
+        the final result reports the blip without failing the call."""
+        scripts = {
+            "/api/v4/projects/1/pipelines/42": [
+                (200, _pipeline_response(42, "running")),
+                (502, {"message": "bad gateway"}),
+                (200, _pipeline_response(42, "success")),
+            ],
+        }
+        _seed(_make_handler(scripts))
+        from gitlab_mcp.tools import pipelines_wait
+
+        ctx = FakeContext()
+        result = asyncio.run(
+            pipelines_wait(
+                project_id=1, pipeline_id=42,
+                timeout=60.0, interval=0.01,
+                include_jobs=False, include_failed_logs=False,
+                ctx=ctx,
+            )
+        )
+        assert result["terminated"] is True
+        assert result["status"] == "success"
+        assert result["polls"] == 3  # failed call counts as a poll
+        assert result["poll_failures"] == 1
+        assert "502" in result["last_poll_error"]
+        assert any(
+            "poll failed (1/3 consecutive)" in entry["message"]
+            for entry in ctx.logs
+        )
+
+    def test_budget_exhaustion_raises(self):
+        """max_poll_failures consecutive transient errors re-raise the last
+        underlying API error."""
+        from gitlab_mcp.client import GitLabError
+
+        scripts = {
+            "/api/v4/projects/1/pipelines/42": [
+                (200, _pipeline_response(42, "running")),
+                (502, {"message": "bad gateway"}),  # repeats forever
+            ],
+        }
+        _seed(_make_handler(scripts))
+        from gitlab_mcp.tools import pipelines_wait
+
+        with pytest.raises(GitLabError, match="502"):
+            asyncio.run(
+                pipelines_wait(
+                    project_id=1, pipeline_id=42,
+                    timeout=60.0, interval=0.01, max_poll_failures=2,
+                    include_jobs=False, include_failed_logs=False,
+                )
+            )
+
+    def test_fatal_4xx_raises_immediately(self):
+        """A 404 (job/pipeline gone) must not be retried even with budget
+        to spare."""
+        from gitlab_mcp.client import GitLabError
+
+        calls = {"n": 0}
+
+        def handler(req):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return httpx.Response(200, json=_job_response(7, "running"))
+            return httpx.Response(404, json={"message": "404 Not Found"})
+
+        _seed(handler)
+        from gitlab_mcp.tools import jobs_wait
+
+        with pytest.raises(GitLabError, match="404"):
+            asyncio.run(
+                jobs_wait(
+                    project_id=1, job_id=7,
+                    timeout=60.0, interval=0.01, max_poll_failures=5,
+                    include_log=False,
+                )
+            )
+        assert calls["n"] == 2  # exactly one failed poll, no retries
+
+    def test_enrichment_failure_does_not_discard_result(self):
+        """The wait reached terminal status; a failing jobs fetch afterwards
+        must surface as enrichment_error, not destroy the result."""
+        scripts = {
+            "/api/v4/projects/1/pipelines/42": [
+                (200, _pipeline_response(42, "success")),
+            ],
+            # no /jobs entry -> 404 on enrichment
+        }
+        _seed(_make_handler(scripts))
+        from gitlab_mcp.tools import pipelines_wait
+
+        result = asyncio.run(
+            pipelines_wait(
+                project_id=1, pipeline_id=42,
+                timeout=10.0, interval=0.01,
+                include_jobs=True, include_failed_logs=True,
+            )
+        )
+        assert result["terminated"] is True
+        assert result["status"] == "success"
+        assert "failed to fetch jobs" in result["enrichment_error"]
+        assert "jobs" not in result
+
+    def test_rejects_bad_max_poll_failures(self):
+        _seed(_make_handler({}))
+        from gitlab_mcp.tools import pipelines_wait
+
+        with pytest.raises(ValueError, match="max_poll_failures must be >= 1"):
+            asyncio.run(
+                pipelines_wait(project_id=1, pipeline_id=42, max_poll_failures=0)
+            )
