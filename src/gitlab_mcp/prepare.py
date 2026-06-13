@@ -7,9 +7,11 @@ tests/test_slim.py without any fixture server.
 from __future__ import annotations
 
 import os
-from typing import Any, Iterable
+from typing import Any, Iterable, Literal
 
 from .config import allow_public
+
+Visibility = Literal["private", "internal", "public"]
 
 _BRIEF_MAX = int(os.environ.get("MCP_GITLAB_BRIEF_MAX", "200"))
 _DEFAULT_LIST_LIMIT = 20
@@ -36,7 +38,7 @@ def _ok(data: Any) -> Any:
     return data
 
 
-def _enforce_visibility(visibility: str | None) -> str | None:
+def _enforce_visibility(visibility: Visibility | None) -> Visibility | None:
     """Block non-private visibility unless --allow-public was passed at startup.
 
     GitLab visibility values: 'private' | 'internal' | 'public'. Default-deny

@@ -103,7 +103,8 @@ class TestOverridePreFlightGuardsViaDispatch:
         import gitlab_mcp.client as client_mod
 
         # The override looks up the project's vcs_type. Patch the lookup to return 'hg'.
-        client_mod._client.project_vcs_type = lambda pid: "hg"  # type: ignore[method-assign]
+        assert client_mod._client is not None
+        client_mod._client.project_vcs_type = lambda project_id: "hg"  # type: ignore[method-assign]
         with pytest.raises(ValueError, match="Mercurial"):
             server._dispatch(
                 "MergeRequestsCreate", "gitlab_write",

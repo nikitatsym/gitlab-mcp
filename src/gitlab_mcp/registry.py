@@ -1,5 +1,7 @@
 """Tool registration primitives."""
 
+from typing import Any
+
 
 class Group:
     """A named group of MCP tool operations exposed as a single meta-tool."""
@@ -37,7 +39,12 @@ class _Unset:
         return False
 
 
-_UNSET = _Unset()
+# Annotated as Any so it can stand in as the default for any typed parameter
+# without forcing every signature to include `| _Unset`. Runtime identity is
+# unchanged; mypy stops flagging hand-written test fixtures or stubs that use
+# `_UNSET` as a default. Generated signatures still include the explicit
+# `| _Unset` union for documentation accuracy.
+_UNSET: Any = _Unset()
 
 
 def _op(group: Group):

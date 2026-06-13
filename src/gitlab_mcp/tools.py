@@ -11,6 +11,7 @@ Layout:
 """
 
 import asyncio
+import inspect
 import logging
 import re
 import time
@@ -30,6 +31,7 @@ from .annotations import ANNOTATIONS
 from .client import GitLabError, get_client
 from .param_annotations import PARAM_ANNOTATIONS
 from .prepare import (
+    Visibility,
     _categorize_branches,
     _enforce_visibility,
     _slim_branch,
@@ -42,7 +44,7 @@ from .prepare import (
     _slim_tag,
     _slim_user,
 )
-from .registry import Group, ROOT, _op
+from .registry import Group, ROOT, _UNSET, _Unset, _op  # noqa: F401 — `_Unset` resolves annotations of `_strict_proxy`-decorated overrides at typing.get_type_hints() time
 
 
 def _enc(v) -> str:
@@ -51,6 +53,56 @@ def _enc(v) -> str:
 
 def _ok(data):
     return {"status": "ok"} if data is None else data
+
+
+def _strict_proxy(
+    generated_fn,
+    *,
+    add_params: list | None = None,
+    drop_params: set[str] | None = None,
+):
+    """Decorator that closes an override's tool-visible surface by mirroring
+    `generated_fn`'s strict-closed signature.
+
+    The override body may still use `**options` to collect arbitrary kwargs —
+    that's only what the meta-tool decided to forward after validating against
+    the synthetic signature. Since the synthetic signature mirrors
+    `generated_fn` (which is itself strict-closed by codegen), unknown fields
+    are rejected at the meta-tool layer before the body even runs.
+
+    add_params: extra `inspect.Parameter` entries appended after the mirrored
+      ones (e.g. `brief: bool = True` for slim wrappers).
+    drop_params: names of generated_fn params to omit from the override sig
+      (e.g. when the override replaces a field with something else).
+    """
+    import inspect
+
+    add_params = add_params or []
+    drop_params = drop_params or set()
+    gen_sig = inspect.signature(generated_fn)
+    new_params: list[inspect.Parameter] = []
+    for name, p in gen_sig.parameters.items():
+        if p.kind is inspect.Parameter.VAR_KEYWORD:
+            continue
+        if name in drop_params:
+            continue
+        new_params.append(p)
+    new_params.extend(add_params)
+    new_sig = inspect.Signature(parameters=new_params)
+
+    gen_anns = dict(getattr(generated_fn, "__annotations__", {}))
+    for p in add_params:
+        if p.annotation is not inspect.Parameter.empty:
+            gen_anns[p.name] = p.annotation
+    for name in drop_params:
+        gen_anns.pop(name, None)
+
+    def decorator(fn):
+        fn.__signature__ = new_sig
+        fn.__annotations__ = gen_anns
+        return fn
+
+    return decorator
 
 
 # ── Groups ──────────────────────────────────────────────────────────────────
@@ -151,78 +203,165 @@ def _keys_path(user_id, segment: str) -> str:
     return f"/users/{_enc(user_id)}/{segment}"
 
 
+# Self-service ops are hand-written with explicit typed surfaces (per the
+# strict-closed rule). gitbeaker doesn't expose the /user/keys, /user/gpg_keys,
+# /user/emails, or /notification_settings endpoints, so codegen can't generate
+# them — we declare typed params drawn from the GitLab REST docs.
+
+
 @_op(gitlab_read)
-def user_ssh_keys_all(user_id: str | int | None = None, **options):
+def user_ssh_keys_all(
+    user_id: str | int | None = None,
+    sudo: str | int | None = None,
+):
     """List SSH keys. Without user_id: current user. With: target user (admin)."""
-    return _ok(get_client().get(_keys_path(user_id, "keys"), params=options))
+    return _ok(get_client().get(
+        _keys_path(user_id, "keys"),
+        params={"sudo": sudo} if sudo is not None else {},
+    ))
 
 
 @_op(gitlab_write)
-def user_ssh_keys_create(title: str, key: str, user_id: str | int | None = None, **options):
+def user_ssh_keys_create(
+    title: str,
+    key: str,
+    user_id: str | int | None = None,
+    expires_at: str | None = None,
+    usage_type: typing.Literal["auth", "signing", "auth_and_signing"] | None = None,
+    sudo: str | int | None = None,
+):
     """Add an SSH key. Without user_id: current user. With: target user (admin)."""
-    body = {"title": title, "key": key, **options}
+    body: dict = {"title": title, "key": key}
+    if expires_at is not None:
+        body["expires_at"] = expires_at
+    if usage_type is not None:
+        body["usage_type"] = usage_type
+    if sudo is not None:
+        body["sudo"] = sudo
     return _ok(get_client().post(_keys_path(user_id, "keys"), json=body))
 
 
 @_op(gitlab_read)
-def user_ssh_keys_show(key_id: str | int, user_id: str | int | None = None, **options):
+def user_ssh_keys_show(
+    key_id: str | int,
+    user_id: str | int | None = None,
+    sudo: str | int | None = None,
+):
     """Get a specific SSH key by id."""
     base = _keys_path(user_id, "keys")
-    return _ok(get_client().get(f"{base}/{_enc(key_id)}", params=options))
+    return _ok(get_client().get(
+        f"{base}/{_enc(key_id)}",
+        params={"sudo": sudo} if sudo is not None else {},
+    ))
 
 
 @_op(gitlab_delete)
-def user_ssh_keys_remove(key_id: str | int, user_id: str | int | None = None, **options):
+def user_ssh_keys_remove(
+    key_id: str | int,
+    user_id: str | int | None = None,
+    sudo: str | int | None = None,
+):
     """Delete an SSH key by id."""
     base = _keys_path(user_id, "keys")
-    return _ok(get_client().delete(f"{base}/{_enc(key_id)}", params=options))
+    return _ok(get_client().delete(
+        f"{base}/{_enc(key_id)}",
+        params={"sudo": sudo} if sudo is not None else {},
+    ))
 
 
 @_op(gitlab_read)
-def user_gpg_keys_all(user_id: str | int | None = None, **options):
+def user_gpg_keys_all(
+    user_id: str | int | None = None,
+    sudo: str | int | None = None,
+):
     """List GPG keys. Without user_id: current user. With: target user (admin)."""
-    return _ok(get_client().get(_keys_path(user_id, "gpg_keys"), params=options))
+    return _ok(get_client().get(
+        _keys_path(user_id, "gpg_keys"),
+        params={"sudo": sudo} if sudo is not None else {},
+    ))
 
 
 @_op(gitlab_write)
-def user_gpg_keys_create(key: str, user_id: str | int | None = None, **options):
+def user_gpg_keys_create(
+    key: str,
+    user_id: str | int | None = None,
+    sudo: str | int | None = None,
+):
     """Add a GPG key. Without user_id: current user. With: target user (admin)."""
-    body = {"key": key, **options}
+    body: dict = {"key": key}
+    if sudo is not None:
+        body["sudo"] = sudo
     return _ok(get_client().post(_keys_path(user_id, "gpg_keys"), json=body))
 
 
 @_op(gitlab_read)
-def user_gpg_keys_show(key_id: str | int, user_id: str | int | None = None, **options):
+def user_gpg_keys_show(
+    key_id: str | int,
+    user_id: str | int | None = None,
+    sudo: str | int | None = None,
+):
     """Get a specific GPG key by id."""
     base = _keys_path(user_id, "gpg_keys")
-    return _ok(get_client().get(f"{base}/{_enc(key_id)}", params=options))
+    return _ok(get_client().get(
+        f"{base}/{_enc(key_id)}",
+        params={"sudo": sudo} if sudo is not None else {},
+    ))
 
 
 @_op(gitlab_delete)
-def user_gpg_keys_remove(key_id: str | int, user_id: str | int | None = None, **options):
+def user_gpg_keys_remove(
+    key_id: str | int,
+    user_id: str | int | None = None,
+    sudo: str | int | None = None,
+):
     """Delete a GPG key by id."""
     base = _keys_path(user_id, "gpg_keys")
-    return _ok(get_client().delete(f"{base}/{_enc(key_id)}", params=options))
+    return _ok(get_client().delete(
+        f"{base}/{_enc(key_id)}",
+        params={"sudo": sudo} if sudo is not None else {},
+    ))
 
 
 @_op(gitlab_read)
-def user_emails_all(user_id: str | int | None = None, **options):
+def user_emails_all(
+    user_id: str | int | None = None,
+    sudo: str | int | None = None,
+):
     """List email addresses. Without user_id: current user. With: target user (admin)."""
-    return _ok(get_client().get(_keys_path(user_id, "emails"), params=options))
+    return _ok(get_client().get(
+        _keys_path(user_id, "emails"),
+        params={"sudo": sudo} if sudo is not None else {},
+    ))
 
 
 @_op(gitlab_write)
-def user_emails_create(email: str, user_id: str | int | None = None, **options):
+def user_emails_create(
+    email: str,
+    user_id: str | int | None = None,
+    confirmation_required: bool | None = None,
+    sudo: str | int | None = None,
+):
     """Add an email address. Without user_id: current user. With: target user (admin)."""
-    body = {"email": email, **options}
+    body: dict = {"email": email}
+    if confirmation_required is not None:
+        body["confirmation_required"] = confirmation_required
+    if sudo is not None:
+        body["sudo"] = sudo
     return _ok(get_client().post(_keys_path(user_id, "emails"), json=body))
+
+
+# Notification settings: levels + 12 per-event booleans, per
+# https://docs.gitlab.com/api/notification_settings.
+_NS_LEVEL = typing.Literal[
+    "disabled", "participating", "watch", "global", "mention", "custom",
+]
 
 
 @_op(gitlab_read)
 def notification_settings_show(
     group_id: str | int | None = None,
     project_id: str | int | None = None,
-    **options,
+    sudo: str | int | None = None,
 ):
     """Read notification settings. Global by default; group_id or project_id scopes it."""
     if project_id is not None:
@@ -231,14 +370,37 @@ def notification_settings_show(
         path = f"/groups/{_enc(group_id)}/notification_settings"
     else:
         path = "/notification_settings"
-    return _ok(get_client().get(path, params=options))
+    return _ok(get_client().get(
+        path,
+        params={"sudo": sudo} if sudo is not None else {},
+    ))
 
 
 @_op(gitlab_write)
 def notification_settings_edit(
     group_id: str | int | None = None,
     project_id: str | int | None = None,
-    **options,
+    level: _NS_LEVEL | None = None,
+    notification_email: str | None = None,
+    new_note: bool | None = None,
+    new_issue: bool | None = None,
+    reopen_issue: bool | None = None,
+    close_issue: bool | None = None,
+    reassign_issue: bool | None = None,
+    issue_due: bool | None = None,
+    new_merge_request: bool | None = None,
+    push_to_merge_request: bool | None = None,
+    reopen_merge_request: bool | None = None,
+    close_merge_request: bool | None = None,
+    reassign_merge_request: bool | None = None,
+    merge_merge_request: bool | None = None,
+    failed_pipeline: bool | None = None,
+    fixed_pipeline: bool | None = None,
+    success_pipeline: bool | None = None,
+    moved_project: bool | None = None,
+    merge_when_pipeline_succeeds: bool | None = None,
+    new_epic: bool | None = None,
+    sudo: str | int | None = None,
 ):
     """Update notification settings. Global by default; group_id or project_id scopes it."""
     if project_id is not None:
@@ -247,7 +409,33 @@ def notification_settings_edit(
         path = f"/groups/{_enc(group_id)}/notification_settings"
     else:
         path = "/notification_settings"
-    return _ok(get_client().put(path, json=options))
+    body: dict = {}
+    for k, v in {
+        "level": level,
+        "notification_email": notification_email,
+        "new_note": new_note,
+        "new_issue": new_issue,
+        "reopen_issue": reopen_issue,
+        "close_issue": close_issue,
+        "reassign_issue": reassign_issue,
+        "issue_due": issue_due,
+        "new_merge_request": new_merge_request,
+        "push_to_merge_request": push_to_merge_request,
+        "reopen_merge_request": reopen_merge_request,
+        "close_merge_request": close_merge_request,
+        "reassign_merge_request": reassign_merge_request,
+        "merge_merge_request": merge_merge_request,
+        "failed_pipeline": failed_pipeline,
+        "fixed_pipeline": fixed_pipeline,
+        "success_pipeline": success_pipeline,
+        "moved_project": moved_project,
+        "merge_when_pipeline_succeeds": merge_when_pipeline_succeeds,
+        "new_epic": new_epic,
+        "sudo": sudo,
+    }.items():
+        if v is not None:
+            body[k] = v
+    return _ok(get_client().put(path, json=body))
 
 
 # ── Wire generated ops into groups ──────────────────────────────────────────
@@ -406,13 +594,23 @@ def _maybe_slim(result, slim_fn, brief: bool):
     return result
 
 
+_BRIEF_PARAM = inspect.Parameter(
+    "brief",
+    inspect.Parameter.KEYWORD_ONLY,
+    default=True,
+    annotation=bool,
+)
+
+
 @_op(gitlab_read)
+@_strict_proxy(_generated.projects_all, add_params=[_BRIEF_PARAM])
 def projects_all(brief: bool = True, **options):
     """List projects. brief=True returns slim entries (default)."""
     return _maybe_slim(_generated.projects_all(**options), _slim_project, brief)
 
 
 @_op(gitlab_read)
+@_strict_proxy(_generated.merge_requests_all, add_params=[_BRIEF_PARAM])
 def merge_requests_all(
     project_id: str | int | None = None,
     group_id: str | int | None = None,
@@ -436,6 +634,7 @@ def merge_requests_all(
 
 
 @_op(gitlab_read)
+@_strict_proxy(_generated.issues_all, add_params=[_BRIEF_PARAM])
 def issues_all(
     project_id: str | int | None = None,
     group_id: str | int | None = None,
@@ -459,12 +658,14 @@ def issues_all(
 
 
 @_op(gitlab_read)
+@_strict_proxy(_generated.users_all, add_params=[_BRIEF_PARAM])
 def users_all(brief: bool = True, **options):
     """List users. brief=True returns slim entries."""
     return _maybe_slim(_generated.users_all(**options), _slim_user, brief)
 
 
 @_op(gitlab_read)
+@_strict_proxy(_generated.commits_all, add_params=[_BRIEF_PARAM])
 def commits_all(project_id: str | int, brief: bool = True, **options):
     """List commits for a project. brief=True returns slim entries."""
     return _maybe_slim(
@@ -475,6 +676,7 @@ def commits_all(project_id: str | int, brief: bool = True, **options):
 
 
 @_op(gitlab_read)
+@_strict_proxy(_generated.tags_all, add_params=[_BRIEF_PARAM])
 def tags_all(project_id: str | int, brief: bool = True, **options):
     """List tags for a project. brief=True returns slim entries."""
     return _maybe_slim(
@@ -485,6 +687,7 @@ def tags_all(project_id: str | int, brief: bool = True, **options):
 
 
 @_op(gitlab_read)
+@_strict_proxy(_generated.pipelines_all, add_params=[_BRIEF_PARAM])
 def pipelines_all(project_id: str | int, brief: bool = True, **options):
     """List pipelines for a project. brief=True returns slim entries."""
     return _maybe_slim(
@@ -495,6 +698,7 @@ def pipelines_all(project_id: str | int, brief: bool = True, **options):
 
 
 @_op(gitlab_read)
+@_strict_proxy(_generated.jobs_all, add_params=[_BRIEF_PARAM])
 def jobs_all(project_id: str | int, brief: bool = True, **options):
     """List jobs for a project. brief=True returns slim entries."""
     return _maybe_slim(
@@ -505,6 +709,7 @@ def jobs_all(project_id: str | int, brief: bool = True, **options):
 
 
 @_op(gitlab_read)
+@_strict_proxy(_generated.branches_all, add_params=[_BRIEF_PARAM])
 def branches_all(project_id: str | int, brief: bool = True, **options):
     """List branches for a project.
 
@@ -579,7 +784,26 @@ def _resolve_file_content(
     return content, {}  # type: ignore[return-value]
 
 
+_CONTENT_OPT_PARAM = inspect.Parameter(
+    "content",
+    inspect.Parameter.KEYWORD_ONLY,
+    default=None,
+    annotation=str | None,
+)
+_LOCAL_PATH_PARAM = inspect.Parameter(
+    "local_path",
+    inspect.Parameter.KEYWORD_ONLY,
+    default=None,
+    annotation=str | None,
+)
+
+
 @_op(gitlab_write)
+@_strict_proxy(
+    _generated.repository_files_create,
+    drop_params={"content"},
+    add_params=[_CONTENT_OPT_PARAM, _LOCAL_PATH_PARAM],
+)
 def repository_files_create(
     project_id: str | int,
     file_path: str,
@@ -607,6 +831,11 @@ def repository_files_create(
 
 
 @_op(gitlab_write)
+@_strict_proxy(
+    _generated.repository_files_edit,
+    drop_params={"content"},
+    add_params=[_CONTENT_OPT_PARAM, _LOCAL_PATH_PARAM],
+)
 def repository_files_edit(
     project_id: str | int,
     file_path: str,
@@ -634,6 +863,7 @@ def repository_files_edit(
 
 
 @_op(gitlab_read)
+@_strict_proxy(_generated.repository_files_show)
 def repository_files_show(
     project_id: str | int,
     file_path: str,
@@ -654,6 +884,7 @@ def repository_files_show(
 
 
 @_op(gitlab_read)
+@_strict_proxy(_generated.repository_files_show)
 def repository_files_show_raw(
     project_id: str | int,
     file_path: str,
@@ -668,7 +899,16 @@ def repository_files_show_raw(
     return get_client().get_text(path, params=params)
 
 
+_TAIL_PARAM = inspect.Parameter(
+    "tail",
+    inspect.Parameter.KEYWORD_ONLY,
+    default=None,
+    annotation=int | None,
+)
+
+
 @_op(gitlab_read)
+@_strict_proxy(_generated.jobs_show_log, add_params=[_TAIL_PARAM])
 def jobs_show_log(
     project_id: str | int,
     job_id: str | int,
@@ -700,6 +940,7 @@ def jobs_show_log(
 
 
 @_op(gitlab_write)
+@_strict_proxy(_generated.merge_requests_create)
 def merge_requests_create(
     project_id: str | int,
     source_branch: str,
@@ -737,6 +978,7 @@ def merge_requests_create(
 
 
 @_op(gitlab_write)
+@_strict_proxy(_generated.projects_fork)
 def projects_fork(project_id: str | int, **options):
     """Fork a project. Not supported on Mercurial projects in Heptapod (see RESEARCH §11)."""
     if _project_is_hg(project_id):
@@ -796,65 +1038,69 @@ def groups_upload_avatar(group_id: str | int, file_path: str):
 
 
 @_op(gitlab_write)
-def projects_create(visibility: str = "private", **options):
+@_strict_proxy(_generated.projects_create)
+def projects_create(visibility: Visibility = "private", **options):
     """Create a new project. Defaults to visibility='private'.
 
     Public/internal projects are blocked unless the server was started with
     --allow-public. Pass `visibility='private'` explicitly to be safe.
     """
-    visibility = _enforce_visibility(visibility)
-    return _generated.projects_create(visibility=visibility, **options)
+    options["visibility"] = _enforce_visibility(visibility)
+    return _generated.projects_create(**options)
 
 
 @_op(gitlab_write)
-def projects_edit(project_id: str | int, visibility: str | None = None, **options):
+@_strict_proxy(_generated.projects_edit)
+def projects_edit(project_id: str | int, visibility: Visibility | None = None, **options):
     """Edit a project. If `visibility` is given it must be 'private' unless --allow-public."""
     if visibility is not None:
-        visibility = _enforce_visibility(visibility)
-        options["visibility"] = visibility
+        options["visibility"] = _enforce_visibility(visibility)
     return _generated.projects_edit(project_id=project_id, **options)
 
 
 @_op(gitlab_write)
-def groups_create(visibility: str = "private", **options):
+@_strict_proxy(_generated.groups_create)
+def groups_create(visibility: Visibility = "private", **options):
     """Create a new group. Defaults to visibility='private'."""
-    visibility = _enforce_visibility(visibility)
-    return _generated.groups_create(visibility=visibility, **options)
+    options["visibility"] = _enforce_visibility(visibility)
+    return _generated.groups_create(**options)
 
 
 @_op(gitlab_write)
-def groups_edit(group_id: str | int, visibility: str | None = None, **options):
+@_strict_proxy(_generated.groups_edit)
+def groups_edit(group_id: str | int, visibility: Visibility | None = None, **options):
     """Edit a group. If `visibility` is given it must be 'private' unless --allow-public."""
     if visibility is not None:
-        visibility = _enforce_visibility(visibility)
-        options["visibility"] = visibility
+        options["visibility"] = _enforce_visibility(visibility)
     return _generated.groups_edit(group_id=group_id, **options)
 
 
 @_op(gitlab_write)
-def snippets_create(visibility: str = "private", **options):
+@_strict_proxy(_generated.snippets_create)
+def snippets_create(visibility: Visibility = "private", **options):
     """Create a personal snippet. Defaults to visibility='private'."""
-    visibility = _enforce_visibility(visibility)
-    return _generated.snippets_create(visibility=visibility, **options)
+    options["visibility"] = _enforce_visibility(visibility)
+    return _generated.snippets_create(**options)
 
 
 @_op(gitlab_write)
-def snippets_edit(snippet_id: str | int, visibility: str | None = None, **options):
+@_strict_proxy(_generated.snippets_edit)
+def snippets_edit(snippet_id: str | int, visibility: Visibility | None = None, **options):
     """Edit a personal snippet. If `visibility` is given it must be 'private' unless --allow-public."""
     if visibility is not None:
-        visibility = _enforce_visibility(visibility)
-        options["visibility"] = visibility
+        options["visibility"] = _enforce_visibility(visibility)
     return _generated.snippets_edit(snippet_id=snippet_id, **options)
 
 
 @_op(gitlab_write)
+@_strict_proxy(_generated.project_snippets_create)
 def project_snippets_create(
-    project_id: str | int, visibility: str = "private", **options
+    project_id: str | int, visibility: Visibility = "private", **options
 ):
     """Create a project-scoped snippet. Defaults to visibility='private'."""
-    visibility = _enforce_visibility(visibility)
+    options["visibility"] = _enforce_visibility(visibility)
     return _generated.project_snippets_create(
-        project_id=project_id, visibility=visibility, **options
+        project_id=project_id, **options
     )
 
 
@@ -1064,7 +1310,7 @@ def _fetch_failed_logs(
         if jid is None:
             continue
         try:
-            out[jid] = jobs_show_log(
+            out[jid] = jobs_show_log(  # type: ignore[call-arg]
                 project_id=project_id, job_id=jid, tail=log_tail
             )
         except Exception as e:  # noqa: BLE001 — surface as content, not abort
@@ -1454,7 +1700,7 @@ async def jobs_wait(
 
     if include_log:
         try:
-            result["log"] = await asyncio.to_thread(
+            result["log"] = await asyncio.to_thread(  # type: ignore[call-arg]
                 jobs_show_log, project_id=project_id, job_id=job_id, tail=log_tail
             )
         except Exception as e:  # noqa: BLE001 — surface as content, not abort
@@ -1581,7 +1827,7 @@ async def _enrich_job_final(handle: _WaitHandle) -> None:
     if not opts.get("include_log", True):
         return
     try:
-        handle.final_extras["log"] = await asyncio.to_thread(
+        handle.final_extras["log"] = await asyncio.to_thread(  # type: ignore[call-arg]
             jobs_show_log,
             project_id=handle.project_id,
             job_id=handle.target_id,

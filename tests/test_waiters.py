@@ -11,6 +11,7 @@ without depending on a real MCP transport.
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 import httpx
 import pytest
@@ -102,7 +103,7 @@ def _job_response(job_id: int, status: str, name: str = "build") -> dict:
     }
 
 
-def _make_handler(scripts: dict[str, list]):
+def _make_handler(scripts: dict[str, Any]):
     """Build a handler that pops from a per-path script list each call.
 
     scripts: mapping path → list of (status_code, json_body | text_body)
@@ -612,7 +613,7 @@ class TestWaitViaDispatch:
                 "include_jobs": False,
                 "include_failed_logs": False,
             },
-            ctx=ctx,
+            ctx=ctx,  # type: ignore[arg-type]
         )
         assert asyncio.iscoroutine(coro)
         result = asyncio.run(coro)

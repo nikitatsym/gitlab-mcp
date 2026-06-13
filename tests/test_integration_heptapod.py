@@ -1,25 +1,16 @@
 """Integration tests against a live Heptapod container.
 
-Gated behind `RUN_HEPTAPOD_TESTS=1` because the image boots slower than
-GitLab CE (5-8 minutes) and the 2025 commercial-policy change may require
-account auth on some image tags. Run locally before merging changes that
-touch the hg code paths.
+Heptapod boots slow (5-8 minutes). Run via `npm run test:integration:heptapod`
+which bootstraps the container and points tests/.env at it. The fixture
+HARD-FAILS if the env points elsewhere (or nothing) — silence is a bug.
 """
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 
-pytestmark = [
-    pytest.mark.integration,
-    pytest.mark.skipif(
-        not os.environ.get("RUN_HEPTAPOD_TESTS"),
-        reason="Set RUN_HEPTAPOD_TESTS=1 to run Heptapod integration tests",
-    ),
-]
+pytestmark = [pytest.mark.integration]
 
 
 class TestHeptapodBackendDetection:
@@ -48,9 +39,13 @@ class TestHeptapodGitProject:
     project_id: int = 0
 
     def test_01_create_git_project(self, agent_heptapod):
+        # Heptapod (17-0 and later) defaults new projects to vcs_type=hg, so
+        # we MUST opt into git explicitly — otherwise the "git project" suite
+        # silently runs against an hg project.
         result = agent_heptapod.call(
             "projects_create",
             name="integration-git",
+            vcs_type="git",
             initialize_with_readme=True,
             visibility="private",
         )

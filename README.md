@@ -110,16 +110,33 @@ npm run test:integration:waiters  # creates a project, pushes CI config, waits
 npm run runner:down               # remove the runner + wipe its config volume
 ```
 
-Heptapod integration tests are gated behind `RUN_HEPTAPOD_TESTS=1`:
+Heptapod integration tests run directly — no opt-in gate. Boot is slow (~5 min):
 
 ```bash
-npm run heptapod:up
-RUN_HEPTAPOD_TESTS=1 npm run test:integration:heptapod
+npm run heptapod:up                    # writes tests/.env pointing at Heptapod
+npm run test:integration:heptapod
 npm run heptapod:down
 ```
 
 The `tests/.env` file written by `bootstrap.py` is consumed both by pytest and by
-interactive shells (`source tests/.env`).
+interactive shells (`source tests/.env`). Running heptapod:up after gitlab:up
+OVERWRITES the env file — re-run `npm run gitlab:bootstrap` to switch back.
+
+Run every test suite (unit + gitlab + waiters + heptapod) sequentially:
+
+```bash
+npm run test:all
+```
+
+### Lint & types
+
+```bash
+npm run lint        # ruff
+npm run typecheck   # mypy
+```
+
+Both run in CI on every push. Install the pre-commit hook to catch issues
+before pushing: `uv run pre-commit install`.
 
 ## Creating a GitLab access token
 

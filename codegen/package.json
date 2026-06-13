@@ -2,11 +2,12 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@gitbeaker/rest": "^43.0.0",
-    "@gitbeaker/core": "^43.0.0"
+    "@gitbeaker/core": "^43.0.0",
+    "@gitbeaker/rest": "^43.0.0"
   },
   "devDependencies": {
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "yaml": "^2.9.0"
   }
 }

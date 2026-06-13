@@ -78,7 +78,7 @@ def _await_pipeline_id(agent, project_id: int, timeout: int = 60) -> int:
             "pipelines_all", project_id=project_id, brief=True,
         )
         if isinstance(pipes, list) and pipes:
-            return pipes[0]["id"]
+            return int(pipes[0]["id"])
         time.sleep(1)
     raise AssertionError("no pipeline created within 60s of push")
 

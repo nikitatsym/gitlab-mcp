@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from typing import Any
 
 import httpx
 import pytest
@@ -87,7 +88,7 @@ def _job(job_id: int, status: str, name: str = "build") -> dict:
     }
 
 
-def _handler(scripts: dict[str, list]):
+def _handler(scripts: dict[str, Any]):
     def handler(req: httpx.Request) -> httpx.Response:
         path = req.url.path
         script = scripts.get(path)
@@ -182,7 +183,7 @@ class TestPipelinesWaitStart:
 
     def test_initial_poll_failure_marks_terminated_with_error(self):
         """404 on first poll → no task spawned; snapshot carries error."""
-        scripts = {}  # any path → 404
+        scripts: dict[str, Any] = {}  # any path → 404
         _seed(_handler(scripts))
         from gitlab_mcp.tools import pipelines_wait_start
 
@@ -240,6 +241,7 @@ class TestPipelinesWaitPoll:
             poll_snap = await pipelines_wait_poll(start_snap["wait_id"], max_block=0)
             # cleanup background task
             handle = WAIT_REGISTRY.get(start_snap["wait_id"])
+            assert handle is not None
             if handle.task and not handle.task.done():
                 handle.task.cancel()
                 try:
@@ -316,6 +318,7 @@ class TestPipelinesWaitPoll:
                 start_snap["wait_id"], max_block=0.05,
             )
             handle = WAIT_REGISTRY.get(start_snap["wait_id"])
+            assert handle is not None
             if handle.task and not handle.task.done():
                 handle.task.cancel()
                 try:
@@ -504,6 +507,7 @@ class TestWaitsList:
             j_snap = await jobs_wait_start(project_id=1, job_id=101, interval=0.01,
                                            include_log=False)
             handle = WAIT_REGISTRY.get(j_snap["wait_id"])
+            assert handle is not None
             if handle.task and not handle.task.done():
                 handle.task.cancel()
                 try:
