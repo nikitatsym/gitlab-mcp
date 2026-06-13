@@ -253,7 +253,10 @@ class TestJobLogTail:
 class TestHgConfig:
     def test_hg_get_config(self):
         def handler(req):
-            assert req.url.path == "/api/v4/projects/1/hg_heptapod_config"
+            # /hgrc is the structured-config endpoint that returns defaults.
+            # /hg_heptapod_config (used by hg_get_raw_hgrc) returns only
+            # explicit overrides.
+            assert req.url.path == "/api/v4/projects/1/hgrc"
             return httpx.Response(200, json={
                 "inherit": True,
                 "allow_bookmarks": False,
@@ -300,13 +303,13 @@ class TestHgConfig:
             inherit=False,
             allow_bookmarks=True,
             allow_multiple_heads=False,
-            auto_publish="non-topic",
+            auto_publish="all",
         )
         assert sent_body == {
             "inherit": False,
             "allow_bookmarks": True,
             "allow_multiple_heads": False,
-            "auto_publish": "non-topic",
+            "auto_publish": "all",
         }
 
     def test_hg_set_config_invalid_auto_publish(self):
@@ -318,14 +321,17 @@ class TestHgConfig:
 
     def test_hg_get_raw_hgrc(self):
         def handler(req):
-            assert req.url.path == "/api/v4/projects/1/hgrc"
-            return httpx.Response(200, json={"raw": "[section]\nkey = value\n"})
+            # hg_get_raw_hgrc reads explicit overrides from /hg_heptapod_config
+            # (dasherized keys). For the structured config with defaults use
+            # hg_get_config -> /hgrc.
+            assert req.url.path == "/api/v4/projects/1/hg_heptapod_config"
+            return httpx.Response(200, json={"allow-bookmarks": True})
 
         _seed("heptapod", handler)
         from gitlab_mcp.tools import hg_get_raw_hgrc
 
         result = hg_get_raw_hgrc(project_id=1)
-        assert "raw" in result
+        assert "allow-bookmarks" in result
 
 
 class TestHgCreateTopicMr:

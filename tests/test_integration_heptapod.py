@@ -7,7 +7,31 @@ HARD-FAILS if the env points elsewhere (or nothing) — silence is a bug.
 
 from __future__ import annotations
 
+import time
+
 import pytest
+
+
+def _await_project_ready(agent, project_id, timeout=30):
+    """Wait until the project's `initialize_with_readme` seed commit lands.
+
+    `default_branch` is the moment the repo has its first commit, regardless of
+    backend (`main` on git, `branch/default` on hg). Tests that read branches
+    or files immediately after `projects_create` race the seed commit and get
+    404 (`Commit Not Found`) or empty branch list otherwise.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            proj = agent.call("projects_show", project_id=project_id)
+            if isinstance(proj, dict) and proj.get("default_branch"):
+                return
+        except Exception:
+            pass
+        time.sleep(0.5)
+    raise AssertionError(
+        f"project {project_id} did not finish seed-commit within {timeout}s"
+    )
 
 
 pytestmark = [pytest.mark.integration]
@@ -65,6 +89,7 @@ class TestHeptapodGitProject:
         agent_heptapod.call(
             "projects_remove",
             project_id=TestHeptapodGitProject.project_id,
+            permanent=True,
         )
 
 
@@ -97,29 +122,33 @@ class TestHeptapodHgConfig:
             inherit=False,
             allow_bookmarks=True,
             allow_multiple_heads=False,
-            auto_publish="non-topic",
+            auto_publish="all",
         )
         result = agent_heptapod.call(
             "hg_get_config",
             project_id=TestHeptapodHgConfig.project_id,
         )
         assert result["allow_bookmarks"] is True
-        assert result["auto_publish"] == "non-topic"
+        assert result["auto_publish"] == "all"
 
-    def test_21_set_config_partial_erases_unsent(self, agent_heptapod):
-        """Document PUT-not-PATCH: unsent fields reset to defaults."""
+    def test_21_set_config_partial_preserves_unsent(self, agent_heptapod):
+        """Document PATCH-semantic: omitted fields keep their previous value.
+
+        Heptapod 1.x reset omitted fields to defaults (PUT). 17+ preserves
+        them (PATCH). hg_set_config's docstring spells this out.
+        """
         agent_heptapod.call(
             "hg_set_config",
             project_id=TestHeptapodHgConfig.project_id,
             inherit=False,
-            # Deliberately omit allow_bookmarks — should reset to default.
+            # Deliberately omit allow_bookmarks; previously set to True in
+            # test_20 — should NOT reset.
         )
         result = agent_heptapod.call(
             "hg_get_config",
             project_id=TestHeptapodHgConfig.project_id,
         )
-        # The previously-set allow_bookmarks=true has been erased back to false.
-        assert result["allow_bookmarks"] is False
+        assert result["allow_bookmarks"] is True
 
     def test_30_invalid_auto_publish_rejected(self, agent_heptapod):
         with pytest.raises(ValueError, match="auto_publish"):
@@ -134,6 +163,7 @@ class TestHeptapodHgConfig:
         agent_heptapod.call(
             "projects_remove",
             project_id=TestHeptapodHgConfig.project_id,
+            permanent=True,
         )
 
 
@@ -151,6 +181,7 @@ class TestHeptapodBranchConvention:
             visibility="private",
         )
         TestHeptapodBranchConvention.project_id = result["id"]
+        _await_project_ready(agent_heptapod, result["id"])
 
     def test_10_list_branches_shows_hg_prefix(self, agent_heptapod):
         result = agent_heptapod.call(
@@ -190,4 +221,5 @@ class TestHeptapodBranchConvention:
         agent_heptapod.call(
             "projects_remove",
             project_id=TestHeptapodBranchConvention.project_id,
+            permanent=True,
         )

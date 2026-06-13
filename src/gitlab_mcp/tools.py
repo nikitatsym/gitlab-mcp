@@ -977,6 +977,54 @@ def merge_requests_create(
     )
 
 
+_PERMANENT_PARAM = inspect.Parameter(
+    "permanent",
+    inspect.Parameter.KEYWORD_ONLY,
+    default=False,
+    annotation=bool,
+)
+
+
+@_op(gitlab_delete)
+@_strict_proxy(_generated.projects_remove, add_params=[_PERMANENT_PARAM])
+def projects_remove(
+    project_id: str | int,
+    permanent: bool = False,
+    **options,
+):
+    """Delete a project.
+
+    Default (`permanent=False`): a single API call that *marks* the project
+    for deletion. GitLab/Heptapod 14+ keep the project around in a renamed
+    `<name>-deletion_scheduled-<id>` state for the configured retention
+    window (`application/settings.deletion_adjourned_period`, days).
+
+    With `permanent=True`: two-step delete in one call — first marks it,
+    then re-issues DELETE with `permanently_remove=true&full_path=<new>`
+    after re-reading the renamed path. Use in tests / cleanup where
+    repeatability matters (the renamed project would otherwise hold the
+    original name and block re-creation).
+    """
+    if not permanent:
+        return _generated.projects_remove(project_id=project_id, **options)
+    # Step 1: mark for deletion. Server renames path_with_namespace to add
+    # a `-deletion_scheduled-<id>` suffix.
+    _generated.projects_remove(project_id=project_id, **options)
+    # Step 2: read back the renamed path, then permanently remove.
+    proj = get_client().get(f"/projects/{_enc(project_id)}")
+    full_path = proj["path_with_namespace"] if isinstance(proj, dict) else None
+    if not full_path:
+        raise RuntimeError(
+            f"Could not resolve full_path for project {project_id} after "
+            f"marking for deletion; permanent remove aborted."
+        )
+    return _generated.projects_remove(
+        project_id=project_id,
+        permanently_remove=True,
+        full_path=full_path,
+    )
+
+
 @_op(gitlab_write)
 @_strict_proxy(_generated.projects_fork)
 def projects_fork(project_id: str | int, **options):
@@ -1112,12 +1160,14 @@ def hg_get_config(project_id: str | int):
     """Read the high-level Mercurial project settings (Heptapod only).
 
     Returns a structured view of allow_bookmarks, allow_multiple_heads,
-    auto_publish, and inheritance flags. Requires Maintainer-or-higher on
-    the project.
+    auto_publish, and inherit flags with defaults filled in. Requires
+    Maintainer-or-higher on the project.
+
+    Reads `/projects/{id}/hgrc` (the structured-config endpoint) rather than
+    `/hg_heptapod_config` (which only returns explicit overrides with
+    dasherized keys — useless for round-tripping into `hg_set_config`).
     """
-    return get_client().get(
-        f"/projects/{_enc(project_id)}/hg_heptapod_config"
-    )
+    return get_client().get(f"/projects/{_enc(project_id)}/hgrc")
 
 
 hg_get_config._heptapod_only = True
@@ -1125,8 +1175,13 @@ hg_get_config._heptapod_only = True
 
 @_op(gitlab_read)
 def hg_get_raw_hgrc(project_id: str | int):
-    """Read the project's raw hgrc file (Heptapod only, Maintainer required)."""
-    return get_client().get(f"/projects/{_enc(project_id)}/hgrc")
+    """Read the project's raw hgrc overrides (Heptapod only, Maintainer required).
+
+    Returns the dict of *explicitly-set* overrides at `/hg_heptapod_config`,
+    with dasherized keys (`allow-bookmarks`, etc.) — i.e. what differs from
+    Heptapod defaults. For the full effective config use `hg_get_config`.
+    """
+    return get_client().get(f"/projects/{_enc(project_id)}/hg_heptapod_config")
 
 
 hg_get_raw_hgrc._heptapod_only = True
@@ -1138,22 +1193,22 @@ def hg_set_config(
     inherit: bool,
     allow_bookmarks: bool | None = None,
     allow_multiple_heads: bool | None = None,
-    auto_publish: str | None = None,
+    auto_publish: typing.Literal["nothing", "all"] | None = None,
 ):
     """Set high-level Mercurial project settings (Heptapod only).
 
-    Warning: this endpoint is PUT, not PATCH — any field omitted from the
-    call is reset to its default. Always pass the full intended state.
+    Endpoint is PATCH-semantic on Heptapod 17+: fields omitted from the
+    call are preserved at their previously-set value (Heptapod 1.x used
+    PUT-semantic; that behaviour is gone). Pass `None` to leave a field
+    alone, pass an explicit value to overwrite.
 
-    `auto_publish` accepts "nothing", "non-topic", or "all".
+    `auto_publish` accepts "nothing" or "all". The historical "non-topic"
+    value is silently dropped by Heptapod 17+ (validator accepts it, storage
+    layer ignores it) — we reject it client-side so the misuse fails fast.
     """
-    if auto_publish is not None and auto_publish not in (
-        "nothing",
-        "non-topic",
-        "all",
-    ):
+    if auto_publish is not None and auto_publish not in ("nothing", "all"):
         raise ValueError(
-            f"auto_publish must be 'nothing', 'non-topic', or 'all'; got {auto_publish!r}"
+            f"auto_publish must be 'nothing' or 'all'; got {auto_publish!r}"
         )
     body: dict = {"inherit": inherit}
     if allow_bookmarks is not None:
