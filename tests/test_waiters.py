@@ -603,7 +603,7 @@ class TestWaitViaDispatch:
         ctx = FakeContext()
         coro = server._dispatch(
             "PipelinesWait",
-            "gitlab_execute",
+            "gitlab_read",
             {
                 "project_id": 1,
                 "pipeline_id": 42,
@@ -627,7 +627,7 @@ class TestWaitViaDispatch:
         from gitlab_mcp import server
 
         server._register_tools()
-        help_text = server._build_help("gitlab_execute", search="PipelinesWait")
+        help_text = server._build_help("gitlab_read", search="PipelinesWait")
         assert "PipelinesWait" in help_text
         # `ctx` is an internal injection point, never shown to callers. Search
         # for the parameter-syntax form (`ctx:` or `, ctx,`) rather than the
@@ -646,7 +646,7 @@ class TestWaitViaDispatch:
         with pytest.raises(ValueError, match="Extra inputs are not permitted"):
             coro = server._dispatch(
                 "PipelinesWait",
-                "gitlab_execute",
+                "gitlab_read",
                 {"project_id": 1, "pipeline_id": 42, "ctx": "evil"},
             )
             # If coro slipped through, drain it to surface the error.

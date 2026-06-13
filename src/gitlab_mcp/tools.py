@@ -971,6 +971,12 @@ hg_create_topic_mr._heptapod_only = True
 # and `ctx.log(level, message)`. Both return a complete summary even when
 # the MCP client doesn't render notifications — the result is the source
 # of truth, progress / log are best-effort.
+#
+# Group assignment: every wait op lives in gitlab_read. Against the service
+# a wait only ever GETs (pipelines_show / jobs_show / jobs_all / traces);
+# even *_wait_cancel stops the local polling task, never the pipeline. The
+# groups grade risk to the service, so a read-only agent may watch CI to
+# completion. The only cost of a wait is API load, not mutation.
 
 
 _log_wait = logging.getLogger("gitlab_mcp.wait")
@@ -1066,7 +1072,7 @@ def _fetch_failed_logs(
     return out
 
 
-@_op(gitlab_execute)
+@_op(gitlab_read)
 async def pipelines_wait(
     project_id: str | int,
     pipeline_id: str | int,
@@ -1290,7 +1296,7 @@ async def pipelines_wait(
     return result
 
 
-@_op(gitlab_execute)
+@_op(gitlab_read)
 async def jobs_wait(
     project_id: str | int,
     job_id: str | int,
@@ -1677,7 +1683,7 @@ def _require_handle(wait_id: str, expected_kind: str | None = None) -> _WaitHand
     return handle
 
 
-@_op(gitlab_execute)
+@_op(gitlab_read)
 async def pipelines_wait_start(
     project_id: str | int,
     pipeline_id: str | int,
@@ -1818,7 +1824,7 @@ async def pipelines_wait_poll(
     return handle.snapshot()
 
 
-@_op(gitlab_execute)
+@_op(gitlab_read)
 async def pipelines_wait_cancel(wait_id: str):
     """Cancel a pipeline wait. The snapshot remains readable; error="cancelled".
 
@@ -1834,7 +1840,7 @@ async def pipelines_wait_cancel(wait_id: str):
     return handle.snapshot()
 
 
-@_op(gitlab_execute)
+@_op(gitlab_read)
 async def jobs_wait_start(
     project_id: str | int,
     job_id: str | int,
@@ -1926,7 +1932,7 @@ async def jobs_wait_poll(
     return handle.snapshot()
 
 
-@_op(gitlab_execute)
+@_op(gitlab_read)
 async def jobs_wait_cancel(wait_id: str):
     """Cancel a job wait. Mirrors `pipelines_wait_cancel`."""
     handle = _require_handle(wait_id, expected_kind="job")
