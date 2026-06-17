@@ -51,22 +51,22 @@ failing:
 """
 
 
-class FakeContext:
-    """Capture progress / log notifications during waits."""
+class _FakeSession:
+    """Capture reverse-stream notifications/message events the waiters push."""
 
     def __init__(self):
-        self.progress: list[dict] = []
-        self.logs: list[dict] = []
+        self.messages: list[dict] = []
 
-    async def report_progress(self, progress, total=None, message=None):
-        self.progress.append({
-            "progress": progress, "total": total, "message": message,
-        })
+    async def send_log_message(self, level, data, logger=None):
+        self.messages.append({"level": level, "data": data, "logger": logger})
 
-    async def log(self, level, message, logger_name=None):
-        self.logs.append({
-            "level": level, "message": message, "logger_name": logger_name,
-        })
+
+class FakeContext:
+    """Provides the connection-scoped session the non-blocking waiters capture
+    at *_wait time to stream transitions + a terminal notification."""
+
+    def __init__(self):
+        self.session = _FakeSession()
 
 
 def _await_pipeline_id(agent, project_id: int, timeout: int = 60) -> int:
@@ -154,81 +154,91 @@ def project_with_pipeline(agent_gitlab):
         pass
 
 
-def test_pipelines_wait_failure_attaches_failed_logs(agent_gitlab, project_with_pipeline):
+def test_pipelines_wait_streams_transitions_and_terminal(agent_gitlab, project_with_pipeline):
+    from gitlab_mcp.wait_registry import WAIT_REGISTRY
+
     project_id, pipeline_id, _jobs = project_with_pipeline
     ctx = FakeContext()
-    wait_tool = agent_gitlab._tools["pipelines_wait"]
 
-    result = asyncio.run(
-        wait_tool(
+    async def flow():
+        start_snap = await agent_gitlab._tools["pipelines_wait"](
             project_id=project_id,
             pipeline_id=pipeline_id,
-            timeout=300.0,
             interval=2.0,
             include_jobs=True,
             include_failed_logs=True,
             log_tail=200,
             ctx=ctx,
         )
-    )
+        final = await agent_gitlab._tools["pipelines_wait_poll"](
+            wait_id=start_snap["wait_id"],
+            max_block=300.0,
+        )
+        # Close the gap between done_event and the terminal push (background
+        # path); a no-op when the first poll was already terminal (inline).
+        handle = WAIT_REGISTRY.get(start_snap["wait_id"])
+        if handle is not None and handle.task is not None:
+            await handle.task
+        return final
+
+    result = asyncio.run(flow())
 
     assert result["terminated"] is True, (
         f"pipeline did not terminate within 300s; final status={result['status']}, "
         f"polls={result['polls']}"
     )
-    assert result["timed_out"] is False
-    # One job failed (`exit 7`) → pipeline overall is `failed`.
+    # One job failed (exit 7), so the pipeline overall is failed.
     assert result["status"] == "failed", (
         f"expected pipeline status=failed; got {result['status']}"
     )
-    assert result["polls"] >= 1
 
     # Failed jobs surface in the summary with their trailing log.
-    assert isinstance(result["jobs"], list)
     failed_jobs = [j for j in result["jobs"] if j["status"] == "failed"]
     assert len(failed_jobs) == 1
-    failed_job = failed_jobs[0]
-    failed_log = result["failed_logs"].get(failed_job["id"])
-    assert failed_log is not None, (
-        f"no log attached for failed job id={failed_job['id']}; "
-        f"failed_logs={result['failed_logs']}"
-    )
-    assert "FAIL_MARKER" in failed_log["text"], (
-        f"expected failure marker in log text; got: {failed_log['text']!r}"
-    )
+    failed_log = result["failed_logs"].get(failed_jobs[0]["id"])
+    assert failed_log is not None
+    assert "FAIL_MARKER" in failed_log["text"]
 
-    # Progress fired at least twice (some non-terminal status + terminal).
-    # And at least one terminal-status log entry at error level.
-    statuses_emitted = {
-        (p.get("message") or "").rsplit(": ", 1)[-1] for p in ctx.progress
-    }
-    assert "failed" in statuses_emitted, (
-        f"expected a 'failed' progress message; got {statuses_emitted}"
-    )
-    assert any(
-        e["level"] == "error" and "failed" in e["message"].lower()
-        for e in ctx.logs
-    ), f"expected error-level log on failure; got {ctx.logs}"
+    # Reverse stream: the captured session received transitions, a stage event,
+    # and a final wait_terminal carrying the failed status + per-stage summary.
+    events = [m["data"]["event"] for m in ctx.session.messages]
+    assert "wait_transition" in events
+    assert "wait_stage_transition" in events
+    assert events[-1] == "wait_terminal"
+    term = ctx.session.messages[-1]
+    assert term["level"] == "error"
+    assert term["data"]["status"] == "failed"
+    assert any(stg["name"] == "test" for stg in term["data"]["stages"])
+
+    WAIT_REGISTRY.clear()
 
 
-def test_jobs_wait_success_streams_progress(agent_gitlab, project_with_pipeline):
+def test_jobs_wait_streams_transition_and_terminal(agent_gitlab, project_with_pipeline):
+    from gitlab_mcp.wait_registry import WAIT_REGISTRY
+
     project_id, _pipeline_id, jobs_by_name = project_with_pipeline
     passing_job_id = jobs_by_name["passing"]["id"]
-
     ctx = FakeContext()
-    wait_tool = agent_gitlab._tools["jobs_wait"]
 
-    result = asyncio.run(
-        wait_tool(
+    async def flow():
+        start_snap = await agent_gitlab._tools["jobs_wait"](
             project_id=project_id,
             job_id=passing_job_id,
-            timeout=300.0,
             interval=2.0,
             include_log=True,
             log_tail=100,
             ctx=ctx,
         )
-    )
+        final = await agent_gitlab._tools["jobs_wait_poll"](
+            wait_id=start_snap["wait_id"],
+            max_block=300.0,
+        )
+        handle = WAIT_REGISTRY.get(start_snap["wait_id"])
+        if handle is not None and handle.task is not None:
+            await handle.task
+        return final
+
+    result = asyncio.run(flow())
 
     assert result["terminated"] is True, (
         f"passing job did not finish within 300s; status={result['status']}"
@@ -236,19 +246,22 @@ def test_jobs_wait_success_streams_progress(agent_gitlab, project_with_pipeline)
     assert result["status"] == "success", (
         f"expected success; got {result['status']}"
     )
-    assert "step 3 success" in result["log"]["text"], (
-        f"expected step3 marker in log; got {result['log']['text']!r}"
-    )
-    # At minimum the terminal status fired a progress event.
-    assert any(
-        "success" in (p.get("message") or "") for p in ctx.progress
-    ), f"expected success progress; got {ctx.progress}"
+    assert "step 3 success" in result["log"]["text"]
+
+    # Reverse stream: status transitions + terminal; jobs have no stages.
+    events = [m["data"]["event"] for m in ctx.session.messages]
+    assert "wait_transition" in events
+    assert events[-1] == "wait_terminal"
+    assert "wait_stage_transition" not in events
+    assert ctx.session.messages[-1]["data"]["status"] == "success"
+
+    WAIT_REGISTRY.clear()
 
 
-# ── Non-blocking start + poll against live GitLab ─────────────────────────
+# ── Non-blocking start + poll against live GitLab ─────────
 
 
-def test_pipelines_wait_start_and_poll_full_flow(agent_gitlab):
+def test_pipelines_wait_and_poll_full_flow(agent_gitlab):
     """End-to-end of the L1+L2 pattern against a live GitLab.
 
     Creates its own project (separate from the shared `project_with_pipeline`
@@ -286,7 +299,7 @@ def test_pipelines_wait_start_and_poll_full_flow(agent_gitlab):
 
         async def flow():
             # start: returns immediately with a wait_id + initial snapshot.
-            start_snap = await agent_gitlab._tools["pipelines_wait_start"](
+            start_snap = await agent_gitlab._tools["pipelines_wait"](
                 project_id=project_id,
                 pipeline_id=pipeline_id,
                 interval=2.0,
