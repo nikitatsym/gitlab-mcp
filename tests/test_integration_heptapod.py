@@ -8,6 +8,7 @@ HARD-FAILS if the env points elsewhere (or nothing) — silence is a bug.
 from __future__ import annotations
 
 import time
+import uuid
 
 import pytest
 
@@ -35,6 +36,12 @@ def _await_project_ready(agent, project_id, timeout=30):
 
 
 pytestmark = [pytest.mark.integration]
+
+# Unique per-run suffix so fixed project names don't collide with leftovers
+# from an interrupted run - Heptapod's delayed deletion keeps a deleted name
+# reserved (it lingers as `<name>-deletion_scheduled-<id>`), so reusing a fixed
+# name 400s with "has already been taken".
+_RUN_TAG = uuid.uuid4().hex[:8]
 
 
 class TestHeptapodBackendDetection:
@@ -68,7 +75,7 @@ class TestHeptapodGitProject:
         # silently runs against an hg project.
         result = agent_heptapod.call(
             "projects_create",
-            name="integration-git",
+            name=f"integration-git-{_RUN_TAG}",
             vcs_type="git",
             initialize_with_readme=True,
             visibility="private",
@@ -101,7 +108,7 @@ class TestHeptapodHgConfig:
     def test_01_create_hg_project(self, agent_heptapod):
         result = agent_heptapod.call(
             "projects_create",
-            name="integration-hg",
+            name=f"integration-hg-{_RUN_TAG}",
             vcs_type="hg",  # Heptapod-specific field
             initialize_with_readme=True,
             visibility="private",
@@ -175,7 +182,7 @@ class TestHeptapodBranchConvention:
     def test_01_create_hg_project(self, agent_heptapod):
         result = agent_heptapod.call(
             "projects_create",
-            name="integration-hg-branches",
+            name=f"integration-hg-branches-{_RUN_TAG}",
             vcs_type="hg",
             initialize_with_readme=True,
             visibility="private",
