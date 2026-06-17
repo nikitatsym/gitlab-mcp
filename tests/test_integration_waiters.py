@@ -51,24 +51,6 @@ failing:
 """
 
 
-class _FakeSession:
-    """Capture reverse-stream notifications/message events the waiters push."""
-
-    def __init__(self):
-        self.messages: list[dict] = []
-
-    async def send_log_message(self, level, data, logger=None):
-        self.messages.append({"level": level, "data": data, "logger": logger})
-
-
-class FakeContext:
-    """Provides the connection-scoped session the non-blocking waiters capture
-    at *_wait time to stream transitions + a terminal notification."""
-
-    def __init__(self):
-        self.session = _FakeSession()
-
-
 def _await_pipeline_id(agent, project_id: int, timeout: int = 60) -> int:
     """The .gitlab-ci.yml push triggers a pipeline asynchronously; poll until
     one shows up so the wait test starts from a known state."""
@@ -154,32 +136,23 @@ def project_with_pipeline(agent_gitlab):
         pass
 
 
-def test_pipelines_wait_streams_transitions_and_terminal(agent_gitlab, project_with_pipeline):
+def test_pipelines_wait_reaches_terminal_with_slim_jobs(agent_gitlab, project_with_pipeline):
+    """Failing pipeline reaches terminal; snapshot carries the slim jobs list
+    and per-stage view, no log tails (callers fetch logs explicitly)."""
     from gitlab_mcp.wait_registry import WAIT_REGISTRY
 
     project_id, pipeline_id, _jobs = project_with_pipeline
-    ctx = FakeContext()
 
     async def flow():
         start_snap = await agent_gitlab._tools["pipelines_wait"](
             project_id=project_id,
             pipeline_id=pipeline_id,
             interval=2.0,
-            include_jobs=True,
-            include_failed_logs=True,
-            log_tail=200,
-            ctx=ctx,
         )
-        final = await agent_gitlab._tools["pipelines_wait_poll"](
+        return await agent_gitlab._tools["pipelines_wait_poll"](
             wait_id=start_snap["wait_id"],
             max_block=300.0,
         )
-        # Close the gap between done_event and the terminal push (background
-        # path); a no-op when the first poll was already terminal (inline).
-        handle = WAIT_REGISTRY.get(start_snap["wait_id"])
-        if handle is not None and handle.task is not None:
-            await handle.task
-        return final
 
     result = asyncio.run(flow())
 
@@ -192,51 +165,33 @@ def test_pipelines_wait_streams_transitions_and_terminal(agent_gitlab, project_w
         f"expected pipeline status=failed; got {result['status']}"
     )
 
-    # Failed jobs surface in the summary with their trailing log.
     failed_jobs = [j for j in result["jobs"] if j["status"] == "failed"]
     assert len(failed_jobs) == 1
-    failed_log = result["failed_logs"].get(failed_jobs[0]["id"])
-    assert failed_log is not None
-    assert "FAIL_MARKER" in failed_log["text"]
-
-    # Reverse stream: the captured session received transitions, a stage event,
-    # and a final wait_terminal carrying the failed status + per-stage summary.
-    events = [m["data"]["event"] for m in ctx.session.messages]
-    assert "wait_transition" in events
-    assert "wait_stage_transition" in events
-    assert events[-1] == "wait_terminal"
-    term = ctx.session.messages[-1]
-    assert term["level"] == "error"
-    assert term["data"]["status"] == "failed"
-    assert any(stg["name"] == "test" for stg in term["data"]["stages"])
+    # Heavy fields stay out of the snapshot.
+    assert "pipeline" not in result
+    assert "failed_logs" not in result
+    # Stages reflect the final per-stage view.
+    assert any(stg["name"] == "test" for stg in result.get("stages", []))
 
     WAIT_REGISTRY.clear()
 
 
-def test_jobs_wait_streams_transition_and_terminal(agent_gitlab, project_with_pipeline):
+def test_jobs_wait_reaches_terminal(agent_gitlab, project_with_pipeline):
     from gitlab_mcp.wait_registry import WAIT_REGISTRY
 
     project_id, _pipeline_id, jobs_by_name = project_with_pipeline
     passing_job_id = jobs_by_name["passing"]["id"]
-    ctx = FakeContext()
 
     async def flow():
         start_snap = await agent_gitlab._tools["jobs_wait"](
             project_id=project_id,
             job_id=passing_job_id,
             interval=2.0,
-            include_log=True,
-            log_tail=100,
-            ctx=ctx,
         )
-        final = await agent_gitlab._tools["jobs_wait_poll"](
+        return await agent_gitlab._tools["jobs_wait_poll"](
             wait_id=start_snap["wait_id"],
             max_block=300.0,
         )
-        handle = WAIT_REGISTRY.get(start_snap["wait_id"])
-        if handle is not None and handle.task is not None:
-            await handle.task
-        return final
 
     result = asyncio.run(flow())
 
@@ -246,14 +201,9 @@ def test_jobs_wait_streams_transition_and_terminal(agent_gitlab, project_with_pi
     assert result["status"] == "success", (
         f"expected success; got {result['status']}"
     )
-    assert "step 3 success" in result["log"]["text"]
-
-    # Reverse stream: status transitions + terminal; jobs have no stages.
-    events = [m["data"]["event"] for m in ctx.session.messages]
-    assert "wait_transition" in events
-    assert events[-1] == "wait_terminal"
-    assert "wait_stage_transition" not in events
-    assert ctx.session.messages[-1]["data"]["status"] == "success"
+    # Heavy fields stay out of the snapshot.
+    assert "job" not in result
+    assert "log" not in result
 
     WAIT_REGISTRY.clear()
 
@@ -303,9 +253,6 @@ def test_pipelines_wait_and_poll_full_flow(agent_gitlab):
                 project_id=project_id,
                 pipeline_id=pipeline_id,
                 interval=2.0,
-                include_jobs=True,
-                include_failed_logs=True,
-                log_tail=200,
             )
             assert start_snap["wait_id"].startswith("wp-")
             assert start_snap["resource_uri"] == f"gitlab://waits/{start_snap['wait_id']}"
@@ -343,12 +290,11 @@ def test_pipelines_wait_and_poll_full_flow(agent_gitlab):
         assert final_snap["polls"] >= 1
         assert isinstance(final_snap["transitions"], list) and final_snap["transitions"]
 
-        # Enrichment runs once on terminal — slim jobs + failed log.
+        # Enrichment runs once on terminal — slim jobs list, no log tails
+        # (callers fetch them via jobs_show_log if needed).
         failed_jobs = [j for j in final_snap["jobs"] if j["status"] == "failed"]
         assert len(failed_jobs) == 1
-        failed_log = final_snap["failed_logs"].get(failed_jobs[0]["id"])
-        assert failed_log is not None
-        assert "FAIL_MARKER" in failed_log["text"]
+        assert "failed_logs" not in final_snap
 
         # Resource read path: the wait should be readable as a resource.
         async def read_resource():

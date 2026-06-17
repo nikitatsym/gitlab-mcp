@@ -108,7 +108,8 @@ def _handler(scripts: dict[str, Any]):
 class TestPipelinesWait:
     def test_terminal_on_first_poll_returns_enriched_snapshot(self):
         """Pipeline already at terminal status when start fires the first poll:
-        no background task is spawned; snapshot carries jobs + failed_logs."""
+        no background task is spawned; snapshot carries the slim jobs list
+        and no full pipelines_show payload."""
         scripts = {
             "/api/v4/projects/1/pipelines/42": [
                 (200, _pipeline(42, "success")),
@@ -137,7 +138,9 @@ class TestPipelinesWait:
             {"from": None, "to": "success", "elapsed_seconds": snap["transitions"][0]["elapsed_seconds"]}
         ]
         assert isinstance(snap["jobs"], list) and len(snap["jobs"]) == 1
-        assert snap["failed_logs"] == {}
+        # Heavy fields stay out of the snapshot.
+        assert "pipeline" not in snap
+        assert "failed_logs" not in snap
 
         # Wait was registered.
         handle = WAIT_REGISTRY.get(snap["wait_id"])
@@ -153,6 +156,7 @@ class TestPipelinesWait:
                 (200, _pipeline(42, "running")),
                 (200, _pipeline(42, "running")),  # safety: avoid script underflow
             ],
+            "/api/v4/projects/1/jobs": [(200, [])],
         }
         _seed(_handler(scripts))
         from gitlab_mcp.tools import pipelines_wait
@@ -160,7 +164,6 @@ class TestPipelinesWait:
         async def flow():
             snap = await pipelines_wait(
                 project_id=1, pipeline_id=42, interval=0.01,
-                include_jobs=False, include_failed_logs=False,
             )
             handle = WAIT_REGISTRY.get(snap["wait_id"])
             # Cancel right away so the background loop doesn't busy-spin
@@ -208,17 +211,6 @@ class TestPipelinesWait:
                 pipelines_wait(project_id=1, pipeline_id=42, interval=0)
             )
 
-    def test_rejects_negative_log_tail(self):
-        _seed(_handler({}))
-        from gitlab_mcp.tools import pipelines_wait
-
-        with pytest.raises(ValueError, match="log_tail must be >= 0"):
-            asyncio.run(
-                pipelines_wait(
-                    project_id=1, pipeline_id=42, interval=1.0, log_tail=-1
-                )
-            )
-
 
 # ── pipelines_wait_poll ──────────────────────────────────────────────────
 
@@ -236,7 +228,6 @@ class TestPipelinesWaitPoll:
         async def flow():
             start_snap = await pipelines_wait(
                 project_id=1, pipeline_id=42, interval=0.01,
-                include_jobs=False, include_failed_logs=False,
             )
             poll_snap = await pipelines_wait_poll(start_snap["wait_id"], max_block=0)
             # cleanup background task
@@ -296,6 +287,7 @@ class TestPipelinesWaitPoll:
             "/api/v4/projects/1/pipelines/42": [
                 (200, _pipeline(42, "running")),
             ],
+            "/api/v4/projects/1/jobs": [(200, [])],
         }
         _seed(_handler(scripts))
         from gitlab_mcp.tools import pipelines_wait, pipelines_wait_poll
@@ -311,7 +303,6 @@ class TestPipelinesWaitPoll:
         async def flow():
             start_snap = await pipelines_wait(
                 project_id=1, pipeline_id=42, interval=0.01,
-                include_jobs=False, include_failed_logs=False,
             )
             # Tiny max_block, should time out near-immediately.
             poll_snap = await pipelines_wait_poll(
@@ -380,7 +371,6 @@ class TestPipelinesWaitCancel:
         async def flow():
             start_snap = await pipelines_wait(
                 project_id=1, pipeline_id=42, interval=0.01,
-                include_jobs=False, include_failed_logs=False,
             )
             cancel_snap = await pipelines_wait_cancel(start_snap["wait_id"])
             return cancel_snap
@@ -425,10 +415,9 @@ class TestPipelinesWaitCancel:
 
 
 class TestJobsWaitFlow:
-    def test_terminal_on_first_poll_attaches_log(self):
+    def test_terminal_on_first_poll_returns_slim_snapshot(self):
         scripts = {
             "/api/v4/projects/1/jobs/101": [(200, _job(101, "success"))],
-            "/api/v4/projects/1/jobs/101/trace": [(200, "step 1\nstep 2\ndone\n")],
         }
         _seed(_handler(scripts))
         from gitlab_mcp.tools import jobs_wait
@@ -441,7 +430,9 @@ class TestJobsWaitFlow:
         assert snap["status"] == "success"
         assert snap["kind"] == "job"
         assert snap["wait_id"].startswith("wj-")
-        assert snap["log"]["text"] == "step 1\nstep 2\ndone\n"
+        # Heavy fields stay out of the snapshot.
+        assert "job" not in snap
+        assert "log" not in snap
 
     def test_non_terminal_then_poll_until_terminal(self):
         scripts = {
@@ -449,7 +440,6 @@ class TestJobsWaitFlow:
                 (200, _job(101, "running")),
                 (200, _job(101, "failed")),
             ],
-            "/api/v4/projects/1/jobs/101/trace": [(200, "compile error\n")],
         }
         _seed(_handler(scripts))
         from gitlab_mcp.tools import jobs_wait, jobs_wait_poll
@@ -463,7 +453,8 @@ class TestJobsWaitFlow:
         assert s["status"] == "running"
         assert p["status"] == "failed"
         assert p["terminated"] is True
-        assert "compile error" in p["log"]["text"]
+        # Snapshot stays slim even on the terminal poll.
+        assert "log" not in p
 
     def test_cancel_job_wait(self):
         scripts = {
@@ -473,8 +464,7 @@ class TestJobsWaitFlow:
         from gitlab_mcp.tools import jobs_wait, jobs_wait_cancel
 
         async def flow():
-            s = await jobs_wait(project_id=1, job_id=101, interval=0.01,
-                                      include_log=False)
+            s = await jobs_wait(project_id=1, job_id=101, interval=0.01)
             c = await jobs_wait_cancel(s["wait_id"])
             return c
 
@@ -504,8 +494,7 @@ class TestWaitsList:
 
         async def flow():
             p_snap = await pipelines_wait(project_id=1, pipeline_id=42, interval=0.01)
-            j_snap = await jobs_wait(project_id=1, job_id=101, interval=0.01,
-                                           include_log=False)
+            j_snap = await jobs_wait(project_id=1, job_id=101, interval=0.01)
             handle = WAIT_REGISTRY.get(j_snap["wait_id"])
             assert handle is not None
             if handle.task and not handle.task.done():
@@ -697,7 +686,7 @@ class TestWaitResilience:
         async def flow():
             snap = await pipelines_wait(
                 project_id=1, pipeline_id=42, interval=0.01,
-                max_poll_failures=2, include_jobs=False,
+                max_poll_failures=2,
             )
             return await pipelines_wait_poll(snap["wait_id"], max_block=5.0)
 
@@ -722,7 +711,7 @@ class TestWaitResilience:
         async def flow():
             snap = await pipelines_wait(
                 project_id=1, pipeline_id=42, interval=0.01,
-                max_poll_failures=5, include_jobs=False,
+                max_poll_failures=5,
             )
             return await pipelines_wait_poll(snap["wait_id"], max_block=5.0)
 
@@ -745,7 +734,7 @@ class TestWaitResilience:
         async def flow():
             snap = await pipelines_wait(
                 project_id=1, pipeline_id=42, interval=0.01,
-                max_lifetime=0.05, include_jobs=False,
+                max_lifetime=0.05,
             )
             return await pipelines_wait_poll(snap["wait_id"], max_block=5.0)
 
@@ -769,238 +758,11 @@ class TestWaitResilience:
             ))
 
 
-# ── Reverse-stream push (transitions, stages, terminal notification) ───────
+# ── Per-stage status view ────────────────────────────────────────────────
 
 
-class FakeSession:
-    """Captures send_log_message calls; optionally fails to mimic a closed
-    server->client channel."""
-
-    def __init__(self, fail: bool = False):
-        self.messages: list[dict] = []
-        self.fail = fail
-
-    async def send_log_message(self, level, data, logger=None):
-        if self.fail:
-            raise RuntimeError("stream closed")
-        self.messages.append({"level": level, "data": data, "logger": logger})
-
-
-class FakeContext:
-    def __init__(self, session=None):
-        self._session = session if session is not None else FakeSession()
-
-    @property
-    def session(self):
-        return self._session
-
-
-def _events(session):
-    return [m["data"]["event"] for m in session.messages]
-
-
-def _terminal(session):
-    return [m for m in session.messages if m["data"]["event"] == "wait_terminal"][-1]
-
-
-async def _drain(wait_id):
-    """Await the background task so its terminal push completes before asserts.
-
-    `*_wait_poll(max_block)` returns when done_event fires (set in mark_*),
-    which is just before `_push_terminal` runs; awaiting the task closes that
-    gap deterministically."""
-    handle = WAIT_REGISTRY.get(wait_id)
-    if handle is not None and handle.task is not None:
-        try:
-            await handle.task
-        except asyncio.CancelledError:
-            pass
-
-
-class TestReverseStreamPipeline:
-    def test_streams_transitions_stages_and_terminal(self):
-        jobs = [
-            {"id": 101, "status": "success", "stage": "build", "name": "compile"},
-            {"id": 102, "status": "success", "stage": "test", "name": "unit"},
-        ]
-        scripts = {
-            "/api/v4/projects/1/pipelines/42": [
-                (200, _pipeline(42, "running")),
-                (200, _pipeline(42, "success")),
-            ],
-            "/api/v4/projects/1/jobs": [(200, jobs)],
-        }
-        _seed(_handler(scripts))
-        from gitlab_mcp.tools import pipelines_wait, pipelines_wait_poll
-
-        session = FakeSession()
-        ctx = FakeContext(session)
-
-        async def flow():
-            start = await pipelines_wait(
-                project_id=1, pipeline_id=42, interval=0.01, ctx=ctx
-            )
-            poll = await pipelines_wait_poll(start["wait_id"], max_block=5.0)
-            await _drain(start["wait_id"])
-            return poll
-
-        poll = asyncio.run(flow())
-        events = _events(session)
-        assert "wait_transition" in events
-        assert "wait_stage_transition" in events
-        assert events[-1] == "wait_terminal"
-        term = _terminal(session)["data"]
-        assert term["status"] == "success"
-        assert term["terminated"] is True
-        assert [s["name"] for s in term["stages"]] == ["build", "test"]
-        # snapshot reports delivery + stages too (poll fallback)
-        assert poll["notified"] is True
-        assert poll["stages"]
-
-    def test_terminal_push_on_error_budget(self):
-        scripts = {
-            "/api/v4/projects/1/pipelines/42": [
-                (200, _pipeline(42, "running")),
-                (502, {"message": "bad gateway"}),
-            ],
-        }
-        _seed(_handler(scripts))
-        from gitlab_mcp.tools import pipelines_wait, pipelines_wait_poll
-
-        session = FakeSession()
-        ctx = FakeContext(session)
-
-        async def flow():
-            start = await pipelines_wait(
-                project_id=1, pipeline_id=42, interval=0.01,
-                max_poll_failures=1, include_jobs=False, ctx=ctx,
-            )
-            poll = await pipelines_wait_poll(start["wait_id"], max_block=5.0)
-            await _drain(start["wait_id"])
-            return poll
-
-        poll = asyncio.run(flow())
-        term = _terminal(session)
-        assert term["level"] == "error"
-        assert term["data"]["terminated"] is False
-        assert "poll failed" in (term["data"]["error"] or "")
-        assert poll["notified"] is True
-
-    def test_terminal_push_on_timeout(self):
-        scripts = {
-            "/api/v4/projects/1/pipelines/42": [(200, _pipeline(42, "running"))],
-        }
-        _seed(_handler(scripts))
-        from gitlab_mcp.tools import pipelines_wait, pipelines_wait_poll
-
-        session = FakeSession()
-        ctx = FakeContext(session)
-
-        async def flow():
-            start = await pipelines_wait(
-                project_id=1, pipeline_id=42, interval=0.01,
-                max_lifetime=0.05, include_jobs=False, ctx=ctx,
-            )
-            poll = await pipelines_wait_poll(start["wait_id"], max_block=5.0)
-            await _drain(start["wait_id"])
-            return poll
-
-        poll = asyncio.run(flow())
-        term = _terminal(session)
-        assert term["level"] == "warning"
-        assert term["data"]["timed_out"] is True
-        assert poll["timed_out"] is True
-
-    def test_closed_channel_swallowed_and_recorded(self):
-        scripts = {
-            "/api/v4/projects/1/pipelines/42": [(200, _pipeline(42, "success"))],
-            "/api/v4/projects/1/jobs": [(200, [])],
-        }
-        _seed(_handler(scripts))
-        from gitlab_mcp.tools import pipelines_wait
-
-        session = FakeSession(fail=True)
-        ctx = FakeContext(session)
-
-        # Inline-terminal path: must not raise even though every send fails.
-        snap = asyncio.run(
-            pipelines_wait(project_id=1, pipeline_id=42, interval=0.01, ctx=ctx)
-        )
-        assert snap["terminated"] is True
-        assert snap.get("notified") is not True
-        assert "stream closed" in (snap.get("notify_error") or "")
-
-    def test_cancel_emits_no_terminal_push(self):
-        scripts = {
-            "/api/v4/projects/1/pipelines/42": [(200, _pipeline(42, "running"))],
-        }
-        _seed(_handler(scripts))
-        from gitlab_mcp.tools import pipelines_wait, pipelines_wait_cancel
-
-        session = FakeSession()
-        ctx = FakeContext(session)
-
-        async def flow():
-            start = await pipelines_wait(
-                project_id=1, pipeline_id=42, interval=0.01,
-                include_jobs=False, ctx=ctx,
-            )
-            return await pipelines_wait_cancel(start["wait_id"])
-
-        snap = asyncio.run(flow())
-        assert snap["error"] == "cancelled"
-        assert "wait_terminal" not in _events(session)
-
-    def test_no_ctx_runs_push_free(self):
-        scripts = {
-            "/api/v4/projects/1/pipelines/42": [(200, _pipeline(42, "success"))],
-            "/api/v4/projects/1/jobs": [(200, [])],
-        }
-        _seed(_handler(scripts))
-        from gitlab_mcp.tools import pipelines_wait
-
-        snap = asyncio.run(
-            pipelines_wait(project_id=1, pipeline_id=42, interval=0.01)
-        )
-        assert snap["terminated"] is True
-        assert "notified" not in snap
-        assert "notify_error" not in snap
-
-
-class TestReverseStreamJob:
-    def test_job_streams_transition_and_terminal_without_stages(self):
-        scripts = {
-            "/api/v4/projects/1/jobs/101": [
-                (200, _job(101, "running")),
-                (200, _job(101, "success")),
-            ],
-            "/api/v4/projects/1/jobs/101/trace": [(200, "ok\n")],
-        }
-        _seed(_handler(scripts))
-        from gitlab_mcp.tools import jobs_wait, jobs_wait_poll
-
-        session = FakeSession()
-        ctx = FakeContext(session)
-
-        async def flow():
-            start = await jobs_wait(project_id=1, job_id=101, interval=0.01, ctx=ctx)
-            poll = await jobs_wait_poll(start["wait_id"], max_block=5.0)
-            await _drain(start["wait_id"])
-            return poll
-
-        poll = asyncio.run(flow())
-        events = _events(session)
-        assert "wait_transition" in events
-        assert "wait_stage_transition" not in events  # jobs have no stages
-        assert events[-1] == "wait_terminal"
-        term = _terminal(session)["data"]
-        assert term["status"] == "success"
-        assert "stages" not in term
-        assert poll["notified"] is True
-
-
-class TestStageStream:
-    def test_stage_transitions_and_ordered_terminal_summary(self):
+class TestStages:
+    def test_stages_refresh_each_poll_and_show_in_terminal_snapshot(self):
         jobs_running = [
             {"id": 101, "status": "running", "stage": "build", "name": "compile"},
             {"id": 102, "status": "created", "stage": "test", "name": "unit"},
@@ -1015,80 +777,24 @@ class TestStageStream:
                 (200, _pipeline(42, "failed")),
             ],
             "/api/v4/projects/1/jobs": [(200, jobs_running), (200, jobs_done)],
-            "/api/v4/projects/1/jobs/102/trace": [(200, "boom\n")],
         }
         _seed(_handler(scripts))
         from gitlab_mcp.tools import pipelines_wait, pipelines_wait_poll
 
-        session = FakeSession()
-        ctx = FakeContext(session)
-
         async def flow():
             start = await pipelines_wait(
-                project_id=1, pipeline_id=42, interval=0.01, ctx=ctx
+                project_id=1, pipeline_id=42, interval=0.01,
             )
-            poll = await pipelines_wait_poll(start["wait_id"], max_block=5.0)
-            await _drain(start["wait_id"])
-            return poll
+            return start, await pipelines_wait_poll(start["wait_id"], max_block=5.0)
 
-        poll = asyncio.run(flow())
-        stage_events = [
-            m["data"] for m in session.messages
-            if m["data"]["event"] == "wait_stage_transition"
-        ]
-        assert any(e["stage"] == "build" for e in stage_events)
-        assert any(e["stage"] == "test" for e in stage_events)
-        term = _terminal(session)["data"]
-        assert [s["name"] for s in term["stages"]] == ["build", "test"]
-        statuses = {s["name"]: s["status"] for s in term["stages"]}
-        assert statuses == {"build": "success", "test": "failed"}
-        assert poll["stages"]
-
-
-class TestWaitCtxContract:
-    def test_ctx_absent_from_help(self):
-        _seed(_handler({}))
-        from gitlab_mcp import server
-        server._register_tools()
-        help_text = server._build_help("gitlab_read", search="pipelines_wait")
-        assert "PipelinesWait(" in help_text
-        assert "ctx" not in help_text
-
-    def test_ctx_rejected_when_passed_via_params(self):
-        _seed(_handler({}))
-        from gitlab_mcp import server
-        server._register_tools()
-        # ctx is injected by the harness, never a caller param: extra=forbid.
-        with pytest.raises(ValueError):
-            server._dispatch(
-                "PipelinesWait", "gitlab_read",
-                {"project_id": 1, "pipeline_id": 42, "ctx": "nope"},
-            )
-
-    def test_ctx_threads_through_dispatch(self):
-        scripts = {
-            "/api/v4/projects/1/pipelines/42": [(200, _pipeline(42, "success"))],
-            "/api/v4/projects/1/jobs": [(200, [])],
-        }
-        _seed(_handler(scripts))
-        from gitlab_mcp import server
-        server._register_tools()
-        session = FakeSession()
-        ctx = FakeContext(session)
-
-        async def flow():
-            coro = server._dispatch(
-                "PipelinesWait", "gitlab_read",
-                {"project_id": 1, "pipeline_id": 42, "interval": 0.01},
-                ctx,  # type: ignore[arg-type]
-            )
-            return await coro
-
-        snap = asyncio.run(flow())
-        assert snap["terminated"] is True
-        assert any(
-            m["data"]["event"] == "wait_terminal" for m in session.messages
-        )
+        start, poll = asyncio.run(flow())
+        # Mid-flight (inline first poll) already reflects the running stages.
+        start_statuses = {s["name"]: s["status"] for s in start["stages"]}
+        assert start_statuses == {"build": "running", "test": "created"}
+        # Terminal snapshot keeps the per-stage view, now updated.
+        term_statuses = {s["name"]: s["status"] for s in poll["stages"]}
+        assert term_statuses == {"build": "success", "test": "failed"}
+        assert [s["name"] for s in poll["stages"]] == ["build", "test"]
 
 
 class TestEnrichmentAndDiagnostics:

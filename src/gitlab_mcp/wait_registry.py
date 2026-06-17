@@ -5,9 +5,9 @@ Backs the `pipelines_wait` / `pipelines_wait_poll` and
 `WaitHandle` carrying:
 
 - identity (wait_id, kind, project_id, target_id)
-- current observed state (status, terminated, polls, transitions)
-- the latest API payload (`pipelines_show` / `jobs_show`)
-- final enrichment (`jobs`, `failed_logs`, `log`, `warnings`) once terminal
+- current observed state (status, terminated, polls, transitions, stages)
+- the latest API payload (`pipelines_show` / `jobs_show`), kept on the
+  handle for terminal-time diagnostics but not surfaced in snapshots
 - a background `asyncio.Task` polling on a schedule
 - an `asyncio.Event` that fires when terminal so `poll(max_block=...)`
   can wait efficiently instead of busy-checking
@@ -66,9 +66,6 @@ class WaitHandle:
         "error",
         "task",
         "done_event",
-        "notify_session",
-        "notified",
-        "notify_error",
         "stages",
     )
 
@@ -102,17 +99,9 @@ class WaitHandle:
         self.task: asyncio.Task | None = None
         self.done_event: asyncio.Event = asyncio.Event()
 
-        # Reverse-stream push: the connection-scoped MCP ServerSession captured
-        # at *_wait time (typed Any so this module stays MCP-free). The
-        # background task streams transition logs + a terminal notification
-        # through it. notified/notify_error record best-effort delivery.
-        self.notify_session: Any = None
-        self.notified: bool = False
-        self.notify_error: str | None = None
-
         # Per-stage status view (pipeline waits only): ordered list of
-        # {name, status, jobs}, refreshed each poll for the live stage stream
-        # and the terminal summary.
+        # {name, status, jobs}, refreshed each poll while the wait is in
+        # flight and on the terminal snapshot.
         self.stages: list[dict[str, Any]] = []
 
     @property
@@ -157,11 +146,12 @@ class WaitHandle:
     def snapshot(self) -> dict[str, Any]:
         """Return a JSON-serializable snapshot of the current state.
 
-        Always includes the latest payload (`pipeline` or `job` key) so a
-        caller polling mid-flight sees what the wait sees. When terminal,
-        also includes enrichment (`jobs`, `failed_logs`, `log`, `warnings`).
+        Compact by design: status, transitions, stages, and on terminal a
+        slim `jobs` list and any `warnings`. Does NOT include the full
+        `pipelines_show` / `jobs_show` API payload or job trace tails -
+        callers that want those should call `pipelines_show`, `jobs_all`,
+        or `jobs_show_log` against the wait's target.
         """
-        payload_key = "pipeline" if self.kind == "pipeline" else "job"
         target_key = "pipeline_id" if self.kind == "pipeline" else "job_id"
 
         snap: dict[str, Any] = {
@@ -182,48 +172,14 @@ class WaitHandle:
         if self.poll_failures:
             snap["poll_failures"] = self.poll_failures
             snap["last_poll_error"] = self.last_poll_error
-        # Surfaced even mid-flight: a transition push that failed is a signal
-        # the agent should fall back to polling, not something to hide until
-        # the wait ends.
-        if self.notified:
-            snap["notified"] = self.notified
-        if self.notify_error is not None:
-            snap["notify_error"] = self.notify_error
         if self.stages:
             snap["stages"] = self.stages
-        if self.last_payload is not None:
-            snap[payload_key] = self.last_payload
         if self.error is not None:
             snap["error"] = self.error
         if self.terminated:
             for k, v in self.final_extras.items():
                 snap[k] = v
         return snap
-
-    def push_payload(self) -> dict[str, Any]:
-        """Compact terminal-notification payload for the reverse stream.
-
-        Omits heavy fields (last_payload, jobs, logs) and the non-serializable
-        notify_session - it is a completion signal, not the full snapshot. The
-        consumer fetches detail via *_wait_poll or the resource using wait_id.
-        """
-        target_key = "pipeline_id" if self.kind == "pipeline" else "job_id"
-        payload: dict[str, Any] = {
-            "event": "wait_terminal",
-            "wait_id": self.wait_id,
-            "resource_uri": f"gitlab://waits/{self.wait_id}",
-            "kind": self.kind,
-            "project_id": self.project_id,
-            target_key: self.target_id,
-            "status": self.status,
-            "terminated": self.terminated,
-            "timed_out": self.timed_out,
-            "error": self.error,
-            "elapsed_seconds": self.elapsed_seconds,
-        }
-        if self.stages:
-            payload["stages"] = self.stages
-        return payload
 
 
 class WaitRegistry:
