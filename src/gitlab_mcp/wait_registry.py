@@ -1,7 +1,7 @@
 """In-memory registry of long-running wait operations.
 
-Backs the `pipelines_wait_start` / `pipelines_wait_poll` and
-`jobs_wait_start` / `jobs_wait_poll` tools. Each registered wait is a
+Backs the `pipelines_wait` / `pipelines_wait_poll` and
+`jobs_wait` / `jobs_wait_poll` tools. Each registered wait is a
 `WaitHandle` carrying:
 
 - identity (wait_id, kind, project_id, target_id)
@@ -66,6 +66,10 @@ class WaitHandle:
         "error",
         "task",
         "done_event",
+        "notify_session",
+        "notified",
+        "notify_error",
+        "stages",
     )
 
     def __init__(
@@ -97,6 +101,19 @@ class WaitHandle:
 
         self.task: asyncio.Task | None = None
         self.done_event: asyncio.Event = asyncio.Event()
+
+        # Reverse-stream push: the connection-scoped MCP ServerSession captured
+        # at *_wait time (typed Any so this module stays MCP-free). The
+        # background task streams transition logs + a terminal notification
+        # through it. notified/notify_error record best-effort delivery.
+        self.notify_session: Any = None
+        self.notified: bool = False
+        self.notify_error: str | None = None
+
+        # Per-stage status view (pipeline waits only): ordered list of
+        # {name, status, jobs}, refreshed each poll for the live stage stream
+        # and the terminal summary.
+        self.stages: list[dict[str, Any]] = []
 
     @property
     def elapsed_seconds(self) -> float:
@@ -165,6 +182,15 @@ class WaitHandle:
         if self.poll_failures:
             snap["poll_failures"] = self.poll_failures
             snap["last_poll_error"] = self.last_poll_error
+        # Surfaced even mid-flight: a transition push that failed is a signal
+        # the agent should fall back to polling, not something to hide until
+        # the wait ends.
+        if self.notified:
+            snap["notified"] = self.notified
+        if self.notify_error is not None:
+            snap["notify_error"] = self.notify_error
+        if self.stages:
+            snap["stages"] = self.stages
         if self.last_payload is not None:
             snap[payload_key] = self.last_payload
         if self.error is not None:
@@ -173,6 +199,31 @@ class WaitHandle:
             for k, v in self.final_extras.items():
                 snap[k] = v
         return snap
+
+    def push_payload(self) -> dict[str, Any]:
+        """Compact terminal-notification payload for the reverse stream.
+
+        Omits heavy fields (last_payload, jobs, logs) and the non-serializable
+        notify_session - it is a completion signal, not the full snapshot. The
+        consumer fetches detail via *_wait_poll or the resource using wait_id.
+        """
+        target_key = "pipeline_id" if self.kind == "pipeline" else "job_id"
+        payload: dict[str, Any] = {
+            "event": "wait_terminal",
+            "wait_id": self.wait_id,
+            "resource_uri": f"gitlab://waits/{self.wait_id}",
+            "kind": self.kind,
+            "project_id": self.project_id,
+            target_key: self.target_id,
+            "status": self.status,
+            "terminated": self.terminated,
+            "timed_out": self.timed_out,
+            "error": self.error,
+            "elapsed_seconds": self.elapsed_seconds,
+        }
+        if self.stages:
+            payload["stages"] = self.stages
+        return payload
 
 
 class WaitRegistry:

@@ -530,7 +530,7 @@ def _register_wait_resource() -> None:
         name="GitLab wait snapshot",
         description=(
             "JSON snapshot of a long-running wait operation registered by "
-            "pipelines_wait_start or jobs_wait_start. Same shape as the "
+            "pipelines_wait or jobs_wait. Same shape as the "
             "return value of the corresponding *_wait_poll tool."
         ),
         mime_type="application/json",
