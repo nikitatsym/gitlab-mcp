@@ -555,7 +555,7 @@ class TestWaitResource:
             return snap, content_list
 
         snap, content_list = asyncio.run(flow())
-        # FastMCP read_resource returns an iterable of ReadResourceContents.
+        # MCPServer read_resource returns an iterable of ReadResourceContents.
         chunks = list(content_list)
         assert chunks, "expected resource content"
         text = chunks[0].content

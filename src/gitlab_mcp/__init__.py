@@ -3,14 +3,14 @@ def main():
 
     Strict startup ordering — every step fail-fast:
 
-    1. Strip security CLI flags from sys.argv (FastMCP doesn't tolerate them).
+    1. Strip security CLI flags from sys.argv (MCPServer doesn't tolerate them).
     2. Load settings, require GITLAB_URL and GITLAB_TOKEN.
     3. Construct the HTTP client (no requests yet).
     4. Populate `client.instance` via eager backend detection
        (or from the explicit GITLAB_BACKEND override).
     5. Import the server module and register tools
        (this is where the `_heptapod_only` filter runs).
-    6. Run FastMCP over stdio.
+    6. Run MCPServer over stdio.
     """
     import sys
 
