@@ -23,9 +23,7 @@ jobs:
       - name: Install
         run: uv sync
       - name: Lint (ruff)
-        run: |
-          uv tool install ruff
-          uv tool run ruff check src/ tests/ scripts/
+        run: uv run ruff check src/ tests/ scripts/
       - name: Type check (mypy)
         run: uv run mypy src/gitlab_mcp tests scripts
       - name: Unit tests

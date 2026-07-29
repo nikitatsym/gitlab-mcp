@@ -64,8 +64,8 @@ class AgentSimulator:
             self._tools[tool.name] = tool.fn
 
         # Individual ops by snake name, pulled from the filtered registry.
-        for _group_name, ops in _group_ops.items():
-            for _pascal, fn in ops.items():
+        for ops in _group_ops.values():
+            for fn in ops.values():
                 snake = fn.__name__
                 if snake not in self._tools:
                     self._tools[snake] = fn

@@ -32,7 +32,6 @@ import secrets
 import time
 from typing import Any
 
-
 # Pipeline / job terminal statuses (see tools.py for the full rationale).
 TERMINAL_STATUSES = frozenset(
     {"success", "failed", "canceled", "skipped", "manual", "scheduled"}
@@ -47,26 +46,26 @@ class WaitHandle:
     """One long-running wait operation."""
 
     __slots__ = (
-        "wait_id",
+        "done_event",
+        "ended_at",
+        "error",
+        "final_extras",
         "kind",
-        "project_id",
-        "target_id",
+        "last_payload",
+        "last_poll_error",
         "options",
+        "poll_failures",
+        "polls",
+        "project_id",
+        "stages",
+        "started_at",
         "status",
+        "target_id",
+        "task",
         "terminated",
         "timed_out",
-        "polls",
-        "poll_failures",
-        "last_poll_error",
-        "started_at",
-        "ended_at",
-        "last_payload",
         "transitions",
-        "final_extras",
-        "error",
-        "task",
-        "done_event",
-        "stages",
+        "wait_id",
     )
 
     def __init__(

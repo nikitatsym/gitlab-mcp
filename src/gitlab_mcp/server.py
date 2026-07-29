@@ -25,7 +25,7 @@ from pydantic import (
 
 from . import tools as _tools_module
 from .client import get_client
-from .registry import ROOT, _UNSET, _Unset
+from .registry import _UNSET, ROOT, _Unset
 
 mcp = MCPServer("gitlab")
 
@@ -285,8 +285,10 @@ def _build_help(
 
     lines = [
         f"{len(ops)} operations in {group_name}, grouped by resource.",
-        "Drill down with operation='help' params={'category': 'X'} for full signatures, "
-        "or params={'search': 'foo'} to filter by name.",
+        (
+            "Drill down with operation='help' params={'category': 'X'} for full signatures, "
+            "or params={'search': 'foo'} to filter by name."
+        ),
         "",
     ]
     for cat in sorted(by_category):
@@ -334,10 +336,12 @@ def _format_help_full(ops: dict, group_name: str, scope_desc: str) -> str:
     lines = [
         f"{len(ops)} operations in {group_name} {scope_desc}:",
         "",
-        "NOTE: every signature is closed — only the listed fields are accepted. "
-        "Unknown kwargs are rejected before any HTTP call. If a field you need "
-        "is missing, the codegen source (OpenAPI / gitbeaker TS) didn't list it "
-        "at the current pin; raise an issue or add it to MANUAL_PARAMS.",
+        (
+            "NOTE: every signature is closed - only the listed fields are accepted. "
+            "Unknown kwargs are rejected before any HTTP call. If a field you need "
+            "is missing, the codegen source (OpenAPI / gitbeaker TS) didn't list it "
+            "at the current pin; raise an issue or add it to MANUAL_PARAMS."
+        ),
         "",
     ]
     for pascal_name in sorted(ops):

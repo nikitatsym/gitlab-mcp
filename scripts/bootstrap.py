@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Wait for a GitLab/Heptapod container to be ready and seed a root PAT.
 
 Usage: `uv run python scripts/bootstrap.py [gitlab|heptapod]`
@@ -81,7 +80,8 @@ def wait_for_ready(url: str, timeout: int) -> None:
                 time.sleep(5)
                 return
             last_error = f"HTTP {r.status_code}"
-        except Exception as e:
+        except httpx.HTTPError as e:
+            # A booting container refuses connections; the deadline below is the loud path.
             last_error = type(e).__name__
         if attempts % 6 == 0:
             elapsed = int(timeout - (deadline - time.time()))

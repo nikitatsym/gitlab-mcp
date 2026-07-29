@@ -1,6 +1,7 @@
 """Unit tests for pydantic-settings config."""
 
 import pytest
+from pydantic import ValidationError
 
 from gitlab_mcp.config import Settings, _reset_settings, get_settings
 
@@ -39,12 +40,12 @@ class TestSettings:
 
     def test_invalid_backend_rejected(self, monkeypatch):
         monkeypatch.setenv("GITLAB_BACKEND", "forgejo")
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Settings()
 
     def test_invalid_timeout_rejected(self, monkeypatch):
         monkeypatch.setenv("GITLAB_TIMEOUT", "not-a-number")
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             Settings()
 
     def test_url_must_have_scheme(self, monkeypatch):

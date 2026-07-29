@@ -88,7 +88,7 @@ class TestDetectInstance:
                 return httpx.Response(200, json=["not", "a", "dict"])
             return httpx.Response(404)
 
-        with pytest.raises(RuntimeError, match="Unexpected /metadata response shape"):
+        with pytest.raises(TypeError, match="Unexpected /metadata response shape"):
             detect_instance(_make_client(handler))
 
 

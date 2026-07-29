@@ -410,6 +410,32 @@ class TestPipelinesWaitCancel:
         with pytest.raises(ValueError, match="Unknown wait_id"):
             asyncio.run(pipelines_wait_cancel("wp-nope"))
 
+    def test_cancel_survives_task_dying_with_another_error(self):
+        """The loop's own CancelledError handler can raise something else
+        (mark_terminated / record_poll_failure run outside any guard there).
+        The cancel tool must still return a terminated snapshot, not re-raise.
+        """
+        _seed(_handler({}))
+        from gitlab_mcp.tools import pipelines_wait_cancel
+
+        async def flow():
+            handle = WAIT_REGISTRY.new_handle("pipeline", 1, 42, {"interval": 0.01})
+
+            async def _dies_on_cancel():
+                try:
+                    await asyncio.sleep(3600)
+                except asyncio.CancelledError:
+                    raise RuntimeError("bookkeeping blew up") from None
+
+            handle.task = asyncio.create_task(_dies_on_cancel())
+            await asyncio.sleep(0)  # let the task reach its await point
+            return await pipelines_wait_cancel(handle.wait_id)
+
+        snap = asyncio.run(flow())
+        assert snap["error"] == "cancelled"
+        assert snap["terminated"] is False
+        assert snap["ended_at"] is not None
+
 
 # ── jobs_wait / _poll / _cancel ───────────────────────────────────
 
@@ -489,7 +515,9 @@ class TestWaitsList:
         }
         _seed(_handler(scripts))
         from gitlab_mcp.tools import (
-            pipelines_wait, jobs_wait, waits_list,
+            jobs_wait,
+            pipelines_wait,
+            waits_list,
         )
 
         async def flow():
@@ -746,7 +774,7 @@ class TestWaitResilience:
 
     def test_rejects_bad_resilience_params(self):
         _seed(_handler({}))
-        from gitlab_mcp.tools import pipelines_wait, jobs_wait
+        from gitlab_mcp.tools import jobs_wait, pipelines_wait
 
         with pytest.raises(ValueError, match="max_poll_failures must be >= 1"):
             asyncio.run(pipelines_wait(

@@ -24,7 +24,7 @@ from urllib.parse import quote as _quote
 from pydantic import Field
 
 from . import _generated
-from ._generated import *  # noqa: F401,F403 — re-export all generated ops
+from ._generated import *  # re-export all generated ops
 from ._generated_groups import DEFAULT_GROUPS
 from .annotations import ANNOTATIONS
 from .client import GitLabError, get_client
@@ -43,7 +43,10 @@ from .prepare import (
     _slim_tag,
     _slim_user,
 )
-from .registry import Group, ROOT, _UNSET, _Unset, _op  # noqa: F401 — `_Unset` resolves annotations of `_strict_proxy`-decorated overrides at typing.get_type_hints() time
+
+# _Unset is imported so typing.get_type_hints() can resolve the annotations of
+# _strict_proxy-decorated overrides.
+from .registry import _UNSET, ROOT, Group, _op, _Unset
 
 
 def _enc(v) -> str:
@@ -1402,7 +1405,7 @@ async def _refresh_stages(handle) -> None:
 # (registered in server.py) for clients that can read resources.
 
 
-from .wait_registry import (  # noqa: E402 — defined late so registry is optional
+from .wait_registry import (  # defined late so registry is optional
     TERMINAL_STATUSES as _TERMINAL_STATUSES,
     WAIT_REGISTRY as _WAIT_REGISTRY,
     WaitHandle as _WaitHandle,
@@ -1558,8 +1561,13 @@ async def _cancel_handle(handle: _WaitHandle) -> None:
         task.cancel()
         try:
             await task
-        except (asyncio.CancelledError, Exception):  # noqa: BLE001 — defensive
+        except asyncio.CancelledError:
             pass
+        except Exception:  # noqa: BLE001 - a task that died some other way still must reach the mark below
+            _log_wait.warning(
+                "wait %s: task raised while being cancelled", handle.wait_id,
+                exc_info=True,
+            )
     if not handle.done_event.is_set():
         handle.mark_terminated(error="cancelled")
 

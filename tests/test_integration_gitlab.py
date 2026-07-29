@@ -15,7 +15,6 @@ import uuid
 
 import pytest
 
-
 pytestmark = pytest.mark.integration
 
 # Unique suffix per test session — prevents project-name collisions when the
