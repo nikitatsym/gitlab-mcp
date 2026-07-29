@@ -25,7 +25,7 @@ class InstanceInfo:
     url: str = ""
 
 
-def detect_instance(client: "GitLabClient") -> InstanceInfo:
+def detect_instance(client: GitLabClient) -> InstanceInfo:
     """Probe /metadata + /projects/vcs_type_stats to determine the backend.
 
     GitLab returns 404 on /vcs_type_stats; Heptapod returns a dict with
@@ -36,7 +36,7 @@ def detect_instance(client: "GitLabClient") -> InstanceInfo:
 
     meta = client.get("/metadata")
     if not isinstance(meta, dict):
-        raise RuntimeError(f"Unexpected /metadata response shape: {type(meta).__name__}")
+        raise TypeError(f"Unexpected /metadata response shape: {type(meta).__name__}")
     version = meta.get("version", "unknown")
     revision = meta.get("revision", "")
     enterprise = bool(meta.get("enterprise", False))
@@ -67,7 +67,7 @@ def detect_instance(client: "GitLabClient") -> InstanceInfo:
     )
 
 
-def project_vcs_type(client: "GitLabClient", project_id: str | int) -> VcsType:
+def project_vcs_type(client: GitLabClient, project_id: str | int) -> VcsType:
     """Determine the VCS type of a specific project on a Heptapod instance.
 
     Tries the `vcs_type` field on /projects/:id first; falls back to probing

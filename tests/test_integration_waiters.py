@@ -70,17 +70,19 @@ def _await_project_ready(agent, project_id, timeout=30):
     is async — pushing files immediately after create races with the seed commit
     and fails 400 (no branch) or 500 (repo not yet writable)."""
     deadline = time.time() + timeout
+    last_error = "none"
     while time.time() < deadline:
         try:
             proj = agent.call("projects_show", project_id=project_id)
             if isinstance(proj, dict) and proj.get("default_branch") == "main":
                 # default_branch is set the moment the repo has its first commit
                 return
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001 - a seeding container 400s/500s or drops the connection; both mean "not ready yet"
+            last_error = f"{type(e).__name__}: {e}"
         time.sleep(0.5)
     raise AssertionError(
-        f"project {project_id} did not finish seed-commit within {timeout}s"
+        f"project {project_id} did not finish seed-commit within {timeout}s "
+        f"(last error: {last_error})"
     )
 
 
@@ -132,8 +134,8 @@ def project_with_pipeline(agent_gitlab):
 
     try:
         agent_gitlab.call("projects_remove", project_id=project_id)
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001 - reported, never raised: a teardown blip must not become the verdict
+        print(f"[cleanup] projects_remove {project_id} failed: {e}")
 
 
 def test_pipelines_wait_reaches_terminal_with_slim_jobs(agent_gitlab, project_with_pipeline):
@@ -278,7 +280,7 @@ def test_pipelines_wait_and_poll_full_flow(agent_gitlab):
             )
             return start_snap, mid_snap, final_snap
 
-        start_snap, mid_snap, final_snap = asyncio.run(flow())
+        start_snap, _mid_snap, final_snap = asyncio.run(flow())
 
         assert final_snap["terminated"] is True, (
             f"pipeline did not terminate within 300s; final={final_snap}"
@@ -324,5 +326,5 @@ def test_pipelines_wait_and_poll_full_flow(agent_gitlab):
         WAIT_REGISTRY.clear()
         try:
             agent_gitlab.call("projects_remove", project_id=project_id)
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001 - raising here would replace whatever failure got us into `finally`
+            print(f"[cleanup] projects_remove {project_id} failed: {e}")

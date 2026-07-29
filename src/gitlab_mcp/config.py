@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     @field_validator("gitlab_url")
     @classmethod
     def _validate_url_scheme(cls, v: str) -> str:
-        if v and not (v.startswith("http://") or v.startswith("https://")):
+        if v and not v.startswith(("http://", "https://")):
             raise ValueError(
                 f"gitlab_url must start with http:// or https://, got {v!r}"
             )

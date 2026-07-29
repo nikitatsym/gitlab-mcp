@@ -20,7 +20,7 @@
     "test:integration:heptapod": "uv run pytest -m integration tests/test_integration_heptapod.py",
     "test:integration:full": "npm run gitlab:up && npm run test:integration; rv=$?; npm run gitlab:down; exit $rv",
     "test:all": "npm run test && npm run test:integration && npm run test:integration:waiters && npm run heptapod:up && npm run test:integration:heptapod; rv=$?; npm run gitlab:bootstrap; exit $rv",
-    "lint": "uv tool run ruff check src/ tests/ scripts/",
+    "lint": "uv run ruff check src/ tests/ scripts/",
     "typecheck": "uv run mypy src/gitlab_mcp tests scripts",
     "codegen": "cd codegen && npx tsx generate.ts",
     "codegen:check": "cd codegen && npx tsx generate.ts --check"

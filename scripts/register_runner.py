@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Register a shell-executor gitlab-runner against the local GitLab CE.
 
 Used by the waiter integration tests (`tests/test_integration_waiters.py`)

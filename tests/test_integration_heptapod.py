@@ -22,16 +22,18 @@ def _await_project_ready(agent, project_id, timeout=30):
     404 (`Commit Not Found`) or empty branch list otherwise.
     """
     deadline = time.time() + timeout
+    last_error = "none"
     while time.time() < deadline:
         try:
             proj = agent.call("projects_show", project_id=project_id)
             if isinstance(proj, dict) and proj.get("default_branch"):
                 return
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001 - a seeding container 404s/500s or drops the connection; both mean "not ready yet"
+            last_error = f"{type(e).__name__}: {e}"
         time.sleep(0.5)
     raise AssertionError(
-        f"project {project_id} did not finish seed-commit within {timeout}s"
+        f"project {project_id} did not finish seed-commit within {timeout}s "
+        f"(last error: {last_error})"
     )
 
 

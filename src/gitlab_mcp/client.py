@@ -57,8 +57,8 @@ class GitLabClient:
             transport=transport,
         )
         # Populated by main() via detect_instance() or explicit backend seed.
-        # Using Any to avoid circular import; real type is InstanceInfo.
-        self.instance: "InstanceInfo | None" = None
+        # InstanceInfo is TYPE_CHECKING-only: importing it here would cycle.
+        self.instance: InstanceInfo | None = None
         # Per-project vcs_type FIFO cache, bounded.
         self._project_cache: OrderedDict[str, str] = OrderedDict()
         self._project_cache_max = 256
@@ -80,7 +80,8 @@ class GitLabClient:
         if status >= 400:
             try:
                 body = r.json()
-            except Exception:
+            except ValueError:
+                # Gateways and proxies answer with HTML/plain text, not JSON.
                 body = r.text
             # Hint for a common pitfall: some GitLab endpoints declare
             # `requires :id, type: Integer` and reject URL-encoded path-style

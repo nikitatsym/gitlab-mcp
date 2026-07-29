@@ -241,7 +241,6 @@ class TestMakeTool:
         def fake_dispatch(operation, group_name, params, ctx=None):
             captured.append(len(params))
             params["leaked"] = "mutation"
-            return None
 
         monkeypatch.setattr(server, "_dispatch", fake_dispatch)
         tool_fn = server._make_tool("test_group", "doc")

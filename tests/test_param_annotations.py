@@ -7,7 +7,6 @@ from pydantic import Field
 
 from gitlab_mcp.registry import _UNSET
 
-
 # ── _render_type ──────────────────────────────────────────────────────────
 
 

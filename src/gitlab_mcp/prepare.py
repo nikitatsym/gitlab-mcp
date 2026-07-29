@@ -7,7 +7,8 @@ tests/test_slim.py without any fixture server.
 from __future__ import annotations
 
 import os
-from typing import Any, Iterable, Literal
+from collections.abc import Iterable
+from typing import Any, Literal
 
 from .config import allow_public
 

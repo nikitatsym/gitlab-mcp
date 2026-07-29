@@ -3,7 +3,10 @@ repos:
     hooks:
       - id: ruff
         name: ruff (lint)
-        entry: uv tool run ruff check
+        # --force-exclude: pre-commit passes filenames explicitly, and ruff lints
+        # an explicitly named file even when extend-exclude lists it, so the
+        # generated modules would be checked here but not in CI.
+        entry: uv run ruff check --force-exclude
         language: system
         types: [python]
         pass_filenames: true

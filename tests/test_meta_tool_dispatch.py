@@ -99,8 +99,8 @@ class TestOverridePreFlightGuardsViaDispatch:
     def test_merge_requests_create_requires_git(self):
         """The MR-create override rejects hg projects with a hint about hg_create_topic_mr."""
         _seed_and_register("heptapod")
-        from gitlab_mcp import server
         import gitlab_mcp.client as client_mod
+        from gitlab_mcp import server
 
         # The override looks up the project's vcs_type. Patch the lookup to return 'hg'.
         assert client_mod._client is not None
