@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 _settings: Settings | None = None
 
 # Not an env var — only controllable via the --allow-public CLI flag,
-# parsed in __init__.main() before FastMCP sees the args. Default-deny
+# parsed in __init__.main() before MCPServer sees the args. Default-deny
 # means agents can't accidentally create public projects/snippets.
 _allow_public: bool = False
 

@@ -13,7 +13,7 @@ import types as _types
 import typing
 from typing import Annotated, Any, Literal
 
-from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.mcpserver import Context, MCPServer
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -27,10 +27,10 @@ from . import tools as _tools_module
 from .client import get_client
 from .registry import ROOT, _UNSET, _Unset
 
-mcp = FastMCP("gitlab")
+mcp = MCPServer("gitlab")
 
 
-# Parameter name reserved for FastMCP's Context injection. Tools that declare
+# Parameter name reserved for MCPServer's Context injection. Tools that declare
 # this param receive the live MCP request context (for report_progress / log)
 # but it's never exposed to callers — the Pydantic params model skips it and
 # `_coerce_call` injects it after validation.
@@ -418,7 +418,7 @@ def _make_tool(group_name: str, group_doc: str):
     Sync ops still work — `_coerce_call` returns whatever the op returns,
     and we only `await` when the result is actually a coroutine.
 
-    The `ctx` parameter is typed `Context` so FastMCP injects the live
+    The `ctx` parameter is typed `Context` so MCPServer injects the live
     request context; it never appears in the tool's JSON schema for callers.
     """
     async def tool_fn(
@@ -514,7 +514,7 @@ def _register_wait_resource() -> None:
     without going through a tool call — useful as a side-channel for agents
     that want to peek between other operations.
 
-    FastMCP's resource manager rejects duplicate registration, so we gate
+    MCPServer's resource manager rejects duplicate registration, so we gate
     on a module-level flag. Tests that call `_register_tools()` multiple
     times therefore see exactly one registration.
     """
