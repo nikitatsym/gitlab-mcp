@@ -325,6 +325,45 @@ class TestRegisterToolsFilter:
         assert "SyntheticRead" in server._group_ops.get("gitlab_read", {})
 
 
+# ── Group doc examples ────────────────────────────────────────────────────
+
+
+class TestDocExampleValidation:
+    def test_real_group_docs_name_registered_operations(self):
+        import gitlab_mcp.client as client_mod
+        client_mod._client = _seed_client("gitlab")
+
+        from gitlab_mcp import server, tools
+        from gitlab_mcp.registry import Group
+
+        server._register_tools()
+        groups = [
+            obj
+            for _, obj in inspect.getmembers(tools, lambda o: isinstance(o, Group))
+            if obj.name in server._group_ops
+        ]
+        assert len(groups) == len(server._group_ops)
+        for group in groups:
+            for name in server._EXAMPLE_OPERATION.findall(group.doc):
+                if name == "help":
+                    continue
+                assert name in server._group_ops[group.name], (
+                    f"{group.name} example names {name!r}, which it does not expose"
+                )
+
+    def test_validation_rejects_unknown_operation(self):
+        from gitlab_mcp import server
+
+        with pytest.raises(RuntimeError, match="NoSuchOp"):
+            server._validate_doc_examples(
+                "gitlab_read",
+                'Example: gitlab_read(operation="NoSuchOp")',
+                {"ProjectsShow": None},
+            )
+
+        server._validate_doc_examples("gitlab_read", 'operation="help"', {})
+
+
 # ── gitlab_version ROOT tool ──────────────────────────────────────────────
 
 

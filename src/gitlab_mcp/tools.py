@@ -114,7 +114,7 @@ _HELP_HOWTO = (
     "  operation=\"help\"                              → compact category index\n"
     "  operation=\"help\" params={\"category\": \"X\"}    → full signatures in category X\n"
     "  operation=\"help\" params={\"search\": \"foo\"}    → ops whose name contains foo\n"
-    "Otherwise call with operation=\"OpName\" params={...} to invoke an op."
+    "Otherwise call with operation=\"<OpName>\" params={...} to invoke an op."
 )
 
 gitlab_read = Group(
