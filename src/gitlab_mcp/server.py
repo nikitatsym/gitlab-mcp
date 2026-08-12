@@ -9,6 +9,7 @@ Adapted from komodo-mcp's server.py with two extensions:
 """
 
 import inspect
+import re
 import types as _types
 import typing
 from typing import Annotated, Any, Literal
@@ -205,7 +206,6 @@ def _category_for_fn(fn) -> str:
     so we extract the class name from there. Hand-written overrides fall back
     to a heuristic on the function name.
     """
-    import re
     doc = fn.__doc__ or ""
     m = re.match(r"(\w+)\.\w+\s*\(", doc)
     if m:
@@ -447,6 +447,27 @@ def _make_tool(group_name: str, group_doc: str):
     return tool_fn
 
 
+_EXAMPLE_OPERATION = re.compile(r'operation="(\w+)"')
+
+
+def _validate_doc_examples(group_name: str, doc: str, ops: dict) -> None:
+    """Reject a group doc whose example names an operation the group does not expose.
+
+    Examples are hand-written while operation names come from OpenAPI operationIds,
+    so only this check keeps the two from drifting apart. Placeholders are written
+    with angle brackets (`operation="<OpName>"`) so they don't look like real ops.
+    """
+    unknown = sorted(
+        name
+        for name in _EXAMPLE_OPERATION.findall(doc)
+        if name != "help" and name not in ops
+    )
+    if unknown:
+        raise RuntimeError(
+            f"{group_name} doc example references unknown operations: {unknown}"
+        )
+
+
 def _should_include(fn) -> bool:
     """Return False for Heptapod-only tools when the backend isn't Heptapod."""
     if not getattr(fn, "_heptapod_only", False):
@@ -489,6 +510,7 @@ def _register_tools():
     for group_name, (group, fns) in groups.items():
         ops = {_to_pascal(n): fn for n, fn in fns.items()}
         _group_ops[group_name] = ops
+        _validate_doc_examples(group_name, group.doc, ops)
         for pascal_name in ops:
             _all_grouped[pascal_name] = group_name
 
