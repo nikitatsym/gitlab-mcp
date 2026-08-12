@@ -133,7 +133,8 @@ def write_env_file(url: str, token: str) -> None:
         f"# Written by scripts/bootstrap.py — consumed by tests and local shells\n"
         f"GITLAB_URL={url}\n"
         f"GITLAB_TOKEN={token}\n"
-        f"GITLAB_BACKEND=auto\n"
+        f"GITLAB_BACKEND=auto\n",
+        encoding="utf-8",
     )
     print(f"[bootstrap] wrote {ENV_FILE}")
 
