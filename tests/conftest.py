@@ -29,7 +29,7 @@ def _load_env_file() -> None:
     """
     if not ENV_FILE.exists():
         return
-    for line in ENV_FILE.read_text().splitlines():
+    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
