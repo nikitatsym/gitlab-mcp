@@ -74,7 +74,22 @@ Pre-flight guards prevent common mistakes:
 
 ## Development
 
-The project uses npm scripts (per python-service.md spec) for the local lifecycle:
+`dev.py` is the single entry point for every check. CI runs the same commands.
+
+```bash
+python dev.py lint           # ruff + mypy
+python dev.py test           # unit suite
+python dev.py e2e            # integration suite (needs a bootstrapped instance)
+python dev.py codegen-drift  # generated files vs codegen input
+python dev.py check          # lint + drift + unit tests; what pre-commit and CI run
+python dev.py hook           # install the pre-commit gate (once per clone)
+```
+
+`check` includes the codegen drift gate, so a clone needs the codegen
+dependencies once: `cd codegen && npm ci`. Without them the gate fails loudly
+rather than passing silently.
+
+npm scripts wrap the docker lifecycle and delegate the checks to `dev.py`:
 
 ```bash
 # unit tests (no docker, fast)
@@ -131,12 +146,13 @@ npm run test:all
 ### Lint & types
 
 ```bash
-npm run lint        # ruff
-npm run typecheck   # mypy
+python dev.py lint  # ruff + mypy
+npm run typecheck   # mypy only, for a quick loop
 ```
 
-Both run in CI on every push. Install the pre-commit hook to catch issues
-before pushing: `uv run pre-commit install`.
+Install the tracked pre-commit hook once per clone with `python dev.py hook`;
+it sets `core.hooksPath` to `.githooks`, whose `pre-commit` runs
+`dev.py check`.
 
 ## Creating a GitLab access token
 
