@@ -14,7 +14,7 @@
     "heptapod:up": "docker compose -f tests/docker-compose.yml --profile heptapod up -d heptapod && npm run heptapod:bootstrap",
     "heptapod:bootstrap": "uv run python scripts/bootstrap.py heptapod",
     "heptapod:down": "docker compose -f tests/docker-compose.yml --profile heptapod down -v",
-    "test": "uv run pytest -m 'not integration'",
+    "test": "uv run pytest -m \"not integration\"",
     "test:integration": "uv run pytest -m integration tests/test_integration_gitlab.py",
     "test:integration:waiters": "uv run pytest -m integration tests/test_integration_waiters.py",
     "test:integration:heptapod": "uv run pytest -m integration tests/test_integration_heptapod.py",
