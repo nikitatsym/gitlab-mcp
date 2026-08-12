@@ -1697,12 +1697,15 @@ function diffCheck(path: string, expected: string): boolean {
   return actual === expected;
 }
 
+// Windows has no `python3` on PATH; the Store alias stub exits 9009 instead.
+const PYTHON = process.platform === "win32" ? "python" : "python3";
+
 // Sanity check: the emitted Python must parse. Catches missing imports,
 // duplicate defaults-after-non-defaults, etc. before we ship the file.
 function astParseCheck(pySource: string): void {
   try {
     execSync(
-      `python3 -c "import ast, sys; ast.parse(sys.stdin.read())"`,
+      `${PYTHON} -c "import ast, sys; ast.parse(sys.stdin.read())"`,
       { input: pySource, stdio: ["pipe", "pipe", "inherit"] },
     );
   } catch (e) {
