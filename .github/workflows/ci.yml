@@ -15,34 +15,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  unit:
+  # ruff + mypy + unit tests + codegen drift, all via the same entry point the
+  # pre-commit hook runs. Node is here because `dev.py check` includes drift.
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - name: Install
-        run: uv sync
-      - name: Lint (ruff)
-        run: uv run ruff check src/ tests/ scripts/
-      - name: Type check (mypy)
-        run: uv run mypy src/gitlab_mcp tests scripts
-      - name: Unit tests
-        run: uv run pytest tests/ -m 'not integration' -v
-
-  codegen-drift:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Install
+        run: uv sync
       - name: Install codegen deps
         working-directory: codegen
         run: npm ci
-      - name: Drift check
-        working-directory: codegen
-        run: npx tsx generate.ts --check
+      - name: Check
+        run: uv run python dev.py check
 
+  # `dev.py e2e` runs every integration test, but tests/.env can only point at
+  # one instance, so CI splits the suite per backend and runs it file-scoped.
   integration-gitlab:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -84,7 +76,7 @@ jobs:
         run: docker compose -f tests/docker-compose.yml --profile heptapod down -v
 
   release:
-    needs: [unit, codegen-drift, integration-gitlab, integration-heptapod]
+    needs: [check, integration-gitlab, integration-heptapod]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
