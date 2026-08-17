@@ -106,9 +106,11 @@ def _build_params_model(fn) -> type[BaseModel]:
 def _format_validation_error(err: ValidationError, fn) -> str:
     """Pydantic ValidationError → readable multi-line message.
 
-    Falls back to deriving the op name from the function name so callers of
-    `_coerce_call` that don't know the PascalCase op (tests, direct dispatch)
-    still get a sensible hint pointing at `operation='schema'`.
+    Ends with the accepted parameter list (from the op's signature) and a
+    pointer at `operation='help'` search, so a caller that passed a wrong
+    field can self-correct without a second failed call. The op name is
+    derived from the function name so callers of `_coerce_call` that don't
+    know the PascalCase op (tests, direct dispatch) still get a real name.
     """
     op_name = _to_pascal(fn.__name__)
     lines = [f"Invalid params for {op_name}:"]
@@ -119,8 +121,20 @@ def _format_validation_error(err: ValidationError, fn) -> str:
         if len(got) > 80:
             got = got[:77] + "..."
         lines.append(f"  - {loc}: {msg} (got {got})")
+    accepted = []
+    for name, p in inspect.signature(fn).parameters.items():
+        if name == _CTX_PARAM:
+            continue
+        if p.kind is inspect.Parameter.VAR_KEYWORD:
+            accepted.append(f"plus arbitrary top-level body fields (**{name})")
+        elif p.default is inspect.Parameter.empty:
+            accepted.append(name)
+        else:
+            accepted.append(f"{name}?")
+    lines.append(f"Accepted params ('?' = optional): {', '.join(accepted)}")
+    # There is no 'schema' operation; 'help' search is the full-spec path.
     lines.append(
-        f"Call operation='schema', params={{'op': {op_name!r}}} for full parameter spec."
+        f"Call operation='help', params={{'search': {op_name!r}}} for the full parameter spec."
     )
     return "\n".join(lines)
 
@@ -333,15 +347,26 @@ def _format_help_full(ops: dict, group_name: str, scope_desc: str) -> str:
     Per-param descriptions from PARAM_ANNOTATIONS render as indented bullets
     under the signature.
     """
+    has_variadic = any(
+        p.kind is inspect.Parameter.VAR_KEYWORD
+        for fn in ops.values()
+        for p in inspect.signature(fn).parameters.values()
+    )
+    note = (
+        "NOTE: every signature is closed - only the listed fields are accepted. "
+        "Unknown kwargs are rejected before any HTTP call. If a field you need "
+        "is missing, the codegen source (OpenAPI / gitbeaker TS) didn't list it "
+        "at the current pin; raise an issue or add it to MANUAL_PARAMS."
+    )
+    if has_variadic:
+        note += (
+            " Exception: ops whose signature shows **options accept arbitrary "
+            "extra top-level params, forwarded as request body fields."
+        )
     lines = [
         f"{len(ops)} operations in {group_name} {scope_desc}:",
         "",
-        (
-            "NOTE: every signature is closed - only the listed fields are accepted. "
-            "Unknown kwargs are rejected before any HTTP call. If a field you need "
-            "is missing, the codegen source (OpenAPI / gitbeaker TS) didn't list it "
-            "at the current pin; raise an issue or add it to MANUAL_PARAMS."
-        ),
+        note,
         "",
     ]
     for pascal_name in sorted(ops):
