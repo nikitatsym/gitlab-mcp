@@ -123,15 +123,16 @@ class TestCoerceCall:
         with pytest.raises(ValueError, match="labels.1"):
             _coerce_call(fn, {"labels": ["bug", 42]})
 
-    def test_validation_error_is_multi_line_with_schema_hint(self):
+    def test_validation_error_is_multi_line_with_help_hint(self):
         """`_format_validation_error` turns the ValidationError into a readable
-        multi-line message and points at `operation='schema'` so the agent
-        knows where to find the full parameter spec."""
+        multi-line message, lists the accepted params, and points at the
+        `operation='help'` search (there is no 'schema' operation) so the
+        agent can self-correct in one step."""
         from gitlab_mcp.server import _coerce_call
 
-        def my_op(name: str, count: int):
+        def my_op(name: str, count: int, limit: int = 10):
             """Test."""
-            return (name, count)
+            return (name, count, limit)
 
         with pytest.raises(ValueError) as exc:
             _coerce_call(my_op, {"count": "not-an-int"})
@@ -142,9 +143,32 @@ class TestCoerceCall:
         # each surfaced separately.
         assert "  - name:" in msg
         assert "  - count:" in msg
-        # Closes with a schema hint that uses the same PascalCase op name.
-        assert "operation='schema'" in msg
-        assert "'op': 'MyOp'" in msg
+        # Accepted-params line marks omittable fields with '?'.
+        assert "Accepted params ('?' = optional): name, count, limit?" in msg
+        # Closes with a hint at the help search, which actually exists.
+        assert "operation='help'" in msg
+        assert "'search': 'MyOp'" in msg
+        assert "operation='schema'" not in msg
+
+    def test_accepted_params_line_covers_sentinel_ctx_and_variadic(self):
+        """The accepted-params line marks _UNSET-sentinel params optional,
+        omits the injected `ctx` param, and spells out the **options
+        pass-through instead of implying a closed signature."""
+        from gitlab_mcp.registry import _UNSET
+        from gitlab_mcp.server import _coerce_call
+
+        def hg_op(name: str, tags=_UNSET, ctx=None, **options):
+            """Test."""
+            return (name, tags, options)
+
+        with pytest.raises(ValueError) as exc:
+            _coerce_call(hg_op, {})
+        msg = str(exc.value)
+        assert (
+            "Accepted params ('?' = optional): name, tags?, "
+            "plus arbitrary top-level body fields (**options)"
+        ) in msg
+        assert "ctx" not in msg
 
     def test_unset_default_preserved_when_caller_omits(self):
         """Sentinel-default params: omitted by caller → fn sees its own default."""
@@ -439,7 +463,8 @@ class TestBuildHelp:
     def test_help_includes_docstring_body(self):
         """The detail view shows the head on the signature line AND the
         docstring body indented underneath — agents shouldn't need a
-        separate `schema` call for body-level guidance like format hints."""
+        separate `help` search round-trip for body-level guidance like
+        format hints."""
         from gitlab_mcp import server
 
         def fake_with_body():
@@ -458,6 +483,31 @@ class TestBuildHelp:
             # Body lines appear, indented (four spaces under the signature).
             assert "    Longer body with context" in result
             assert "    not strings" in result
+        finally:
+            server._group_ops.clear()
+
+    def test_help_note_qualifies_variadic_ops(self):
+        """The closed-signature NOTE must not lie about **options ops: a
+        listing containing one gains the extra-params qualifier; a listing
+        of only closed ops does not."""
+        from gitlab_mcp import server
+
+        def fake_variadic(project_id, **options):
+            """Test."""
+
+        def fake_closed(project_id):
+            """Test."""
+
+        server._group_ops["fake_read"] = {"FakeVariadic": fake_variadic}
+        try:
+            result = server._build_help("fake_read", search="FakeVariadic")
+            assert "**options accept arbitrary" in result
+        finally:
+            server._group_ops.clear()
+        server._group_ops["fake_read"] = {"FakeClosed": fake_closed}
+        try:
+            result = server._build_help("fake_read", search="FakeClosed")
+            assert "**options accept arbitrary" not in result
         finally:
             server._group_ops.clear()
 
