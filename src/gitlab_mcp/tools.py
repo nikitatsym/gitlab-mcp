@@ -111,9 +111,9 @@ def _strict_proxy(
 
 _HELP_HOWTO = (
     "Discovery uses progressive disclosure (mcp-abstract.md):\n"
-    "  operation=\"help\"                              → compact category index\n"
-    "  operation=\"help\" params={\"category\": \"X\"}    → full signatures in category X\n"
-    "  operation=\"help\" params={\"search\": \"foo\"}    → ops whose name contains foo\n"
+    "  operation=\"$help\"                              → compact category index\n"
+    "  operation=\"$help\" params={\"category\": \"X\"}    → full signatures in category X\n"
+    "  operation=\"$help\" params={\"search\": \"foo\"}    → ops whose name contains foo\n"
     "Otherwise call with operation=\"<OpName>\" params={...} to invoke an op."
 )
 
@@ -121,7 +121,7 @@ gitlab_read = Group(
     "gitlab_read",
     "Query GitLab / Heptapod resources (safe, read-only).\n\n"
     + _HELP_HOWTO + "\n\n"
-    "Example: gitlab_read(operation=\"ProjectsShow\", "
+    "Example: gitlab_read(operation=\"$ProjectsShow\", "
     "params={\"project_id\": \"mygroup/myproject\"})",
 )
 
@@ -129,7 +129,7 @@ gitlab_write = Group(
     "gitlab_write",
     "Create, update, or modify GitLab / Heptapod resources.\n\n"
     + _HELP_HOWTO + "\n\n"
-    "Example: gitlab_write(operation=\"IssuesCreate\", "
+    "Example: gitlab_write(operation=\"$IssuesCreate\", "
     "params={\"project_id\": \"mygroup/myproject\", \"title\": \"Bug X\"})",
 )
 
@@ -137,7 +137,7 @@ gitlab_execute = Group(
     "gitlab_execute",
     "Trigger actions on GitLab / Heptapod: merge MRs, run pipelines, retry jobs.\n\n"
     + _HELP_HOWTO + "\n\n"
-    "Example: gitlab_execute(operation=\"MergeRequestsAccept\", "
+    "Example: gitlab_execute(operation=\"$MergeRequestsAccept\", "
     "params={\"project_id\": \"mygroup/myproject\", \"mergerequest_iid\": 42})",
 )
 
@@ -145,7 +145,7 @@ gitlab_delete = Group(
     "gitlab_delete",
     "Delete GitLab / Heptapod resources (destructive, irreversible).\n\n"
     + _HELP_HOWTO + "\n\n"
-    "Example: gitlab_delete(operation=\"BranchesRemove\", "
+    "Example: gitlab_delete(operation=\"$BranchesRemove\", "
     "params={\"project_id\": \"mygroup/myproject\", \"branch_name\": \"feature/old\"})",
 )
 
@@ -153,14 +153,14 @@ gitlab_admin_read = Group(
     "gitlab_admin_read",
     "Query instance-level admin data: users, runners, hooks, settings.\n\n"
     + _HELP_HOWTO + "\n\n"
-    "Example: gitlab_admin_read(operation=\"ApplicationSettingsShow\")",
+    "Example: gitlab_admin_read(operation=\"$ApplicationSettingsShow\")",
 )
 
 gitlab_admin_write = Group(
     "gitlab_admin_write",
     "Manage users, runners, system hooks, and instance settings (admin).\n\n"
     + _HELP_HOWTO + "\n\n"
-    "Example: gitlab_admin_write(operation=\"UsersBlock\", "
+    "Example: gitlab_admin_write(operation=\"$UsersBlock\", "
     "params={\"user_id\": 42})",
 )
 
