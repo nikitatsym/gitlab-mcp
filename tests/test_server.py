@@ -349,11 +349,11 @@ class TestRegisterToolsFilter:
         assert "SyntheticRead" in server._group_ops.get("gitlab_read", {})
 
 
-# ── Group doc examples ────────────────────────────────────────────────────
+# ── Group doc rendering ───────────────────────────────────────────────────
 
 
-class TestDocExampleValidation:
-    def test_real_group_docs_name_registered_operations(self):
+class TestGroupDocRendering:
+    def test_real_group_docs_resolve_operation_placeholders(self):
         import gitlab_mcp.client as client_mod
         client_mod._client = _seed_client("gitlab")
 
@@ -368,24 +368,45 @@ class TestDocExampleValidation:
         ]
         assert len(groups) == len(server._group_ops)
         for group in groups:
-            for name in server._EXAMPLE_OPERATION.findall(group.doc):
-                if name == "help":
-                    continue
-                assert name in server._group_ops[group.name], (
-                    f"{group.name} example names {name!r}, which it does not expose"
-                )
+            rendered = server._render_group_doc(
+                group.name, group.doc, server._group_ops[group.name]
+            )
+            assert "$" not in rendered, f"{group.name} doc left a placeholder unrendered"
 
-    def test_validation_rejects_unknown_operation(self):
+    def test_render_rejects_unknown_placeholder(self):
         from gitlab_mcp import server
 
         with pytest.raises(RuntimeError, match="NoSuchOp"):
-            server._validate_doc_examples(
+            server._render_group_doc(
                 "gitlab_read",
-                'Example: gitlab_read(operation="NoSuchOp")',
+                'Example: gitlab_read(operation="$NoSuchOp")',
                 {"ProjectsShow": None},
             )
 
-        server._validate_doc_examples("gitlab_read", 'operation="help"', {})
+    def test_render_rejects_hardcoded_operation(self):
+        from gitlab_mcp import server
+
+        with pytest.raises(RuntimeError, match="hardcodes"):
+            server._render_group_doc(
+                "gitlab_read",
+                'Example: gitlab_read(operation="ProjectsShow")',
+                {"ProjectsShow": None},
+            )
+
+        with pytest.raises(RuntimeError, match="hardcodes"):
+            server._render_group_doc(
+                "gitlab_read",
+                'Example: gitlab_read(operation = "ProjectsShow")',
+                {"ProjectsShow": None},
+            )
+
+    def test_render_resolves_meta_and_keeps_generic_form(self):
+        from gitlab_mcp import server
+
+        rendered = server._render_group_doc(
+            "gitlab_read", 'operation="$help" or operation="<OpName>"', {}
+        )
+        assert rendered == 'operation="help" or operation="<OpName>"'
 
 
 # ── gitlab_version ROOT tool ──────────────────────────────────────────────
