@@ -51,6 +51,11 @@ import {
 } from "./typeResolver.ts";
 import { loadOpenApi, resolveOpenApi, type OpenApiLookup } from "./openApiResolver.ts";
 import { MANUAL_PARAMS, MANUAL_OPS, MANUAL_SKIP } from "./manual_ops.ts";
+import {
+  conditionalBranchFieldJudgment,
+  bodyFieldOverride,
+  gitbeakerSourceWireNameJudgment,
+} from "./requiredBodyJudgments.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const IMPL_PATH = join(
@@ -908,14 +913,9 @@ function buildTypeSurface(pm: ParsedMethod, opPascal: string): MethodTypeInfo | 
     return null;
   }
 
-  // Build a TS-confirmation set BEFORE merging OpenAPI: a body field is only
-  // marked required when both OpenAPI and gitbeaker TS list it as required.
-  // GitLab's OpenAPI spec frequently over-marks body fields as required
-  // (e.g. PUT /repository/files/{file_path} marks `file` required for the
-  // multipart upload variant, but the JSON variant doesn't need it). Trusting
-  // OpenAPI alone breaks valid calls; intersecting with TS recovers safety.
-  // Path and query params keep OpenAPI's required marking — those are usually
-  // accurate and important for routing.
+  // Gitbeaker under-marks a small set of OpenAPI-required body fields. Keep
+  // those exceptions exact and auditable; no operation-wide trust switch.
+  // Path and query params keep OpenAPI's required marking.
   const wireByJsVar = new Map<string, string>();
   for (const bf of pm.bodyFields) wireByJsVar.set(bf.variable, bf.name);
   const tsConfirmsRequired = new Set<string>();
@@ -929,21 +929,29 @@ function buildTypeSurface(pm: ParsedMethod, opPascal: string): MethodTypeInfo | 
     }
   }
 
-  // Merge by wire name. Insertion order matters: OpenAPI first; TS supplements;
-  // manual overrides anything else by setting the same key.
+  // Merge by wire name. OpenAPI owns the shared caller-facing surface:
+  // types, nullability, wire names, and requiredness. Gitbeaker fills only
+  // fields that OpenAPI does not describe. Its enum type is consulted later
+  // for required positional arguments, where it corrects the exact argument
+  // without weakening optional OpenAPI fields.
   const seen = new Map<string, PropertySpec>();
   let fromOpenApi = false;
   let fromTs = false;
 
   if (oa) {
+    const operation = `${pm.klass}.${pm.name}`;
     for (const p of oa.params) {
       if (p.location === "path") continue;
-      const required =
-        p.required && (p.location === "query" || tsConfirmsRequired.has(p.name));
+      const override = p.location === "body"
+        ? bodyFieldOverride(operation, pm.verb, oa.rawPath, p.name)
+        : undefined;
+      const required = p.required && (
+        p.location === "query" || tsConfirmsRequired.has(p.name) || override !== undefined
+      );
       seen.set(p.name, {
         name: p.name,
-        pyName: p.pyName,
-        pyType: p.pyType,
+        pyName: override?.pyName ?? p.pyName,
+        pyType: normalizeAccessLevelType(p.name, p.pyType),
         optional: !required,
         nullable: p.nullable,
       });
@@ -954,7 +962,10 @@ function buildTypeSurface(pm: ParsedMethod, opPascal: string): MethodTypeInfo | 
   if (tsResolved) {
     for (const p of ts!.options.properties) {
       if (seen.has(p.name)) continue;
-      seen.set(p.name, p);
+      seen.set(p.name, {
+        ...p,
+        pyType: normalizeAccessLevelType(p.name, p.pyType),
+      });
       fromTs = true;
     }
   } else {
@@ -1015,6 +1026,149 @@ interface BodyParam {
   pyName: string;
   wireName: string;
   pyType: string;       // already includes ` | None` when nullable
+  nullable: boolean;
+}
+
+function bodyFieldLabel({ pyName, wireName }: BodyParam): string {
+  return pyName === wireName ? wireName : `${pyName} -> ${wireName}`;
+}
+
+const GITLAB_ACCESS_LEVEL_VALUES = [
+  "0", "5", "10", "15", "20", "30", "40", "50",
+] as const;
+const GITLAB_PLANNER_ACCESS_LEVEL = GITLAB_ACCESS_LEVEL_VALUES[3];
+const GITLAB_ACCESS_LEVEL_TYPE = `Literal[${GITLAB_ACCESS_LEVEL_VALUES.join(", ")}]`;
+const GITLAB_ACCESS_LEVEL_FIELDS: Record<string, true> = {
+  access_level: true,
+  base_access_level: true,
+  min_access_level: true,
+  shared_min_access_level: true,
+  target_access_levels: true,
+};
+
+function normalizedAccessLevelLiteral(values: string, prefix: string, suffix: string): string {
+  const members = values.split(", ").filter(Boolean);
+  if (!members.every((member) => /^\d+$/.test(member))) {
+    return `${prefix}${values}${suffix}`;
+  }
+  if (!members.includes(GITLAB_PLANNER_ACCESS_LEVEL)) {
+    members.push(GITLAB_PLANNER_ACCESS_LEVEL);
+  }
+  return `${prefix}${members.join(", ")}${suffix}`;
+}
+
+function normalizeAccessLevelType(name: string, pyType: string): string {
+  if (!GITLAB_ACCESS_LEVEL_FIELDS[name]) return pyType;
+
+  return pyType
+    .split(" | ")
+    .map((part) => {
+      if (part === "int") return GITLAB_ACCESS_LEVEL_TYPE;
+      if (part === "list[int]") return `list[${GITLAB_ACCESS_LEVEL_TYPE}]`;
+      const literal = /^(Literal\[|list\[Literal\[)(.*)(\]\]?)$/.exec(part);
+      return literal
+        ? normalizedAccessLevelLiteral(literal[2], literal[1], literal[3])
+        : part;
+    })
+    .join(" | ");
+}
+
+function literalScalarType(literal: RegExpExecArray): string | null {
+  const values = literal[2].split(", ").filter(Boolean);
+  if (values.every((value) => /^\d+$/.test(value))) {
+    return literal[1] === "Literal[" ? "int" : "list[int]";
+  }
+  if (values.every((value) => /^["']/.test(value))) {
+    return literal[1] === "Literal[" ? "str" : "list[str]";
+  }
+  return null;
+}
+
+function normalizeLiteralMember(member: string): string {
+  if (!member.startsWith("'") || !member.endsWith("'")) return member;
+  const value = member
+    .slice(1, -1)
+    .replace(/\\\\/g, "\\")
+    .replace(/\\'/g, "'");
+  return JSON.stringify(value);
+}
+
+const PYTHON_SCALAR_TYPES: Record<string, true> = {
+  str: true,
+  int: true,
+  float: true,
+  bool: true,
+};
+
+/**
+ * Reconcile a required positional body type. OpenAPI remains authoritative
+ * except for a GitBeaker enum, structured object, or wider scalar union whose
+ * string member preserves an OpenAPI ID-or-path contract.
+ */
+function mergePythonTypes(openApiType: string | undefined, gitbeakerType: string): string {
+  if (!openApiType) return gitbeakerType;
+  if (
+    openApiType === gitbeakerType ||
+    gitbeakerType === "Any" ||
+    gitbeakerType === "list[Any]"
+  ) {
+    return openApiType;
+  }
+  if (openApiType === "Any") return gitbeakerType;
+  if (openApiType === "str" && gitbeakerType === "dict") {
+    return gitbeakerType;
+  }
+  const gitbeakerTypeParts = gitbeakerType.split(" | ");
+  if (
+    openApiType === "str" &&
+    gitbeakerTypeParts.length > 1 &&
+    gitbeakerTypeParts.every((part) => PYTHON_SCALAR_TYPES[part]) &&
+    gitbeakerTypeParts.includes(openApiType)
+  ) {
+    return gitbeakerType;
+  }
+
+  const literalPattern = /^(Literal\[|list\[Literal\[)(.*)(\]\]?)$/;
+  const gitbeakerLiteral = literalPattern.exec(gitbeakerType);
+  const openApiLiteral = literalPattern.exec(openApiType);
+  if (gitbeakerLiteral && openApiLiteral) {
+    if (
+      gitbeakerLiteral[1] !== openApiLiteral[1] ||
+      gitbeakerLiteral[3] !== openApiLiteral[3]
+    ) {
+      return openApiType;
+    }
+    const values = new Set([
+      ...openApiLiteral[2]
+        .split(", ")
+        .filter(Boolean)
+        .map(normalizeLiteralMember),
+      ...gitbeakerLiteral[2]
+        .split(", ")
+        .filter(Boolean)
+        .map(normalizeLiteralMember),
+    ]);
+    return `${openApiLiteral[1]}${[...values].join(", ")}${openApiLiteral[3]}`;
+  }
+  if (gitbeakerLiteral && literalScalarType(gitbeakerLiteral) === openApiType) {
+    return gitbeakerType;
+  }
+  return openApiType;
+}
+
+function requiredBodyType(
+  openApiType: string | undefined,
+  gitbeakerType: string,
+  allowNull: boolean,
+  wireName: string,
+): string {
+  const merged = normalizeAccessLevelType(
+    wireName,
+    mergePythonTypes(openApiType, gitbeakerType),
+  );
+  const typeParts = merged.split(" | ");
+  if (allowNull) return typeParts.includes("None") ? merged : `${merged} | None`;
+  return typeParts.filter((part) => part !== "None").join(" | ");
 }
 
 function emitConditionalDispatch(
@@ -1022,6 +1176,8 @@ function emitConditionalDispatch(
   typeInfo: ReturnType<typeof resolveMethod>,
 ): Emitted | null {
   if (!pm.conditionalBranches) return null;
+  const openApiOperation = resolveOpenApi(openapi, pm.verb, pm.pathTpl);
+
 
   // 1. Per-branch: split `path?key=${var}` into path + query vars. The query
   //    part can't stay in the URL — httpx's `params=` doesn't reliably merge
@@ -1105,7 +1261,8 @@ function emitConditionalDispatch(
       if (selectorVars.includes(pa.name)) continue;
       const isPath = allPathVars.has(pa.name);
       const wire = toSnake(wireByJsVar.get(pa.name) ?? pa.name);
-      const py = PY_KEYWORDS.has(wire) ? wire + "_" : wire;
+      const property = typeInfo.options.properties.find((p) => p.name === wire);
+      const py = property?.pyName ?? (PY_KEYWORDS.has(wire) ? wire + "_" : wire);
       if (SKIP_PROPS.has(py)) continue;
       if (seenPy.has(py)) continue;
       seenPy.add(py);
@@ -1115,10 +1272,20 @@ function emitConditionalDispatch(
         // `project_id`). Don't reroute through the body-literal rename here.
         pathOnlyArgs.push({ pyName: toSnake(pa.name), pyType: pa.pyType });
       } else {
+        const override = openApiOperation
+          ? bodyFieldOverride(
+            `${pm.klass}.${pm.name}`,
+            pm.verb,
+            openApiOperation.rawPath,
+            wire,
+          )
+          : undefined;
+        const allowNull = override?.allowNull === true;
         requiredBody.push({
           pyName: py,
           wireName: wire,
-          pyType: pa.pyType,
+          pyType: requiredBodyType(property?.pyType, pa.pyType, allowNull, wire),
+          nullable: allowNull,
         });
       }
     }
@@ -1179,8 +1346,14 @@ function emitConditionalDispatch(
   // Extra typed-optional body fields surfaced via the merged type surface
   // (OpenAPI + TS + manual). For conditional methods these arrive optional
   // — they may only apply on one branch; forcing required would lie about
-  // the contract. Deduped against everything already in seenPy.
-  type ExtraOpt = { pyName: string; wireName: string; pyType: string };
+  // the contract. Explicit branch judgments add only audited fields that
+  // belong to a non-default OpenAPI branch.
+  type ExtraOpt = {
+    pyName: string;
+    wireName: string;
+    pyType: string;
+    selectorParameter?: string;
+  };
   const extraOptional: ExtraOpt[] = [];
   if (typeInfo) {
     for (const p of typeInfo.options.properties) {
@@ -1189,6 +1362,50 @@ function emitConditionalDispatch(
       seenPy.add(p.pyName);
       const pyType = p.nullable ? `${p.pyType} | None` : p.pyType;
       extraOptional.push({ pyName: p.pyName, wireName: p.name, pyType });
+    }
+  }
+  for (const branch of pm.conditionalBranches) {
+    const branchOperation = resolveOpenApi(
+      openapi,
+      pm.verb,
+      branch.pathTpl + pm.conditionalSuffix,
+    );
+    if (!branchOperation) continue;
+    for (const property of branchOperation.params) {
+      const judgment = conditionalBranchFieldJudgment(
+        `${pm.klass}.${pm.name}`,
+        pm.verb,
+        branchOperation.rawPath,
+        property.name,
+      );
+      if (!judgment) continue;
+      if (
+        property.location !== "body" ||
+        property.required ||
+        !branch.selectorVar ||
+        branch.selectorVar !== judgment.selectorParameter
+      ) {
+        throw new Error(
+          `Invalid conditional branch judgment for ${pm.klass}.${pm.name} ${property.name}`,
+        );
+      }
+      const pyName = PY_KEYWORDS.has(property.pyName)
+        ? property.pyName + "_"
+        : property.pyName;
+      if (seenPy.has(pyName)) {
+        throw new Error(
+          `Conditional branch judgment duplicates ${pm.klass}.${pm.name} ${property.name}`,
+        );
+      }
+      seenPy.add(pyName);
+      extraOptional.push({
+        pyName,
+        wireName: property.name,
+        pyType: property.nullable
+          ? `${property.pyType} | None`
+          : property.pyType,
+        selectorParameter: branch.selectorVar,
+      });
     }
   }
 
@@ -1216,6 +1433,16 @@ function emitConditionalDispatch(
   // when set; extra-optional fields added below.
   lines.push(`    payload: dict = {}`);
   for (const b of requiredBody) {
+    if (!b.nullable) {
+      const location = openApiOperation?.params.find((p) => p.name === b.wireName)?.location;
+      const fieldKind = httpMethod === "GET" || httpMethod === "DELETE"
+        ? location === "query" ? "query parameter" : "request parameter"
+        : "body field";
+      lines.push(`    if ${b.pyName} is None:`);
+      lines.push(
+        `        raise ValueError("${pm.klass}.${pm.name} requires non-null ${fieldKind}: ${bodyFieldLabel(b)}")`,
+      );
+    }
     lines.push(`    payload[${JSON.stringify(b.wireName)}] = ${b.pyName}`);
   }
   for (const s of selectors) {
@@ -1224,6 +1451,7 @@ function emitConditionalDispatch(
     lines.push(`        payload[${JSON.stringify(toSnake(s.jsName))}] = ${s.pyName}`);
   }
   for (const e of extraOptional) {
+    if (e.selectorParameter) continue;
     lines.push(`    if ${e.pyName} is not _UNSET:`);
     lines.push(`        payload[${JSON.stringify(e.wireName)}] = ${e.pyName}`);
   }
@@ -1234,11 +1462,26 @@ function emitConditionalDispatch(
   // selectors also fall through. Body inclusion (above) is separate and
   // keeps `is not _UNSET` semantics.
   const fallback = branchPaths.find((bp) => bp.selectorVar === null);
-  const emitBranchPayload = (bp: typeof branchPaths[number]): string[] => {
+  const emitBranchPayload = (
+    bp: typeof branchPaths[number],
+    indent: string,
+  ): string[] => {
     const out: string[] = [];
     for (const qv of bp.queryVars) {
-      out.push(`        if ${qv.pyName} is not _UNSET:`);
-      out.push(`            payload[${JSON.stringify(qv.wire)}] = ${qv.pyName}`);
+      out.push(`${indent}if ${qv.pyName} is not _UNSET:`);
+      out.push(`${indent}    payload[${JSON.stringify(qv.wire)}] = ${qv.pyName}`);
+    }
+    for (const e of extraOptional) {
+      if (!e.selectorParameter) continue;
+      if (e.selectorParameter !== bp.selectorVar) {
+        out.push(`${indent}if ${e.pyName} is not _UNSET:`);
+        out.push(
+          `${indent}    raise ValueError("${pm.klass}.${pm.name} ${e.wireName} requires ${toSnake(e.selectorParameter)}")`,
+        );
+        continue;
+      }
+      out.push(`${indent}if ${e.pyName} is not _UNSET:`);
+      out.push(`${indent}    payload[${JSON.stringify(e.wireName)}] = ${e.pyName}`);
     }
     return out;
   };
@@ -1246,16 +1489,13 @@ function emitConditionalDispatch(
     if (bp.selectorVar === null) continue;
     const py = toSnake(bp.selectorVar);
     lines.push(`    if ${py}:`);
-    for (const l of emitBranchPayload(bp)) lines.push(l);
+    for (const l of emitBranchPayload(bp, "        ")) lines.push(l);
     lines.push(
       `        return _ok(_get_client().request("${httpMethod}", f"${bp.pyPath}", ${payloadKwarg}=payload))`,
     );
   }
   if (fallback) {
-    for (const qv of fallback.queryVars) {
-      lines.push(`    if ${qv.pyName} is not _UNSET:`);
-      lines.push(`        payload[${JSON.stringify(qv.wire)}] = ${qv.pyName}`);
-    }
+    for (const l of emitBranchPayload(fallback, "    ")) lines.push(l);
     lines.push(
       `    return _ok(_get_client().request("${httpMethod}", f"${fallback.pyPath}", ${payloadKwarg}=payload))`,
     );
@@ -1322,6 +1562,8 @@ function emitFn(pm: ParsedMethod): Emitted | null {
     stats.methodsNoSource++;
     return null;
   }
+  const openApiOperation = resolveOpenApi(openapi, pm.verb, pm.pathTpl);
+
 
   const requiredBody: BodyParam[] = [];
   const optionalBody: BodyParam[] = [];
@@ -1342,19 +1584,59 @@ function emitFn(pm: ParsedMethod): Emitted | null {
   for (const bf of pm.bodyFields) {
     wireByJsVar.set(bf.variable, bf.name);
   }
+  for (const p of typeInfo.options.properties) {
+    const override = bodyFieldOverride(
+      `${pm.klass}.${pm.name}`,
+      pm.verb,
+      openApiOperation?.rawPath ?? "",
+      p.name,
+    );
+    if (override?.sourceParameter) {
+      wireByJsVar.set(override.sourceParameter, p.name);
+    }
+  }
 
-  // Non-path positionals from gitbeaker TS become required body fields.
-  // (For OpenAPI-resolved methods these will usually have been pre-empted
-  // by an OpenAPI body property under the same wire name — and we skip on
-  // seenPy collision below.)
+  // Non-path positional wire keys use OpenAPI, except exact collision/source judgments.
   for (const pa of typeInfo.positionalArgs) {
     if (argsInPath.has(pa.name)) continue;
-    const wire = toSnake(wireByJsVar.get(pa.name) ?? pa.name);
-    const py = PY_KEYWORDS.has(wire) ? wire + "_" : wire;
+    const sourceWireNameJudgment = openApiOperation
+      ? gitbeakerSourceWireNameJudgment(
+        `${pm.klass}.${pm.name}`,
+        pm.verb,
+        openApiOperation.rawPath,
+        pa.name,
+      )
+      : undefined;
+    const wire = toSnake(
+      sourceWireNameJudgment?.wireName ?? wireByJsVar.get(pa.name) ?? pa.name,
+    );
+    const property = typeInfo.options.properties.find((p) => p.name === wire);
+    const sourcePyName = sourceWireNameJudgment
+      ? toSnake(sourceWireNameJudgment.sourceParameter)
+      : undefined;
+    const py = property?.pyName ?? (
+      sourcePyName
+        ? (PY_KEYWORDS.has(sourcePyName) ? sourcePyName + "_" : sourcePyName)
+        : (PY_KEYWORDS.has(wire) ? wire + "_" : wire)
+    );
     if (SKIP_PROPS.has(py)) continue;
     if (seenPy.has(py)) continue;
     seenPy.add(py);
-    requiredBody.push({ pyName: py, wireName: wire, pyType: pa.pyType });
+    const override = openApiOperation
+      ? bodyFieldOverride(
+        `${pm.klass}.${pm.name}`,
+        pm.verb,
+        openApiOperation.rawPath,
+        wire,
+      )
+      : undefined;
+    const allowNull = override?.allowNull === true;
+    requiredBody.push({
+      pyName: py,
+      wireName: wire,
+      pyType: requiredBodyType(property?.pyType, pa.pyType, allowNull, wire),
+      nullable: allowNull,
+    });
   }
 
   // For conditional-path methods, surface OpenAPI/TS properties as OPTIONAL
@@ -1366,12 +1648,26 @@ function emitFn(pm: ParsedMethod): Emitted | null {
     if (SKIP_PROPS.has(p.pyName)) continue;
     if (seenPy.has(p.pyName)) continue;
     seenPy.add(p.pyName);
-    const pyType = p.nullable ? `${p.pyType} | None` : p.pyType;
     const required = p.optional === false && !pm.conditionalPath;
     if (required) {
-      requiredBody.push({ pyName: p.pyName, wireName: p.name, pyType });
+      const override = openApiOperation
+        ? bodyFieldOverride(
+          `${pm.klass}.${pm.name}`,
+          pm.verb,
+          openApiOperation.rawPath,
+          p.name,
+        )
+        : undefined;
+      const allowNull = override?.allowNull === true;
+      requiredBody.push({
+        pyName: p.pyName,
+        wireName: p.name,
+        pyType: requiredBodyType(p.pyType, p.pyType, allowNull, p.name),
+        nullable: allowNull,
+      });
     } else {
-      optionalBody.push({ pyName: p.pyName, wireName: p.name, pyType });
+      const pyType = p.nullable ? `${p.pyType} | None` : p.pyType;
+      optionalBody.push({ pyName: p.pyName, wireName: p.name, pyType, nullable: p.nullable });
     }
   }
 
@@ -1394,7 +1690,7 @@ function emitFn(pm: ParsedMethod): Emitted | null {
   const docPath = pm.pathTpl;
   const allBody = [...requiredBody, ...optionalBody];
   if (allBody.length > 0) {
-    const fieldList = allBody.map((b) => b.wireName).join(", ");
+    const fieldList = allBody.map(bodyFieldLabel).join(", ");
     lines.push(
       `    """${pm.klass}.${pm.name} (${httpMethod} ${docPath}). Body fields: ${fieldList}."""`
     );
@@ -1409,6 +1705,16 @@ function emitFn(pm: ParsedMethod): Emitted | null {
   } else {
     lines.push(`    payload: dict = {}`);
     for (const b of requiredBody) {
+      if (!b.nullable) {
+        const location = openApiOperation?.params.find((p) => p.name === b.wireName)?.location;
+        const fieldKind = httpMethod === "GET" || httpMethod === "DELETE"
+          ? location === "query" ? "query parameter" : "request parameter"
+          : "body field";
+        lines.push(`    if ${b.pyName} is None:`);
+        lines.push(
+          `        raise ValueError("${pm.klass}.${pm.name} requires non-null ${fieldKind}: ${bodyFieldLabel(b)}")`,
+        );
+      }
       lines.push(`    payload[${JSON.stringify(b.wireName)}] = ${b.pyName}`);
     }
     for (const b of optionalBody) {

@@ -30,7 +30,7 @@ CMDS: dict[str, list[list[str]]] = {
 
 
 def codegen_drift() -> int:
-    """Fail if `src/gitlab_mcp/_generated*.py` no longer matches codegen input."""
+    """Fail when generated output drifts or required body fields lose their contract."""
     npx = shutil.which("npx")
     if npx is None:
         print("codegen drift: npx not found, install Node 22+", file=sys.stderr)
@@ -41,11 +41,18 @@ def codegen_drift() -> int:
             file=sys.stderr,
         )
         return 1
-    return subprocess.run(
+    for command in (
         [npx, "tsx", "generate.ts", "--check"],
-        cwd=ROOT / "codegen",
-        check=False,
-    ).returncode
+        [npx, "tsx", "required_body_conformance.ts"],
+    ):
+        rc = subprocess.run(
+            command,
+            cwd=ROOT / "codegen",
+            check=False,
+        ).returncode
+        if rc:
+            return rc
+    return 0
 
 
 def install_hook() -> int:
