@@ -578,3 +578,139 @@ class TestConditionalDispatchPayload:
         assert paths[0] == "/api/v4/runners/all"
         assert paths[1] == "/api/v4/runners"
         assert paths[2] == "/api/v4/runners/all"
+
+    def test_renamed_required_positionals_use_only_canonical_wire_keys(self):
+        bodies: list[dict] = []
+
+        def handler(req):
+            import json
+
+            bodies.append(json.loads(req.content))
+            return httpx.Response(201, json={"id": 1})
+
+        _seed_and_register("gitlab", handler)
+        from gitlab_mcp import server
+
+        server._dispatch(
+            "ImportImportGithubRepository",
+            "gitlab_write",
+            {
+                "personal_access_token": "token",
+                "repo_id": 42,
+                "target_namespace": "team",
+            },
+        )
+        server._dispatch(
+            "ImportImportBitbucketServerRepository",
+            "gitlab_write",
+            {
+                "bitbucket_server_url": "https://bitbucket.example.test",
+                "bitbucket_server_username": "user",
+                "personal_access_token": "token",
+                "bitbucket_server_project": "project",
+                "bitbucket_server_repo": "repository",
+            },
+        )
+        server._dispatch(
+            "SuggestionsEditBatch",
+            "gitlab_write",
+            {"ids": [1, 2]},
+        )
+
+        assert bodies == [
+            {
+                "personal_access_token": "token",
+                "repo_id": 42,
+                "target_namespace": "team",
+            },
+            {
+                "bitbucket_server_url": "https://bitbucket.example.test",
+                "bitbucket_server_username": "user",
+                "personal_access_token": "token",
+                "bitbucket_server_project": "project",
+                "bitbucket_server_repo": "repository",
+            },
+            {"ids": [1, 2]},
+        ]
+
+    def test_pull_mirrors_serialize_url_as_import_url(self):
+        bodies: list[dict] = []
+
+        def handler(req):
+            import json
+
+            bodies.append(json.loads(req.content))
+            return httpx.Response(201, json={"id": 1})
+
+        _seed_and_register("gitlab", handler)
+        from gitlab_mcp import server
+
+        for operation in (
+            "ProjectsCreatePullMirror",
+            "ProjectRemoteMirrorsCreatePullMirror",
+        ):
+            server._dispatch(
+                operation,
+                "gitlab_write",
+                {
+                    "project_id": 1,
+                    "url": "https://mirror.example.test/repository.git",
+                    "mirror": True,
+                },
+            )
+
+        assert bodies == [
+            {
+                "import_url": "https://mirror.example.test/repository.git",
+                "mirror": True,
+            },
+            {
+                "import_url": "https://mirror.example.test/repository.git",
+                "mirror": True,
+            },
+        ]
+        assert all("url" not in body for body in bodies)
+
+    def test_approval_project_rule_id_requires_the_mr_branch(self):
+        sent: list[tuple[str, dict]] = []
+
+        def handler(req):
+            import json
+
+            sent.append((req.url.path, json.loads(req.content)))
+            return httpx.Response(201, json={"id": 1})
+
+        _seed_and_register("gitlab", handler)
+        from gitlab_mcp import server
+
+        common = {
+            "project_id": 5,
+            "name": "rule",
+            "approvals_required": 2,
+            "approval_project_rule_id": 77,
+        }
+        server._dispatch(
+            "MergeRequestApprovalsCreateApprovalRule",
+            "gitlab_write",
+            {**common, "mergerequest_iid": 11},
+        )
+        with pytest.raises(
+            ValueError,
+            match="approval_project_rule_id requires mergerequest_iid",
+        ):
+            server._dispatch(
+                "MergeRequestApprovalsCreateApprovalRule",
+                "gitlab_write",
+                common,
+            )
+
+        assert sent == [
+            (
+                "/api/v4/projects/5/merge_requests/11/approval_rules",
+                {
+                    "name": "rule",
+                    "approvals_required": 2,
+                    "approval_project_rule_id": 77,
+                },
+            ),
+        ]

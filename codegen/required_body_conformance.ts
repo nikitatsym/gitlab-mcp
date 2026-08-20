@@ -1,0 +1,706 @@
+/**
+ * Verify that every required request-body property in the vendored OpenAPI
+ * spec remains non-omittable and non-nullable in the committed generated
+ * wrapper. This parses the raw specification independently of codegen's
+ * OpenAPI resolver so resolver regressions cannot redefine the oracle.
+ */
+import { readFileSync } from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+import { parse as yamlParse } from "yaml";
+
+import {
+  BODY_FIELD_OVERRIDES,
+  CONCRETE_DEFAULT_OVERRIDES,
+  CONDITIONAL_BRANCH_FIELD_JUDGMENTS,
+  DOCUMENTED_SPEC_GAPS,
+  GITBEAKER_SOURCE_WIRE_NAME_JUDGMENTS,
+  bodyFieldJudgmentKey,
+  bodyFieldOverride,
+  concreteDefaultOverride,
+  documentedSpecGap,
+  sourceWireNameJudgmentKey,
+  type ConditionalBranchFieldJudgment,
+  type ConcreteDefaultOverride,
+  type GitbeakerSourceWireNameJudgment,
+} from "./requiredBodyJudgments.ts";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const OPENAPI_PATH = join(__dirname, "openapi/openapi_v3.yaml");
+const GENERATED_PATH = join(__dirname, "../src/gitlab_mcp/_generated.py");
+const TOOLS_PATH = join(__dirname, "../src/gitlab_mcp/tools.py");
+const GITBEAKER_IMPLEMENTATION_PATH = join(
+  __dirname,
+  "node_modules/@gitbeaker/core/dist/index.js",
+);
+const PY_KEYWORDS: Record<string, true> = {
+  False: true, None: true, True: true, and: true, as: true, assert: true,
+  async: true, await: true, break: true, class: true, continue: true,
+  def: true, del: true, elif: true, else: true, except: true, finally: true,
+  for: true, from: true, global: true, if: true, import: true, in: true,
+  is: true, lambda: true, nonlocal: true, not: true, or: true, pass: true,
+  raise: true, return: true, try: true, while: true, with: true, yield: true,
+};
+
+type JsonObject = Record<string, unknown>;
+
+interface RawBodyField {
+  name: string;
+  required: boolean;
+}
+
+interface RawOpenApiOperation {
+  rawPath: string;
+  bodyFields: RawBodyField[];
+}
+
+interface GeneratedOperation {
+  functionName: string;
+  operation: string;
+  verb: string;
+  paths: string[];
+  signature: string;
+  body: string;
+}
+
+interface GeneratedAlias {
+  operation: string;
+  target: string;
+}
+
+function isObject(value: unknown): value is JsonObject {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function conformancePath(pathTemplate: string): string {
+  let path = pathTemplate
+    .replace(/\$\{[^}]+\}/g, "{*}")
+    .replace(/\{[^}]+\}/g, "{*}")
+    .replace(/^\/api\/v4\//, "/");
+  if (!path.startsWith("/")) path = "/" + path;
+  if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+  return path;
+}
+
+function conformanceKey(verb: string, pathTemplate: string): string {
+  const normalizedVerb = (verb === "del" ? "delete" : verb).toUpperCase();
+  return `${normalizedVerb} ${conformancePath(pathTemplate)}`;
+}
+
+function pythonName(wireName: string): string {
+  let name = wireName.replace(/[^A-Za-z0-9_]+/g, "_");
+  name = name.replace(/^_+/, "").replace(/_+$/, "");
+  if (!name) name = "_";
+  return PY_KEYWORDS[name] ? name + "_" : name;
+}
+
+function toSnake(name: string): string {
+  return name
+    .replace(/([A-Z]{2,})([A-Z][a-z])/g, "$1_$2")
+    .replace(/([a-z\d])([A-Z])/g, "$1_$2")
+    .toLowerCase();
+}
+
+function rawBodyFields(
+  schema: unknown,
+  components: JsonObject,
+  depth = 0,
+): RawBodyField[] {
+  if (!isObject(schema) || depth > 4) return [];
+
+  const reference = schema.$ref;
+  if (typeof reference === "string") {
+    const match = /^#\/components\/schemas\/(.+)$/.exec(reference);
+    const target = match ? components[match[1]] : undefined;
+    return target ? rawBodyFields(target, components, depth + 1) : [];
+  }
+
+  const requiredNames = new Set(
+    Array.isArray(schema.required)
+      ? schema.required.filter((name): name is string => typeof name === "string")
+      : [],
+  );
+  const fields = new Map<string, RawBodyField>();
+  if (isObject(schema.properties)) {
+    for (const name of Object.keys(schema.properties)) {
+      fields.set(name, { name, required: requiredNames.has(name) });
+    }
+  }
+  if (Array.isArray(schema.allOf)) {
+    for (const part of schema.allOf) {
+      for (const field of rawBodyFields(part, components, depth + 1)) {
+        const existing = fields.get(field.name);
+        fields.set(field.name, {
+          name: field.name,
+          required: existing?.required === true || field.required,
+        });
+      }
+    }
+  }
+  return [...fields.values()];
+}
+
+function rawOpenApiOperations(source: string): Map<string, RawOpenApiOperation> {
+  const spec = yamlParse(source);
+  if (!isObject(spec) || !isObject(spec.paths)) {
+    throw new Error("Vendored OpenAPI document has no paths object");
+  }
+  const components = isObject(spec.components) && isObject(spec.components.schemas)
+    ? spec.components.schemas
+    : {};
+  const operations = new Map<string, RawOpenApiOperation>();
+
+  for (const [rawPath, pathItem] of Object.entries(spec.paths)) {
+    if (!isObject(pathItem)) continue;
+    for (const verb of ["get", "post", "put", "patch", "delete"]) {
+      const operation = pathItem[verb];
+      if (!isObject(operation)) continue;
+
+      let bodyFields: RawBodyField[] = [];
+      if (isObject(operation.requestBody) && isObject(operation.requestBody.content)) {
+        const content = operation.requestBody.content;
+        const media = content["application/json"]
+          ?? content["multipart/form-data"]
+          ?? Object.values(content)[0];
+        if (isObject(media) && media.schema !== undefined) {
+          bodyFields = rawBodyFields(media.schema, components);
+        }
+      }
+
+      const key = conformanceKey(verb, rawPath);
+      if (operations.has(key)) {
+        throw new Error(`Normalized OpenAPI path collision in conformance gate: ${key}`);
+      }
+      operations.set(key, { rawPath, bodyFields });
+    }
+  }
+  return operations;
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function parameterDeclaration(signature: string, name: string): string | null {
+  const start = new RegExp(`(?:^\\s*|,\\s*)${escapeRegex(name)}\\s*:`).exec(signature);
+  if (!start || start.index === undefined) return null;
+
+  const nameStart = signature.indexOf(name, start.index);
+  const remaining = signature.slice(nameStart + name.length);
+  const nextParam =
+    /,\s*(?:[A-Za-z_][A-Za-z0-9_]*\s*:|\*{1,2}[A-Za-z_][A-Za-z0-9_]*)/.exec(remaining);
+  const end = nextParam?.index === undefined
+    ? signature.length
+    : nameStart + name.length + nextParam.index;
+  return signature.slice(nameStart, end).trim();
+}
+
+function generatedFunctions(source: string): { operations: GeneratedOperation[]; aliases: GeneratedAlias[] } {
+  const operations: GeneratedOperation[] = [];
+  const aliases: GeneratedAlias[] = [];
+
+  for (const chunk of source.split(/^def /m).slice(1)) {
+    const newline = chunk.indexOf("\n");
+    if (newline === -1) continue;
+    const header = chunk.slice(0, newline);
+    const headerMatch = /^(\w+)\((.*)\):$/.exec(header);
+    if (!headerMatch) continue;
+
+    const [, functionName, signature] = headerMatch;
+    const body = chunk.slice(newline + 1);
+    const direct = /^    \"\"\"(\w+)\.(\w+) \((GET|POST|PUT|PATCH|DELETE) ([^)]*)\)\./m.exec(body);
+    if (direct) {
+      const [, klass, method, verb, path] = direct;
+      operations.push({
+        functionName,
+        operation: `${klass}.${method}`,
+        verb,
+        paths: [path],
+        signature,
+        body,
+      });
+      continue;
+    }
+
+    const conditional = /^    \"\"\"(\w+)\.(\w+) \((GET|POST|PUT|PATCH|DELETE); selector-driven path: (.*)\)\.\"\"\"/m.exec(body);
+    if (conditional) {
+      const [, klass, method, verb, branches] = conditional;
+      const paths = branches.split("; ").map((branch) => {
+        const separator = branch.indexOf(": ");
+        if (separator === -1) {
+          throw new Error(`Cannot parse conditional path for ${klass}.${method}: ${branch}`);
+        }
+        return branch.slice(separator + 2);
+      });
+      operations.push({
+        functionName,
+        operation: `${klass}.${method}`,
+        verb,
+        paths,
+        signature,
+        body,
+      });
+      continue;
+    }
+
+    const alias = /^    \"\"\"(\w+)\.(\w+) \(alias for (\w+)\.(\w+)\)\.\"\"\"/m.exec(body);
+    if (alias) {
+      const [, klass, method, targetClass, targetMethod] = alias;
+      aliases.push({
+        operation: `${klass}.${method}`,
+        target: `${targetClass}.${targetMethod}`,
+      });
+    }
+  }
+
+  return { operations, aliases };
+}
+
+function toolsFunctionSource(source: string, name: string): string | null {
+  const start = source.indexOf(`def ${name}(`);
+  if (start === -1) return null;
+  const rest = source.slice(start);
+  const nextTopLevel = /\n(?=@|def |class )/.exec(rest);
+  return nextTopLevel?.index === undefined ? rest : rest.slice(0, nextTopLevel.index);
+}
+
+function concreteDefaultProblem(
+  toolsSource: string,
+  override: ConcreteDefaultOverride,
+): string | null {
+  const source = toolsFunctionSource(toolsSource, override.functionName);
+  if (!source) return "override function no longer exists";
+
+  const headerEnd = source.indexOf("):\n");
+  if (headerEnd === -1) return "override function header cannot be parsed";
+  const declaration = parameterDeclaration(
+    source.slice(source.indexOf("(") + 1, headerEnd),
+    override.property,
+  );
+  const defaultValue = declaration?.slice(declaration.lastIndexOf("=") + 1).trim();
+  if (!defaultValue || defaultValue === "_UNSET" || defaultValue === "None") {
+    return "no longer has a concrete default";
+  }
+
+  const assignment = new RegExp(`^    options\\[\"${escapeRegex(override.property)}\"\\] =`, "m");
+  const forwardsOptions = new RegExp(
+    `return _generated\\.${escapeRegex(override.functionName)}\\([\\s\\S]*?\\*\\*options`,
+  );
+  if (!assignment.test(source) || !forwardsOptions.test(source)) {
+    return "does not always serialize its concrete default";
+  }
+  return null;
+}
+
+function namingOverrideProblem(
+  op: GeneratedOperation,
+  fieldName: string,
+  pythonParameter: string,
+): string | null {
+  const declaration = parameterDeclaration(op.signature, pythonParameter);
+  if (!declaration) return "is not exposed by the generated signature";
+
+  const serializer = new RegExp(
+    `^    payload\\[\"${escapeRegex(fieldName)}\"\\] = ${escapeRegex(pythonParameter)}$`,
+    "m",
+  );
+  const optionalSerializer = new RegExp(
+    `^    if ${escapeRegex(pythonParameter)} is not _UNSET:\n        payload\\[\"${escapeRegex(fieldName)}\"\\] = ${escapeRegex(pythonParameter)}$`,
+    "m",
+  );
+  return serializer.test(op.body) || optionalSerializer.test(op.body)
+    ? null
+    : "does not serialize with its exact Python argument name";
+}
+
+function gitbeakerSourceWireNameProblem(
+  implementationSource: string,
+  judgment: GitbeakerSourceWireNameJudgment,
+): string | null {
+  const [klass, method] = judgment.operation.split(".");
+  const classStart = implementationSource.indexOf(
+    `var ${klass} = class extends requesterUtils.BaseResource {`,
+  );
+  if (classStart === -1) return "source class no longer exists";
+  const classEnd = implementationSource.indexOf("\n};", classStart);
+  if (classEnd === -1) return "source class has no closing boundary";
+
+  const classSource = implementationSource.slice(classStart, classEnd);
+  const methodHead = new RegExp(
+    `^  ${escapeRegex(method)}\\(([^)]*)\\)\\s*\\{`,
+    "m",
+  ).exec(classSource);
+  if (!methodHead || methodHead.index === undefined) return "source method no longer exists";
+  if (!new RegExp(`\\b${escapeRegex(judgment.sourceVariable)}\\b`).test(methodHead[1])) {
+    return `source no longer declares ${judgment.sourceVariable}`;
+  }
+
+  const bodyStart = methodHead.index + methodHead[0].lastIndexOf("{");
+  let cursor = bodyStart + 1;
+  let depth = 1;
+  while (cursor < classSource.length && depth > 0) {
+    if (classSource[cursor] === "{") depth++;
+    else if (classSource[cursor] === "}") depth--;
+    cursor++;
+  }
+  if (depth !== 0) return "source method has unbalanced braces";
+
+  const methodBody = classSource.slice(bodyStart + 1, cursor - 1);
+  const sourceMapping = new RegExp(
+    `\\b${escapeRegex(judgment.sourceWireName)}\\s*:\\s*${escapeRegex(judgment.sourceVariable)}\\b`,
+  );
+  return sourceMapping.test(methodBody)
+    ? null
+    : `source no longer maps ${judgment.sourceVariable} to ${judgment.sourceWireName}`;
+}
+
+function conditionalBranchFieldProblem(
+  op: GeneratedOperation,
+  judgment: ConditionalBranchFieldJudgment,
+): string | null {
+  const pyName = pythonName(judgment.property);
+  if (!parameterDeclaration(op.signature, pyName)) {
+    return "is not exposed by the generated signature";
+  }
+
+  const serializer = `payload["${judgment.property}"] = ${pyName}`;
+  const serializations = op.body.split(serializer).length - 1;
+  if (serializations !== 1) {
+    return `has ${serializations} serializers instead of exactly one`;
+  }
+
+  const selector = toSnake(judgment.selectorParameter);
+  const branch = new RegExp(
+    `^    if ${escapeRegex(selector)}:\\n(?:        [^\\n]*\\n)*?        if ${escapeRegex(pyName)} is not _UNSET:\\n            ${escapeRegex(serializer)}$`,
+    "m",
+  );
+  return branch.test(op.body)
+    ? null
+    : `is not serialized only under ${selector}`;
+}
+
+function requiredBodyProblem(
+  op: GeneratedOperation,
+  field: { name: string; pyName: string; allowNull: boolean },
+): string | null {
+  const declaration = parameterDeclaration(op.signature, field.pyName);
+  if (!declaration) return "is not exposed by the generated signature";
+
+  const defaultIndex = declaration.lastIndexOf("=");
+  if (defaultIndex !== -1) {
+    const defaultValue = declaration.slice(defaultIndex + 1).trim();
+    if (defaultValue === "_UNSET") {
+      const guardedSerializer = new RegExp(
+        `^    if ${escapeRegex(field.pyName)} is not _UNSET:\n        payload\\[\"${escapeRegex(field.name)}\"\\] = ${escapeRegex(field.pyName)}$`,
+        "m",
+      );
+      return guardedSerializer.test(op.body)
+        ? "may be omitted with _UNSET"
+        : "has an _UNSET default without an auditable serializer";
+    }
+    if (defaultValue === "None") return "may be omitted with None";
+    return `has unaudited default ${defaultValue}`;
+  }
+
+  const serializer = new RegExp(
+    `^    payload\\[\"${escapeRegex(field.name)}\"\\] = ${escapeRegex(field.pyName)}$`,
+    "m",
+  );
+  if (!serializer.test(op.body)) return "is required but not unconditionally serialized";
+
+  const payloadKind = op.verb === "GET" || op.verb === "DELETE" ? "params" : "json";
+  const request = new RegExp(
+    `return _ok\\(_get_client\\(\\)\\.request\\(\"${escapeRegex(op.verb)}\", [^\\n]+, ${payloadKind}=payload\\)\\)`,
+  );
+  if (!request.test(op.body)) return `is not serialized as ${payloadKind}=payload`;
+
+  const acceptsNone = /\|\s*None\b/.test(declaration);
+  if (field.allowNull) {
+    return acceptsNone ? null : "is allow-null but does not accept None";
+  }
+  if (acceptsNone) return "accepts None without an exact allow-null judgment";
+
+  const nonNullGuard = new RegExp(
+    `^    if ${escapeRegex(field.pyName)} is None:\n        raise ValueError\\([^\\n]+\\)\n    payload\\[\"${escapeRegex(field.name)}\"\\] = ${escapeRegex(field.pyName)}$`,
+    "m",
+  );
+  return nonNullGuard.test(op.body)
+    ? null
+    : "does not reject None before serialization";
+}
+
+function literalHygieneProblems(source: string): string[] {
+  const problems: string[] = [];
+  for (const match of source.matchAll(/Literal\[([^\]]*)\]/g)) {
+    const members = match[1].split(", ").filter(Boolean);
+    const canonical = members.map((member) => {
+      if (!member.startsWith("'") || !member.endsWith("'")) return member;
+      return `"${member.slice(1, -1)}"`;
+    });
+    if (members.some((member) => member.startsWith("'"))) {
+      problems.push(`mixed quote style in ${match[0]}`);
+    }
+    if (new Set(canonical).size !== canonical.length) {
+      problems.push(`duplicate values in ${match[0]}`);
+    }
+  }
+  return problems;
+}
+
+const rawOpenApi = rawOpenApiOperations(readFileSync(OPENAPI_PATH, "utf-8"));
+const generatedSource = readFileSync(GENERATED_PATH, "utf-8");
+const generated = generatedFunctions(generatedSource);
+const literalHygiene = literalHygieneProblems(generatedSource);
+if (literalHygiene.length > 0) {
+  throw new Error(
+    `Generated Literal annotations must use unique double-quoted values:\n${literalHygiene
+      .map((problem) => `  ${problem}`)
+      .join("\n")}`,
+  );
+}
+const toolsSource = readFileSync(TOOLS_PATH, "utf-8");
+const gitbeakerImplementationSource = readFileSync(
+  GITBEAKER_IMPLEMENTATION_PATH,
+  "utf-8",
+);
+const canonical = new Set(generated.operations.map((op) => op.operation));
+for (const alias of generated.aliases) {
+  if (!canonical.has(alias.target)) {
+    throw new Error(`${alias.operation} aliases missing canonical operation ${alias.target}`);
+  }
+}
+
+const failures = new Set<string>();
+const appliedSpecGaps = new Set<string>();
+const appliedBodyOverrides = new Set<string>();
+const appliedConcreteDefaults = new Set<string>();
+const appliedConditionalBranchFields = new Set<string>();
+const appliedGitbeakerSourceWireNameJudgments = new Set<string>();
+let joinedOperations = 0;
+for (const operation of generated.operations) {
+  for (const path of operation.paths) {
+    const openApiOperation = rawOpenApi.get(
+      conformanceKey(operation.verb, path.split("?", 1)[0]),
+    );
+    if (!openApiOperation) continue;
+    joinedOperations++;
+
+    for (const field of openApiOperation.bodyFields) {
+      const override = bodyFieldOverride(
+        operation.operation,
+        operation.verb,
+        openApiOperation.rawPath,
+        field.name,
+      );
+      if (override) {
+        appliedBodyOverrides.add(bodyFieldJudgmentKey(override));
+        if (override.pyName || override.sourceParameter) {
+          const problem = namingOverrideProblem(
+            operation,
+            field.name,
+            override.pyName ?? pythonName(field.name),
+          );
+          if (problem) {
+            failures.add(
+              `${operation.operation}: exact body-field override ${field.name} ${problem} (${operation.verb} ${openApiOperation.rawPath})`,
+            );
+          }
+        }
+      }
+      if (!field.required) continue;
+
+      const gap = documentedSpecGap(
+        operation.operation,
+        operation.verb,
+        openApiOperation.rawPath,
+        field.name,
+      );
+      if (gap) {
+        appliedSpecGaps.add(bodyFieldJudgmentKey(gap));
+        continue;
+      }
+
+      const concreteDefault = concreteDefaultOverride(
+        operation.operation,
+        operation.verb,
+        openApiOperation.rawPath,
+        field.name,
+      );
+      if (concreteDefault) {
+        appliedConcreteDefaults.add(bodyFieldJudgmentKey(concreteDefault));
+        if (concreteDefault.functionName !== operation.functionName) {
+          failures.add(
+            `${operation.operation}: concrete default for ${field.name} targets ${concreteDefault.functionName}, not ${operation.functionName}`,
+          );
+          continue;
+        }
+        const problem = concreteDefaultProblem(toolsSource, concreteDefault);
+        if (problem) {
+          failures.add(
+            `${operation.operation}: concrete default for ${field.name} ${problem} (${operation.verb} ${openApiOperation.rawPath})`,
+          );
+        }
+        continue;
+      }
+
+      const problem = requiredBodyProblem(operation, {
+        name: field.name,
+        pyName: override?.pyName ?? pythonName(field.name),
+        allowNull: override?.allowNull === true,
+      });
+      if (problem) {
+        failures.add(
+          `${operation.operation}: required body field ${field.name} ${problem} (${operation.verb} ${openApiOperation.rawPath})`,
+        );
+      }
+    }
+  }
+}
+
+// OpenAPI does not declare import_url for pull mirrors, so verify the exact GitBeaker mapping independently.
+for (const judgment of GITBEAKER_SOURCE_WIRE_NAME_JUDGMENTS) {
+  const operation = generated.operations.find(
+    (candidate) =>
+      candidate.operation === judgment.operation &&
+      candidate.verb === judgment.verb,
+  );
+  if (!operation) continue;
+  const path = operation.paths.find(
+    (candidate) =>
+      conformancePath(candidate) === conformancePath(judgment.rawPath),
+  );
+  if (!path) continue;
+  const openApiOperation = rawOpenApi.get(
+    conformanceKey(operation.verb, path.split("?", 1)[0]),
+  );
+  if (
+    !openApiOperation ||
+    openApiOperation.bodyFields.some((field) => field.name === judgment.wireName)
+  ) continue;
+
+  appliedGitbeakerSourceWireNameJudgments.add(sourceWireNameJudgmentKey(
+    judgment.operation,
+    judgment.verb,
+    judgment.rawPath,
+    judgment.sourceParameter,
+  ));
+  const generatedProblem = namingOverrideProblem(
+    operation,
+    judgment.wireName,
+    judgment.sourceParameter,
+  );
+  if (generatedProblem) {
+    failures.add(
+      `${operation.operation}: GitBeaker source wire-name judgment ${judgment.wireName} ${generatedProblem} (${operation.verb} ${judgment.rawPath})`,
+    );
+  }
+  const sourceProblem = gitbeakerSourceWireNameProblem(
+    gitbeakerImplementationSource,
+    judgment,
+  );
+  if (sourceProblem) {
+    failures.add(
+      `${operation.operation}: GitBeaker source wire-name judgment ${judgment.wireName} ${sourceProblem} (${operation.verb} ${judgment.rawPath})`,
+    );
+  }
+}
+
+// This verifies only the exact branch-local fields listed in the judgment
+// registry; it intentionally does not claim exhaustive optional-field coverage.
+for (const judgment of CONDITIONAL_BRANCH_FIELD_JUDGMENTS) {
+  const operation = generated.operations.find(
+    (candidate) =>
+      candidate.operation === judgment.operation &&
+      candidate.verb === judgment.verb,
+  );
+  if (!operation) continue;
+  const path = operation.paths.find(
+    (candidate) =>
+      conformancePath(candidate) === conformancePath(judgment.rawPath),
+  );
+  if (!path) continue;
+  const openApiOperation = rawOpenApi.get(
+    conformanceKey(operation.verb, path.split("?", 1)[0]),
+  );
+  if (!openApiOperation?.bodyFields.some((field) => field.name === judgment.property)) {
+    continue;
+  }
+  appliedConditionalBranchFields.add(bodyFieldJudgmentKey(judgment));
+  const problem = conditionalBranchFieldProblem(operation, judgment);
+  if (problem) {
+    failures.add(
+      `${operation.operation}: conditional branch field ${judgment.property} ${problem} (${operation.verb} ${judgment.rawPath})`,
+    );
+  }
+}
+
+const staleSpecGaps = DOCUMENTED_SPEC_GAPS.filter(
+  (gap) => !appliedSpecGaps.has(bodyFieldJudgmentKey(gap)),
+);
+if (staleSpecGaps.length > 0) {
+  throw new Error(
+    `Stale required-body spec gaps:\n${staleSpecGaps
+      .map((gap) => `  ${gap.operation}: ${gap.verb} ${gap.rawPath} ${gap.property} - ${gap.rationale}`)
+      .join("\n")}`,
+  );
+}
+
+const staleBodyOverrides = BODY_FIELD_OVERRIDES.filter(
+  (override) => !appliedBodyOverrides.has(bodyFieldJudgmentKey(override)),
+);
+if (staleBodyOverrides.length > 0) {
+  throw new Error(
+    `Stale body-field overrides:\n${staleBodyOverrides
+      .map((override) => `  ${override.operation}: ${override.verb} ${override.rawPath} ${override.property}`)
+      .join("\n")}`,
+  );
+}
+
+const staleConcreteDefaults = CONCRETE_DEFAULT_OVERRIDES.filter(
+  (override) => !appliedConcreteDefaults.has(bodyFieldJudgmentKey(override)),
+);
+if (staleConcreteDefaults.length > 0) {
+  throw new Error(
+    `Stale concrete-default overrides:\n${staleConcreteDefaults
+      .map((override) => `  ${override.operation}: ${override.verb} ${override.rawPath} ${override.property}`)
+      .join("\n")}`,
+  );
+}
+
+const staleConditionalBranchFields = CONDITIONAL_BRANCH_FIELD_JUDGMENTS.filter(
+  (judgment) => !appliedConditionalBranchFields.has(bodyFieldJudgmentKey(judgment)),
+);
+if (staleConditionalBranchFields.length > 0) {
+  throw new Error(
+    `Stale conditional branch field judgments:\n${staleConditionalBranchFields
+      .map((judgment) => `  ${judgment.operation}: ${judgment.verb} ${judgment.rawPath} ${judgment.property} - ${judgment.rationale}`)
+      .join("\n")}`,
+  );
+}
+
+const staleGitbeakerSourceWireNameJudgments = GITBEAKER_SOURCE_WIRE_NAME_JUDGMENTS.filter(
+  (judgment) => !appliedGitbeakerSourceWireNameJudgments.has(
+    sourceWireNameJudgmentKey(
+      judgment.operation,
+      judgment.verb,
+      judgment.rawPath,
+      judgment.sourceParameter,
+    ),
+  ),
+);
+if (staleGitbeakerSourceWireNameJudgments.length > 0) {
+  throw new Error(
+    `Stale GitBeaker source wire-name judgments:\n${staleGitbeakerSourceWireNameJudgments
+      .map((judgment) => `  ${judgment.operation}: ${judgment.verb} ${judgment.rawPath} ${judgment.sourceParameter} -> ${judgment.wireName} - ${judgment.rationale}`)
+      .join("\n")}`,
+  );
+}
+
+if (joinedOperations === 0) {
+  throw new Error("Required-body conformance check joined no generated operations to raw OpenAPI");
+}
+if (failures.size > 0) {
+  console.error("Required request-body fields must not be omittable or misleadingly nullable:");
+  for (const failure of [...failures].sort()) console.error(`  ${failure}`);
+  process.exitCode = 1;
+}

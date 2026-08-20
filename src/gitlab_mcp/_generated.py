@@ -51,6 +51,8 @@ def agents_all_tokens(project_id: str | int, agent_id: str | int, page: int | No
 def agents_create_token(project_id: str | int, agent_id: str | int, name: str, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, description: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Agents.createToken (GET projects/${projectId}/cluster_agents/${agentId}/tokens). Body fields: name, page, per_page, description, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("Agents.createToken requires non-null request parameter: name")
     payload["name"] = name
     if page is not _UNSET:
         payload["page"] = page
@@ -66,6 +68,8 @@ def agents_create_token(project_id: str | int, agent_id: str | int, name: str, p
 def agents_register(project_id: str | int, name: str, sudo: str | int | _Unset = _UNSET):
     """Agents.register (POST projects/${projectId}/cluster_agents). Body fields: name, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("Agents.register requires non-null body field: name")
     payload["name"] = name
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -128,9 +132,11 @@ def application_appearance_show(sudo: str | int | _Unset = _UNSET):
 
 # ── ApplicationPlanLimits ─────────────────────────────────────────────────
 
-def application_plan_limits_edit(plan_name: str, ci_instance_level_variables: int | None | _Unset = _UNSET, ci_pipeline_size: int | None | _Unset = _UNSET, ci_active_jobs: int | None | _Unset = _UNSET, ci_project_subscriptions: int | None | _Unset = _UNSET, ci_pipeline_schedules: int | None | _Unset = _UNSET, ci_needs_size_limit: int | None | _Unset = _UNSET, ci_registered_group_runners: int | None | _Unset = _UNSET, ci_registered_project_runners: int | None | _Unset = _UNSET, conan_max_file_size: int | None | _Unset = _UNSET, dotenv_size: int | None | _Unset = _UNSET, dotenv_variables: int | None | _Unset = _UNSET, enforcement_limit: int | None | _Unset = _UNSET, generic_packages_max_file_size: int | None | _Unset = _UNSET, helm_max_file_size: int | None | _Unset = _UNSET, maven_max_file_size: int | None | _Unset = _UNSET, notification_limit: int | None | _Unset = _UNSET, npm_max_file_size: int | None | _Unset = _UNSET, nuget_max_file_size: int | None | _Unset = _UNSET, pypi_max_file_size: int | None | _Unset = _UNSET, terraform_module_max_file_size: int | None | _Unset = _UNSET, storage_size_limit: int | None | _Unset = _UNSET, pipeline_hierarchy_size: int | None | _Unset = _UNSET, web_hook_calls: int | None | _Unset = _UNSET, web_hook_calls_low: int | None | _Unset = _UNSET, web_hook_calls_mid: int | None | _Unset = _UNSET, ci_active_pipelines: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def application_plan_limits_edit(plan_name: Literal["default", "free", "bronze", "silver", "premium", "gold", "ultimate", "ultimate_trial", "ultimate_trial_paid_customer", "premium_trial", "opensource"], ci_instance_level_variables: int | None | _Unset = _UNSET, ci_pipeline_size: int | None | _Unset = _UNSET, ci_active_jobs: int | None | _Unset = _UNSET, ci_project_subscriptions: int | None | _Unset = _UNSET, ci_pipeline_schedules: int | None | _Unset = _UNSET, ci_needs_size_limit: int | None | _Unset = _UNSET, ci_registered_group_runners: int | None | _Unset = _UNSET, ci_registered_project_runners: int | None | _Unset = _UNSET, conan_max_file_size: int | None | _Unset = _UNSET, dotenv_size: int | None | _Unset = _UNSET, dotenv_variables: int | None | _Unset = _UNSET, enforcement_limit: int | None | _Unset = _UNSET, generic_packages_max_file_size: int | None | _Unset = _UNSET, helm_max_file_size: int | None | _Unset = _UNSET, maven_max_file_size: int | None | _Unset = _UNSET, notification_limit: int | None | _Unset = _UNSET, npm_max_file_size: int | None | _Unset = _UNSET, nuget_max_file_size: int | None | _Unset = _UNSET, pypi_max_file_size: int | None | _Unset = _UNSET, terraform_module_max_file_size: int | None | _Unset = _UNSET, storage_size_limit: int | None | _Unset = _UNSET, pipeline_hierarchy_size: int | None | _Unset = _UNSET, web_hook_calls: int | None | _Unset = _UNSET, web_hook_calls_low: int | None | _Unset = _UNSET, web_hook_calls_mid: int | None | _Unset = _UNSET, ci_active_pipelines: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ApplicationPlanLimits.edit (PUT application/plan_limits). Body fields: plan_name, ci_instance_level_variables, ci_pipeline_size, ci_active_jobs, ci_project_subscriptions, ci_pipeline_schedules, ci_needs_size_limit, ci_registered_group_runners, ci_registered_project_runners, conan_max_file_size, dotenv_size, dotenv_variables, enforcement_limit, generic_packages_max_file_size, helm_max_file_size, maven_max_file_size, notification_limit, npm_max_file_size, nuget_max_file_size, pypi_max_file_size, terraform_module_max_file_size, storage_size_limit, pipeline_hierarchy_size, web_hook_calls, web_hook_calls_low, web_hook_calls_mid, ci_active_pipelines, sudo."""
     payload: dict = {}
+    if plan_name is None:
+        raise ValueError("ApplicationPlanLimits.edit requires non-null body field: plan_name")
     payload["plan_name"] = plan_name
     if ci_instance_level_variables is not _UNSET:
         payload["ci_instance_level_variables"] = ci_instance_level_variables
@@ -224,8 +230,14 @@ def applications_all(pagination: Any | _Unset = _UNSET, per_page: str | int | _U
 def applications_create(name: str, redirect_uri: str, scopes: str, confidential: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Applications.create (POST applications). Body fields: name, redirect_uri, scopes, confidential, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("Applications.create requires non-null body field: name")
     payload["name"] = name
+    if redirect_uri is None:
+        raise ValueError("Applications.create requires non-null body field: redirect_uri")
     payload["redirect_uri"] = redirect_uri
+    if scopes is None:
+        raise ValueError("Applications.create requires non-null body field: scopes")
     payload["scopes"] = scopes
     if confidential is not _UNSET:
         payload["confidential"] = confidential
@@ -1469,6 +1481,8 @@ def application_statistics_show(sudo: str | int | _Unset = _UNSET):
 def avatar_show(email: str, size: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Avatar.show (GET avatar). Body fields: email, size, sudo."""
     payload: dict = {}
+    if email is None:
+        raise ValueError("Avatar.show requires non-null query parameter: email")
     payload["email"] = email
     if size is not _UNSET:
         payload["size"] = size
@@ -1508,7 +1522,11 @@ def branches_all(project_id: str | int, page: int | None | _Unset = _UNSET, per_
 def branches_create(project_id: str | int, branch: str, ref: str, sudo: str | int | _Unset = _UNSET):
     """Branches.create (POST projects/${projectId}/repository/branches). Body fields: branch, ref, sudo."""
     payload: dict = {}
+    if branch is None:
+        raise ValueError("Branches.create requires non-null body field: branch")
     payload["branch"] = branch
+    if ref is None:
+        raise ValueError("Branches.create requires non-null body field: ref")
     payload["ref"] = ref
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -1561,11 +1579,12 @@ def broadcast_messages_all(page: int | None | _Unset = _UNSET, per_page: int | N
     return _ok(_get_client().request("GET", f"/broadcast_messages", params=payload))
 
 
-def broadcast_messages_create(message: str | None | _Unset = _UNSET, starts_at: str | None | _Unset = _UNSET, ends_at: str | None | _Unset = _UNSET, color: str | None | _Unset = _UNSET, font: str | None | _Unset = _UNSET, target_access_levels: list[int] | None | _Unset = _UNSET, target_path: str | None | _Unset = _UNSET, broadcast_type: Literal["banner", "notification"] | None | _Unset = _UNSET, dismissable: bool | None | _Unset = _UNSET, theme: Literal["indigo", "light-indigo", "blue", "light-blue", "green", "light-green", "red", "light-red", "dark", "light"] | None | _Unset = _UNSET, active: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def broadcast_messages_create(message: str, starts_at: str | None | _Unset = _UNSET, ends_at: str | None | _Unset = _UNSET, color: str | None | _Unset = _UNSET, font: str | None | _Unset = _UNSET, target_access_levels: list[Literal[0, 5, 10, 15, 20, 30, 40, 50]] | None | _Unset = _UNSET, target_path: str | None | _Unset = _UNSET, broadcast_type: Literal["banner", "notification"] | None | _Unset = _UNSET, dismissable: bool | None | _Unset = _UNSET, theme: Literal["indigo", "light-indigo", "blue", "light-blue", "green", "light-green", "red", "light-red", "dark", "light"] | None | _Unset = _UNSET, active: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """BroadcastMessages.create (POST broadcast_messages). Body fields: message, starts_at, ends_at, color, font, target_access_levels, target_path, broadcast_type, dismissable, theme, active, sudo."""
     payload: dict = {}
-    if message is not _UNSET:
-        payload["message"] = message
+    if message is None:
+        raise ValueError("BroadcastMessages.create requires non-null body field: message")
+    payload["message"] = message
     if starts_at is not _UNSET:
         payload["starts_at"] = starts_at
     if ends_at is not _UNSET:
@@ -1591,7 +1610,7 @@ def broadcast_messages_create(message: str | None | _Unset = _UNSET, starts_at: 
     return _ok(_get_client().request("POST", f"/broadcast_messages", json=payload))
 
 
-def broadcast_messages_edit(broadcast_message_id: str | int, message: str | None | _Unset = _UNSET, starts_at: str | None | _Unset = _UNSET, ends_at: str | None | _Unset = _UNSET, color: str | None | _Unset = _UNSET, font: str | None | _Unset = _UNSET, target_access_levels: list[int] | None | _Unset = _UNSET, target_path: str | None | _Unset = _UNSET, broadcast_type: Literal["banner", "notification"] | None | _Unset = _UNSET, dismissable: bool | None | _Unset = _UNSET, theme: Literal["indigo", "light-indigo", "blue", "light-blue", "green", "light-green", "red", "light-red", "dark", "light"] | None | _Unset = _UNSET, active: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def broadcast_messages_edit(broadcast_message_id: str | int, message: str | None | _Unset = _UNSET, starts_at: str | None | _Unset = _UNSET, ends_at: str | None | _Unset = _UNSET, color: str | None | _Unset = _UNSET, font: str | None | _Unset = _UNSET, target_access_levels: list[Literal[0, 5, 10, 15, 20, 30, 40, 50]] | None | _Unset = _UNSET, target_path: str | None | _Unset = _UNSET, broadcast_type: Literal["banner", "notification"] | None | _Unset = _UNSET, dismissable: bool | None | _Unset = _UNSET, theme: Literal["indigo", "light-indigo", "blue", "light-blue", "green", "light-green", "red", "light-red", "dark", "light"] | None | _Unset = _UNSET, active: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """BroadcastMessages.edit (PUT broadcast_messages/${broadcastMessageId}). Body fields: message, starts_at, ends_at, color, font, target_access_levels, target_path, broadcast_type, dismissable, theme, active, sudo."""
     payload: dict = {}
     if message is not _UNSET:
@@ -1642,6 +1661,8 @@ def broadcast_messages_show(broadcast_message_id: str | int, sudo: str | int | _
 def commit_discussions_add_note(project_id: str | int, repositorycommit_id: str | int, discussion_id: str | int, body: str, created_at: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """CommitDiscussions.addNote (POST projects/${projectId}/repository/commits/${repositorycommitId}/discussions/${discussionId}/notes). Body fields: body, created_at, sudo."""
     payload: dict = {}
+    if body is None:
+        raise ValueError("CommitDiscussions.addNote requires non-null body field: body")
     payload["body"] = body
     if created_at is not _UNSET:
         payload["created_at"] = created_at
@@ -1673,6 +1694,8 @@ def commit_discussions_all(project_id: str | int, repositorycommit_id: str | int
 def commit_discussions_create(project_id: str | int, repositorycommit_id: str | int, body: str, created_at: str | None | _Unset = _UNSET, position: dict | None | _Unset = _UNSET, commit_id: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """CommitDiscussions.create (POST projects/${projectId}/repository/commits/${repositorycommitId}/discussions). Body fields: body, created_at, position, commit_id, sudo."""
     payload: dict = {}
+    if body is None:
+        raise ValueError("CommitDiscussions.create requires non-null body field: body")
     payload["body"] = body
     if created_at is not _UNSET:
         payload["created_at"] = created_at
@@ -1854,6 +1877,8 @@ def commits_all_statuses(project_id: str | int, sha: str | int, ref: str | None 
 def commits_cherry_pick(project_id: str | int, sha: str | int, branch: str, dry_run: bool | None | _Unset = _UNSET, message: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Commits.cherryPick (POST projects/${projectId}/repository/commits/${sha}/cherry_pick). Body fields: branch, dry_run, message, sudo."""
     payload: dict = {}
+    if branch is None:
+        raise ValueError("Commits.cherryPick requires non-null body field: branch")
     payload["branch"] = branch
     if dry_run is not _UNSET:
         payload["dry_run"] = dry_run
@@ -1867,8 +1892,14 @@ def commits_cherry_pick(project_id: str | int, sha: str | int, branch: str, dry_
 def commits_create(project_id: str | int, branch: str, commit_message: str, actions: list[dict], file: str | None | _Unset = _UNSET, start_branch: str | _Unset = _UNSET, start_sha: str | _Unset = _UNSET, start_project: str | int | _Unset = _UNSET, author_email: str | _Unset = _UNSET, author_name: str | _Unset = _UNSET, stats: bool | _Unset = _UNSET, force: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Commits.create (POST projects/${projectId}/repository/commits). Body fields: branch, commit_message, actions, file, start_branch, start_sha, start_project, author_email, author_name, stats, force, sudo."""
     payload: dict = {}
+    if branch is None:
+        raise ValueError("Commits.create requires non-null body field: branch")
     payload["branch"] = branch
+    if commit_message is None:
+        raise ValueError("Commits.create requires non-null body field: commit_message")
     payload["commit_message"] = commit_message
+    if actions is None:
+        raise ValueError("Commits.create requires non-null body field: actions")
     payload["actions"] = actions
     if file is not _UNSET:
         payload["file"] = file
@@ -1894,6 +1925,8 @@ def commits_create(project_id: str | int, branch: str, commit_message: str, acti
 def commits_create_comment(project_id: str | int, sha: str | int, note: str, path: str | None | _Unset = _UNSET, line: int | None | _Unset = _UNSET, line_type: Literal["new", "old"] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Commits.createComment (POST projects/${projectId}/repository/commits/${sha}/comments). Body fields: note, path, line, line_type, sudo."""
     payload: dict = {}
+    if note is None:
+        raise ValueError("Commits.createComment requires non-null body field: note")
     payload["note"] = note
     if path is not _UNSET:
         payload["path"] = path
@@ -1906,9 +1939,11 @@ def commits_create_comment(project_id: str | int, sha: str | int, note: str, pat
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/repository/commits/{_enc(sha)}/comments", json=payload))
 
 
-def commits_edit_status(project_id: str | int, sha: str | int, state: Literal["failed", "pending", "running", "success", "canceled"], ref: str | None | _Unset = _UNSET, target_url: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, name: str | None | _Unset = _UNSET, context: str | None | _Unset = _UNSET, coverage: float | int | None | _Unset = _UNSET, pipeline_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def commits_edit_status(project_id: str | int, sha: str | int, state: Literal["pending", "running", "success", "failed", "canceled", "skipped"], ref: str | None | _Unset = _UNSET, target_url: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, name: str | None | _Unset = _UNSET, context: str | None | _Unset = _UNSET, coverage: float | int | None | _Unset = _UNSET, pipeline_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Commits.editStatus (POST projects/${projectId}/statuses/${sha}). Body fields: state, ref, target_url, description, name, context, coverage, pipeline_id, sudo."""
     payload: dict = {}
+    if state is None:
+        raise ValueError("Commits.editStatus requires non-null body field: state")
     payload["state"] = state
     if ref is not _UNSET:
         payload["ref"] = ref
@@ -1932,6 +1967,8 @@ def commits_edit_status(project_id: str | int, sha: str | int, state: Literal["f
 def commits_revert(project_id: str | int, sha: str | int, branch: str, dry_run: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Commits.revert (POST projects/${projectId}/repository/commits/${sha}/revert). Body fields: branch, dry_run, sudo."""
     payload: dict = {}
+    if branch is None:
+        raise ValueError("Commits.revert requires non-null body field: branch")
     payload["branch"] = branch
     if dry_run is not _UNSET:
         payload["dry_run"] = dry_run
@@ -2043,6 +2080,8 @@ def container_registry_all_tags(project_id: str | int, repository_id: str | int,
 def container_registry_edit_registry_visibility(project_id: str | int, container_registry_access_level: Literal["private", "enabled", "disabled"], statistics: bool | None | _Unset = _UNSET, with_custom_attributes: bool | None | _Unset = _UNSET, custom_attributes: dict | None | _Unset = _UNSET, license: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ContainerRegistry.editRegistryVisibility (GET projects/${projectId}). Body fields: container_registry_access_level, statistics, with_custom_attributes, custom_attributes, license, sudo."""
     payload: dict = {}
+    if container_registry_access_level is None:
+        raise ValueError("ContainerRegistry.editRegistryVisibility requires non-null request parameter: container_registry_access_level")
     payload["container_registry_access_level"] = container_registry_access_level
     if statistics is not _UNSET:
         payload["statistics"] = statistics
@@ -2076,6 +2115,8 @@ def container_registry_remove_tag(project_id: str | int, repository_id: str | in
 def container_registry_remove_tags(project_id: str | int, repository_id: str | int, name_regex_delete: str, name_regex: str | None | _Unset = _UNSET, name_regex_keep: str | None | _Unset = _UNSET, keep_n: int | None | _Unset = _UNSET, older_than: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ContainerRegistry.removeTags (DELETE projects/${projectId}/registry/repositories/${repositoryId}/tags). Body fields: name_regex_delete, name_regex, name_regex_keep, keep_n, older_than, sudo."""
     payload: dict = {}
+    if name_regex_delete is None:
+        raise ValueError("ContainerRegistry.removeTags requires non-null query parameter: name_regex_delete")
     payload["name_regex_delete"] = name_regex_delete
     if name_regex is not _UNSET:
         payload["name_regex"] = name_regex
@@ -2153,7 +2194,11 @@ def deploy_keys_all(project_id: str | int | _Unset = _UNSET, user_id: str | int 
 def deploy_keys_create(project_id: str | int, title: str, key: str, can_push: bool | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """DeployKeys.create (POST projects/${projectId}/deploy_keys). Body fields: title, key, can_push, expires_at, sudo."""
     payload: dict = {}
+    if title is None:
+        raise ValueError("DeployKeys.create requires non-null body field: title")
     payload["title"] = title
+    if key is None:
+        raise ValueError("DeployKeys.create requires non-null body field: key")
     payload["key"] = key
     if can_push is not _UNSET:
         payload["can_push"] = can_push
@@ -2235,7 +2280,7 @@ def deployments_all(project_id: str | int, page: int | None | _Unset = _UNSET, p
 
 
 def deployments_all_merge_requests(project_id: str | int, deployment_id: str | int, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, author_id: int | None | _Unset = _UNSET, author_username: str | None | _Unset = _UNSET, assignee_id: int | str | None | _Unset = _UNSET, assignee_username: list[str] | None | _Unset = _UNSET, reviewer_username: str | None | _Unset = _UNSET, labels: list[str] | None | _Unset = _UNSET, milestone: str | None | _Unset = _UNSET, my_reaction_emoji: str | None | _Unset = _UNSET, reviewer_id: int | str | None | _Unset = _UNSET, state: Literal["opened", "closed", "locked", "merged", "all"] | None | _Unset = _UNSET, order_by: Literal["created_at", "label_priority", "milestone_due", "popularity", "priority", "title", "updated_at", "merged_at"] | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, with_labels_details: bool | None | _Unset = _UNSET, with_merge_status_recheck: bool | None | _Unset = _UNSET, created_after: str | None | _Unset = _UNSET, created_before: str | None | _Unset = _UNSET, updated_after: str | None | _Unset = _UNSET, updated_before: str | None | _Unset = _UNSET, view: Literal["simple"] | None | _Unset = _UNSET, scope: Literal["created-by-me", "assigned-to-me", "created_by_me", "assigned_to_me", "reviews_for_me", "all"] | None | _Unset = _UNSET, source_branch: str | None | _Unset = _UNSET, source_project_id: int | None | _Unset = _UNSET, target_branch: str | None | _Unset = _UNSET, search: str | None | _Unset = _UNSET, in_: str | None | _Unset = _UNSET, wip: Literal["yes", "no"] | None | _Unset = _UNSET, not_: dict | None | _Unset = _UNSET, not_author_id: int | None | _Unset = _UNSET, not_author_username: str | None | _Unset = _UNSET, not_assignee_id: int | str | None | _Unset = _UNSET, not_assignee_username: list[str] | None | _Unset = _UNSET, not_reviewer_username: str | None | _Unset = _UNSET, not_labels: list[str] | None | _Unset = _UNSET, not_milestone: str | None | _Unset = _UNSET, not_my_reaction_emoji: str | None | _Unset = _UNSET, not_reviewer_id: int | None | _Unset = _UNSET, deployed_before: str | None | _Unset = _UNSET, deployed_after: str | None | _Unset = _UNSET, environment: str | None | _Unset = _UNSET, approved: Literal["yes", "no"] | None | _Unset = _UNSET, merge_user_id: int | None | _Unset = _UNSET, merge_user_username: str | None | _Unset = _UNSET, approved_by_ids: list[int] | _Unset = _UNSET, approver_ids: list[int] | _Unset = _UNSET, iids: list[int] | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Deployments.allMergeRequests (GET projects/${projectId}/deployments/${deploymentId}/merge_requests). Body fields: page, per_page, author_id, author_username, assignee_id, assignee_username, reviewer_username, labels, milestone, my_reaction_emoji, reviewer_id, state, order_by, sort, with_labels_details, with_merge_status_recheck, created_after, created_before, updated_after, updated_before, view, scope, source_branch, source_project_id, target_branch, search, in, wip, not, not[author_id], not[author_username], not[assignee_id], not[assignee_username], not[reviewer_username], not[labels], not[milestone], not[my_reaction_emoji], not[reviewer_id], deployed_before, deployed_after, environment, approved, merge_user_id, merge_user_username, approved_by_ids, approver_ids, iids, pagination, max_pages, sudo."""
+    """Deployments.allMergeRequests (GET projects/${projectId}/deployments/${deploymentId}/merge_requests). Body fields: page, per_page, author_id, author_username, assignee_id, assignee_username, reviewer_username, labels, milestone, my_reaction_emoji, reviewer_id, state, order_by, sort, with_labels_details, with_merge_status_recheck, created_after, created_before, updated_after, updated_before, view, scope, source_branch, source_project_id, target_branch, search, in_ -> in, wip, not_ -> not, not_author_id -> not[author_id], not_author_username -> not[author_username], not_assignee_id -> not[assignee_id], not_assignee_username -> not[assignee_username], not_reviewer_username -> not[reviewer_username], not_labels -> not[labels], not_milestone -> not[milestone], not_my_reaction_emoji -> not[my_reaction_emoji], not_reviewer_id -> not[reviewer_id], deployed_before, deployed_after, environment, approved, merge_user_id, merge_user_username, approved_by_ids, approver_ids, iids, pagination, max_pages, sudo."""
     payload: dict = {}
     if page is not _UNSET:
         payload["page"] = page
@@ -2340,23 +2385,34 @@ def deployments_all_merge_requests(project_id: str | int, deployment_id: str | i
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/deployments/{_enc(deployment_id)}/merge_requests", params=payload))
 
 
-def deployments_create(project_id: str | int, environment: str, sha: str, ref: str, tag: bool, status: Literal["running", "success", "failed", "canceled"] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def deployments_create(project_id: str | int, environment: str, sha: str, ref: str, tag: bool, status: Literal["running", "success", "failed", "canceled"], sudo: str | int | _Unset = _UNSET):
     """Deployments.create (POST projects/${projectId}/deployments). Body fields: environment, sha, ref, tag, status, sudo."""
     payload: dict = {}
+    if environment is None:
+        raise ValueError("Deployments.create requires non-null body field: environment")
     payload["environment"] = environment
+    if sha is None:
+        raise ValueError("Deployments.create requires non-null body field: sha")
     payload["sha"] = sha
+    if ref is None:
+        raise ValueError("Deployments.create requires non-null body field: ref")
     payload["ref"] = ref
+    if tag is None:
+        raise ValueError("Deployments.create requires non-null body field: tag")
     payload["tag"] = tag
-    if status is not _UNSET:
-        payload["status"] = status
+    if status is None:
+        raise ValueError("Deployments.create requires non-null body field: status")
+    payload["status"] = status
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/deployments", json=payload))
 
 
-def deployments_edit(project_id: str | int, deployment_id: str | int, status: Literal["failed", "running", "success", "canceled"], sudo: str | int | _Unset = _UNSET):
+def deployments_edit(project_id: str | int, deployment_id: str | int, status: Literal["running", "success", "failed", "canceled"], sudo: str | int | _Unset = _UNSET):
     """Deployments.edit (PUT projects/${projectId}/deployments/${deploymentId}). Body fields: status, sudo."""
     payload: dict = {}
+    if status is None:
+        raise ValueError("Deployments.edit requires non-null body field: status")
     payload["status"] = status
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -2374,6 +2430,8 @@ def deployments_remove(project_id: str | int, deployment_id: str | int, sudo: st
 def deployments_set_approval(project_id: str | int, deployment_id: str | int, status: Literal["approved", "rejected"], comment: str | None | _Unset = _UNSET, represented_as: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Deployments.setApproval (POST projects/${projectId}/deployments/${deploymentId}/approval). Body fields: status, comment, represented_as, sudo."""
     payload: dict = {}
+    if status is None:
+        raise ValueError("Deployments.setApproval requires non-null body field: status")
     payload["status"] = status
     if comment is not _UNSET:
         payload["comment"] = comment
@@ -2423,7 +2481,11 @@ def deploy_tokens_all(project_id: str | int | _Unset = _UNSET, group_id: str | i
 def deploy_tokens_create(name: str, scopes: list[Literal["read_repository", "read_registry", "write_registry", "read_package_registry", "write_package_registry"]], project_id: str | int | _Unset = _UNSET, group_id: str | int | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, username: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """DeployTokens.create (POST; selector-driven path: if project_id: projects/${projectId}/deploy_tokens; if group_id: groups/${groupId}/deploy_tokens)."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("DeployTokens.create requires non-null body field: name")
     payload["name"] = name
+    if scopes is None:
+        raise ValueError("DeployTokens.create requires non-null body field: scopes")
     payload["scopes"] = scopes
     if expires_at is not _UNSET:
         payload["expires_at"] = expires_at
@@ -2489,6 +2551,8 @@ def environments_all(project_id: str | int, page: int | None | _Unset = _UNSET, 
 def environments_create(project_id: str | int, name: str, external_url: str | None | _Unset = _UNSET, slug: str | None | _Unset = _UNSET, tier: Literal["production", "staging", "testing", "development", "other"] | None | _Unset = _UNSET, cluster_agent_id: int | None | _Unset = _UNSET, kubernetes_namespace: str | None | _Unset = _UNSET, flux_resource_path: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, auto_stop_setting: Literal["always", "with_action"] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Environments.create (POST projects/${projectId}/environments). Body fields: name, external_url, slug, tier, cluster_agent_id, kubernetes_namespace, flux_resource_path, description, auto_stop_setting, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("Environments.create requires non-null body field: name")
     payload["name"] = name
     if external_url is not _UNSET:
         payload["external_url"] = external_url
@@ -2578,6 +2642,8 @@ def environments_stop(project_id: str | int, environment_id: str | int, force: b
 def environments_stop_stale(project_id: str | int, before: str, sudo: str | int | _Unset = _UNSET):
     """Environments.stopStale (POST projects/${projectId}/environments/stop_stale). Body fields: before, sudo."""
     payload: dict = {}
+    if before is None:
+        raise ValueError("Environments.stopStale requires non-null body field: before")
     payload["before"] = before
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -2657,7 +2723,11 @@ def error_tracking_client_keys_remove(project_id: str | int, sudo: str | int | _
 def error_tracking_settings_create(project_id: str | int, active: bool, integrated: bool, sudo: str | int | _Unset = _UNSET):
     """ErrorTrackingSettings.create (PUT projects/${projectId}/error_tracking/settings). Body fields: active, integrated, sudo."""
     payload: dict = {}
+    if active is None:
+        raise ValueError("ErrorTrackingSettings.create requires non-null body field: active")
     payload["active"] = active
+    if integrated is None:
+        raise ValueError("ErrorTrackingSettings.create requires non-null body field: integrated")
     payload["integrated"] = integrated
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -2667,6 +2737,8 @@ def error_tracking_settings_create(project_id: str | int, active: bool, integrat
 def error_tracking_settings_edit(project_id: str | int, active: bool, integrated: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ErrorTrackingSettings.edit (PATCH projects/${projectId}/error_tracking/settings). Body fields: active, integrated, sudo."""
     payload: dict = {}
+    if active is None:
+        raise ValueError("ErrorTrackingSettings.edit requires non-null body field: active")
     payload["active"] = active
     if integrated is not _UNSET:
         payload["integrated"] = integrated
@@ -2746,7 +2818,11 @@ def feature_flags_all(project_id: str | int, scope: Literal["enabled", "disabled
 def feature_flags_create(project_id: str | int, name: str, version: str, description: str | None | _Unset = _UNSET, active: bool | None | _Unset = _UNSET, strategies: list[dict] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """FeatureFlags.create (POST projects/${projectId}/feature_flags). Body fields: name, version, description, active, strategies, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("FeatureFlags.create requires non-null body field: name")
     payload["name"] = name
+    if version is None:
+        raise ValueError("FeatureFlags.create requires non-null body field: version")
     payload["version"] = version
     if description is not _UNSET:
         payload["description"] = description
@@ -2818,7 +2894,11 @@ def feature_flag_user_lists_all(project_id: str | int, search: str | None | _Uns
 def feature_flag_user_lists_create(project_id: str | int, name: str, user_xids: str, sudo: str | int | _Unset = _UNSET):
     """FeatureFlagUserLists.create (POST projects/${projectId}/feature_flags_user_lists). Body fields: name, user_xids, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("FeatureFlagUserLists.create requires non-null body field: name")
     payload["name"] = name
+    if user_xids is None:
+        raise ValueError("FeatureFlagUserLists.create requires non-null body field: user_xids")
     payload["user_xids"] = user_xids
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -2915,7 +2995,7 @@ def group_access_requests_all(group_id: str | int, page: int | None | _Unset = _
     return _ok(_get_client().request("GET", f"/projects/{_enc(group_id)}/access_requests", params=payload))
 
 
-def group_access_requests_approve(group_id: str | int, user_id: str | int, access_level: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_access_requests_approve(group_id: str | int, user_id: str | int, access_level: Literal[0, 5, 10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupAccessRequests.approve (PUT projects/${groupId}/access_requests/${userId}/approve). Body fields: access_level, sudo."""
     payload: dict = {}
     if access_level is not _UNSET:
@@ -2984,8 +3064,14 @@ def group_access_tokens_all(group_id: str | int, revoked: bool | None | _Unset =
 def group_access_tokens_create(group_id: str | int, name: str, scopes: list[Literal["read_repository", "read_registry", "write_registry", "api", "read_api", "create_runner", "write_repository"]], expires_at: str, description: str | None | _Unset = _UNSET, access_level: Literal[10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupAccessTokens.create (POST groups/${groupId}/access_tokens). Body fields: name, scopes, expires_at, description, access_level, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("GroupAccessTokens.create requires non-null body field: name")
     payload["name"] = name
+    if scopes is None:
+        raise ValueError("GroupAccessTokens.create requires non-null body field: scopes")
     payload["scopes"] = scopes
+    if expires_at is None:
+        raise ValueError("GroupAccessTokens.create requires non-null body field: expires_at")
     payload["expires_at"] = expires_at
     if description is not _UNSET:
         payload["description"] = description
@@ -3027,6 +3113,8 @@ def group_access_tokens_show(group_id: str | int, token_id: str | int, sudo: str
 def group_activity_analytics_show_issues_count(group_path: str, sudo: str | int | _Unset = _UNSET):
     """GroupActivityAnalytics.showIssuesCount (GET analytics/group_activity/issues_count). Body fields: group_path, sudo."""
     payload: dict = {}
+    if group_path is None:
+        raise ValueError("GroupActivityAnalytics.showIssuesCount requires non-null query parameter: group_path")
     payload["group_path"] = group_path
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -3036,6 +3124,8 @@ def group_activity_analytics_show_issues_count(group_path: str, sudo: str | int 
 def group_activity_analytics_show_merge_requests_count(group_path: str, sudo: str | int | _Unset = _UNSET):
     """GroupActivityAnalytics.showMergeRequestsCount (GET analytics/group_activity/merge_requests_count). Body fields: group_path, sudo."""
     payload: dict = {}
+    if group_path is None:
+        raise ValueError("GroupActivityAnalytics.showMergeRequestsCount requires non-null query parameter: group_path")
     payload["group_path"] = group_path
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -3045,6 +3135,8 @@ def group_activity_analytics_show_merge_requests_count(group_path: str, sudo: st
 def group_activity_analytics_show_new_members_count(group_path: str, sudo: str | int | _Unset = _UNSET):
     """GroupActivityAnalytics.showNewMembersCount (GET analytics/group_activity/new_members_count). Body fields: group_path, sudo."""
     payload: dict = {}
+    if group_path is None:
+        raise ValueError("GroupActivityAnalytics.showNewMembersCount requires non-null query parameter: group_path")
     payload["group_path"] = group_path
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -3056,7 +3148,11 @@ def group_activity_analytics_show_new_members_count(group_path: str, sudo: str |
 def group_badges_add(group_id: str | int, link_url: str, image_url: str, name: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupBadges.add (POST groups/${groupId}/badges). Body fields: link_url, image_url, name, sudo."""
     payload: dict = {}
+    if link_url is None:
+        raise ValueError("GroupBadges.add requires non-null body field: link_url")
     payload["link_url"] = link_url
+    if image_url is None:
+        raise ValueError("GroupBadges.add requires non-null body field: image_url")
     payload["image_url"] = image_url
     if name is not _UNSET:
         payload["name"] = name
@@ -3104,7 +3200,11 @@ def group_badges_edit(group_id: str | int, badge_id: str | int, link_url: str | 
 def group_badges_preview(group_id: str | int, link_url: str, image_url: str, sudo: str | int | _Unset = _UNSET):
     """GroupBadges.preview (GET groups/${groupId}/badges/render). Body fields: link_url, image_url, sudo."""
     payload: dict = {}
+    if link_url is None:
+        raise ValueError("GroupBadges.preview requires non-null query parameter: link_url")
     payload["link_url"] = link_url
+    if image_url is None:
+        raise ValueError("GroupBadges.preview requires non-null query parameter: image_url")
     payload["image_url"] = image_url
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -3160,6 +3260,8 @@ def group_custom_attributes_remove(group_id: str | int, custom_attribute_id: str
 def group_custom_attributes_set(group_id: str | int, custom_attribute_id: str | int, value: str, sudo: str | int | _Unset = _UNSET):
     """GroupCustomAttributes.set (PUT groups/${groupId}/custom_attributes/${customAttributeId}). Body fields: value, sudo."""
     payload: dict = {}
+    if value is None:
+        raise ValueError("GroupCustomAttributes.set requires non-null body field: value")
     payload["value"] = value
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -3229,6 +3331,8 @@ def group_epic_boards_show_list(group_id: str | int, board_id: str | int, list_i
 def group_hooks_add(group_id: str | int, url: str, name: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, push_events: bool | None | _Unset = _UNSET, push_events_branch_filter: str | None | _Unset = _UNSET, issues_events: bool | None | _Unset = _UNSET, confidential_issues_events: bool | None | _Unset = _UNSET, merge_requests_events: bool | None | _Unset = _UNSET, tag_push_events: bool | None | _Unset = _UNSET, note_events: bool | None | _Unset = _UNSET, confidential_note_events: bool | None | _Unset = _UNSET, job_events: bool | None | _Unset = _UNSET, pipeline_events: bool | None | _Unset = _UNSET, project_events: bool | None | _Unset = _UNSET, wiki_page_events: bool | None | _Unset = _UNSET, deployment_events: bool | None | _Unset = _UNSET, feature_flag_events: bool | None | _Unset = _UNSET, releases_events: bool | None | _Unset = _UNSET, milestone_events: bool | None | _Unset = _UNSET, subgroup_events: bool | None | _Unset = _UNSET, emoji_events: bool | None | _Unset = _UNSET, resource_access_token_events: bool | None | _Unset = _UNSET, member_events: bool | None | _Unset = _UNSET, vulnerability_events: bool | None | _Unset = _UNSET, enable_ssl_verification: bool | None | _Unset = _UNSET, token: str | None | _Unset = _UNSET, custom_webhook_template: str | None | _Unset = _UNSET, branch_filter_strategy: Literal["wildcard", "regex", "all_branches"] | None | _Unset = _UNSET, url_variables: list[dict] | None | _Unset = _UNSET, custom_headers: list[dict] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupHooks.add (POST groups/${groupId}/hooks). Body fields: url, name, description, push_events, push_events_branch_filter, issues_events, confidential_issues_events, merge_requests_events, tag_push_events, note_events, confidential_note_events, job_events, pipeline_events, project_events, wiki_page_events, deployment_events, feature_flag_events, releases_events, milestone_events, subgroup_events, emoji_events, resource_access_token_events, member_events, vulnerability_events, enable_ssl_verification, token, custom_webhook_template, branch_filter_strategy, url_variables, custom_headers, sudo."""
     payload: dict = {}
+    if url is None:
+        raise ValueError("GroupHooks.add requires non-null body field: url")
     payload["url"] = url
     if name is not _UNSET:
         payload["name"] = name
@@ -3316,6 +3420,8 @@ def group_hooks_all(group_id: str | int, page: int | None | _Unset = _UNSET, per
 def group_hooks_edit(group_id: str | int, hook_id: str | int, url: str, name: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, push_events: bool | None | _Unset = _UNSET, push_events_branch_filter: str | None | _Unset = _UNSET, issues_events: bool | None | _Unset = _UNSET, confidential_issues_events: bool | None | _Unset = _UNSET, merge_requests_events: bool | None | _Unset = _UNSET, tag_push_events: bool | None | _Unset = _UNSET, note_events: bool | None | _Unset = _UNSET, confidential_note_events: bool | None | _Unset = _UNSET, job_events: bool | None | _Unset = _UNSET, pipeline_events: bool | None | _Unset = _UNSET, project_events: bool | None | _Unset = _UNSET, wiki_page_events: bool | None | _Unset = _UNSET, deployment_events: bool | None | _Unset = _UNSET, feature_flag_events: bool | None | _Unset = _UNSET, releases_events: bool | None | _Unset = _UNSET, milestone_events: bool | None | _Unset = _UNSET, subgroup_events: bool | None | _Unset = _UNSET, emoji_events: bool | None | _Unset = _UNSET, resource_access_token_events: bool | None | _Unset = _UNSET, member_events: bool | None | _Unset = _UNSET, vulnerability_events: bool | None | _Unset = _UNSET, enable_ssl_verification: bool | None | _Unset = _UNSET, token: str | None | _Unset = _UNSET, custom_webhook_template: str | None | _Unset = _UNSET, branch_filter_strategy: Literal["wildcard", "regex", "all_branches"] | None | _Unset = _UNSET, url_variables: list[dict] | None | _Unset = _UNSET, custom_headers: list[dict] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupHooks.edit (PUT groups/${groupId}/hooks/${hookId}). Body fields: url, name, description, push_events, push_events_branch_filter, issues_events, confidential_issues_events, merge_requests_events, tag_push_events, note_events, confidential_note_events, job_events, pipeline_events, project_events, wiki_page_events, deployment_events, feature_flag_events, releases_events, milestone_events, subgroup_events, emoji_events, resource_access_token_events, member_events, vulnerability_events, enable_ssl_verification, token, custom_webhook_template, branch_filter_strategy, url_variables, custom_headers, sudo."""
     payload: dict = {}
+    if url is None:
+        raise ValueError("GroupHooks.edit requires non-null body field: url")
     payload["url"] = url
     if name is not _UNSET:
         payload["name"] = name
@@ -3406,13 +3512,18 @@ def group_import_exports_download(group_id: str | int, sudo: str | int | _Unset 
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/export/download", params=payload))
 
 
-def group_import_exports_import(file: dict, path: str, name: str | None | _Unset = _UNSET, parent_id: int | None | _Unset = _UNSET, organization_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_import_exports_import(file: dict, path: str, name: str, parent_id: int | None | _Unset = _UNSET, organization_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupImportExports.import (POST groups/import). Body fields: file, path, name, parent_id, organization_id, sudo."""
     payload: dict = {}
+    if file is None:
+        raise ValueError("GroupImportExports.import requires non-null body field: file")
     payload["file"] = file
+    if path is None:
+        raise ValueError("GroupImportExports.import requires non-null body field: path")
     payload["path"] = path
-    if name is not _UNSET:
-        payload["name"] = name
+    if name is None:
+        raise ValueError("GroupImportExports.import requires non-null body field: name")
+    payload["name"] = name
     if parent_id is not _UNSET:
         payload["parent_id"] = parent_id
     if organization_id is not _UNSET:
@@ -3432,9 +3543,11 @@ def group_import_exports_schedule_export(group_id: str | int, sudo: str | int | 
 
 # ── GroupInvitations ──────────────────────────────────────────────────────
 
-def group_invitations_add(group_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50], email: list[str] | None | _Unset = _UNSET, user_id: list[str] | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, tasks_to_be_done: list[str] | _Unset = _UNSET, tasks_project_id: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_invitations_add(group_id: str | int, access_level: Literal[10, 15, 20, 30, 40, 50, 5, 0], email: list[str] | None | _Unset = _UNSET, user_id: list[str] | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, tasks_to_be_done: list[str] | _Unset = _UNSET, tasks_project_id: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupInvitations.add (POST groups/${groupId}/invitations). Body fields: access_level, email, user_id, expires_at, invite_source, member_role_id, tasks_to_be_done, tasks_project_id, sudo."""
     payload: dict = {}
+    if access_level is None:
+        raise ValueError("GroupInvitations.add requires non-null body field: access_level")
     payload["access_level"] = access_level
     if email is not _UNSET:
         payload["email"] = email
@@ -3536,6 +3649,8 @@ def group_issue_boards_all_lists(group_id: str | int, board_id: str | int, page:
 def group_issue_boards_create(group_id: str | int, name: str, sudo: str | int | _Unset = _UNSET):
     """GroupIssueBoards.create (POST groups/${groupId}/boards). Body fields: name, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("GroupIssueBoards.create requires non-null body field: name")
     payload["name"] = name
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -3583,6 +3698,8 @@ def group_issue_boards_edit(group_id: str | int, board_id: str | int, name: str 
 def group_issue_boards_edit_list(group_id: str | int, board_id: str | int, list_id: str | int, position: int, sudo: str | int | _Unset = _UNSET):
     """GroupIssueBoards.editList (PUT groups/${groupId}/boards/${boardId}/lists/${listId}). Body fields: position, sudo."""
     payload: dict = {}
+    if position is None:
+        raise ValueError("GroupIssueBoards.editList requires non-null body field: position")
     payload["position"] = position
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -3624,7 +3741,7 @@ def group_issue_boards_show_list(group_id: str | int, board_id: str | int, list_
 # ── GroupIterations ───────────────────────────────────────────────────────
 
 def group_iterations_all(group_id: str | int, state: Literal["opened", "upcoming", "started", "current", "closed", "all"] | None | _Unset = _UNSET, search: str | None | _Unset = _UNSET, in_: list[str] | None | _Unset = _UNSET, include_ancestors: bool | None | _Unset = _UNSET, include_descendants: bool | None | _Unset = _UNSET, updated_before: str | None | _Unset = _UNSET, updated_after: str | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, order_by: str | _Unset = _UNSET, sort: Literal["asc", "desc"] | _Unset = _UNSET):
-    """GroupIterations.all (GET groups/${groupId}/iterations). Body fields: state, search, in, include_ancestors, include_descendants, updated_before, updated_after, page, per_page, sudo, pagination, max_pages, order_by, sort."""
+    """GroupIterations.all (GET groups/${groupId}/iterations). Body fields: state, search, in_ -> in, include_ancestors, include_descendants, updated_before, updated_after, page, per_page, sudo, pagination, max_pages, order_by, sort."""
     payload: dict = {}
     if state is not _UNSET:
         payload["state"] = state
@@ -3694,7 +3811,11 @@ def group_labels_all(group_id: str | int, with_counts: bool | None | _Unset = _U
 def group_labels_create(group_id: str | int, name: str, color: str, description: str | None | _Unset = _UNSET, archived: bool | None | _Unset = _UNSET, priority: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupLabels.create (POST groups/${groupId}/labels). Body fields: name, color, description, archived, priority, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("GroupLabels.create requires non-null body field: name")
     payload["name"] = name
+    if color is None:
+        raise ValueError("GroupLabels.create requires non-null body field: color")
     payload["color"] = color
     if description is not _UNSET:
         payload["description"] = description
@@ -3773,10 +3894,14 @@ def group_labels_unsubscribe(group_id: str | int, label_id: str | int, sudo: str
 
 # ── GroupLDAPLinks ────────────────────────────────────────────────────────
 
-def group_ldap_links_add(group_id: str | int, group_access: int, provider: str, cn: str | None | _Unset = _UNSET, filter: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_ldap_links_add(group_id: str | int, group_access: Literal[5, 10, 15, 20, 30, 40, 50], provider: str, cn: str | None | _Unset = _UNSET, filter: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupLDAPLinks.add (POST groups/${groupId}/ldap_group_links). Body fields: group_access, provider, cn, filter, member_role_id, sudo."""
     payload: dict = {}
+    if group_access is None:
+        raise ValueError("GroupLDAPLinks.add requires non-null body field: group_access")
     payload["group_access"] = group_access
+    if provider is None:
+        raise ValueError("GroupLDAPLinks.add requires non-null body field: provider")
     payload["provider"] = provider
     if cn is not _UNSET:
         payload["cn"] = cn
@@ -3812,6 +3937,8 @@ def group_ldap_links_all(group_id: str | int, pagination: Any | _Unset = _UNSET,
 def group_ldap_links_remove(group_id: str | int, provider: str, cn: str | None | _Unset = _UNSET, filter: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupLDAPLinks.remove (DELETE groups/${groupId}/ldap_group_links). Body fields: provider, cn, filter, sudo."""
     payload: dict = {}
+    if provider is None:
+        raise ValueError("GroupLDAPLinks.remove requires non-null query parameter: provider")
     payload["provider"] = provider
     if cn is not _UNSET:
         payload["cn"] = cn
@@ -3855,6 +3982,8 @@ def group_markdown_uploads_all(group_id: str | int, page: int | None | _Unset = 
 def group_markdown_uploads_download(group_id: str | int, upload_id_or_secret: str | int, filename: str | int, secret: str | int | str, sudo: str | int | _Unset = _UNSET):
     """GroupMarkdownUploads.download (GET groups/${groupId}/uploads/${uploadIdOrSecret}/${filename}). Body fields: secret, sudo."""
     payload: dict = {}
+    if secret is None:
+        raise ValueError("GroupMarkdownUploads.download requires non-null request parameter: secret")
     payload["secret"] = secret
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -3864,6 +3993,8 @@ def group_markdown_uploads_download(group_id: str | int, upload_id_or_secret: st
 def group_markdown_uploads_remove(group_id: str | int, upload_id_or_secret: str | int, filename: str | int, secret: str | int | str, sudo: str | int | _Unset = _UNSET):
     """GroupMarkdownUploads.remove (DELETE groups/${groupId}/uploads/${uploadIdOrSecret}/${filename}). Body fields: secret, sudo."""
     payload: dict = {}
+    if secret is None:
+        raise ValueError("GroupMarkdownUploads.remove requires non-null request parameter: secret")
     payload["secret"] = secret
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -3872,12 +4003,15 @@ def group_markdown_uploads_remove(group_id: str | int, upload_id_or_secret: str 
 
 # ── GroupMemberRoles ──────────────────────────────────────────────────────
 
-def group_member_roles_add(group_id: str | int, base_access_level: Literal[10, 20, 30, 40, 50], access_level: int | None | _Unset = _UNSET, user_id: int | str | None | _Unset = _UNSET, username: str | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, read_code: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_member_roles_add(group_id: str | int, base_access_level: Literal[10, 20, 30, 40, 50, 15], access_level: Literal[0, 5, 10, 15, 20, 30, 40, 50], user_id: int | str | None | _Unset = _UNSET, username: str | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, read_code: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupMemberRoles.add (POST groups/${groupId}/members). Body fields: base_access_level, access_level, user_id, username, expires_at, invite_source, read_code, sudo."""
     payload: dict = {}
+    if base_access_level is None:
+        raise ValueError("GroupMemberRoles.add requires non-null body field: base_access_level")
     payload["base_access_level"] = base_access_level
-    if access_level is not _UNSET:
-        payload["access_level"] = access_level
+    if access_level is None:
+        raise ValueError("GroupMemberRoles.add requires non-null body field: access_level")
+    payload["access_level"] = access_level
     if user_id is not _UNSET:
         payload["user_id"] = user_id
     if username is not _UNSET:
@@ -3923,9 +4057,11 @@ def group_member_roles_remove(group_id: str | int, member_role_id: str | int, su
 
 # ── GroupMembers ──────────────────────────────────────────────────────────
 
-def group_members_add(group_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50], user_id: int | str | None | _Unset = _UNSET, username: str | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, tasks_to_be_done: list[str] | _Unset = _UNSET, tasks_project_id: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_members_add(group_id: str | int, access_level: Literal[0, 5, 10, 15, 20, 30, 40, 50], user_id: int | str | None | _Unset = _UNSET, username: str | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, tasks_to_be_done: list[str] | _Unset = _UNSET, tasks_project_id: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupMembers.add (POST groups/${groupId}/members). Body fields: access_level, user_id, username, expires_at, invite_source, tasks_to_be_done, tasks_project_id, sudo."""
     payload: dict = {}
+    if access_level is None:
+        raise ValueError("GroupMembers.add requires non-null body field: access_level")
     payload["access_level"] = access_level
     if user_id is not _UNSET:
         payload["user_id"] = user_id
@@ -3976,9 +4112,11 @@ def group_members_all(group_id: str | int, query: str | None | _Unset = _UNSET, 
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/members", params=payload))
 
 
-def group_members_edit(group_id: str | int, user_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50], expires_at: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_members_edit(group_id: str | int, user_id: str | int, access_level: Literal[0, 5, 10, 15, 20, 30, 40, 50], expires_at: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupMembers.edit (PUT groups/${groupId}/members/${userId}). Body fields: access_level, expires_at, member_role_id, sudo."""
     payload: dict = {}
+    if access_level is None:
+        raise ValueError("GroupMembers.edit requires non-null body field: access_level")
     payload["access_level"] = access_level
     if expires_at is not _UNSET:
         payload["expires_at"] = expires_at
@@ -4078,6 +4216,8 @@ def group_milestones_all_burndown_chart_events(group_id: str | int, milestone_id
 def group_milestones_create(group_id: str | int, title: str, description: str | None | _Unset = _UNSET, due_date: str | None | _Unset = _UNSET, start_date: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupMilestones.create (POST groups/${groupId}/milestones). Body fields: title, description, due_date, start_date, sudo."""
     payload: dict = {}
+    if title is None:
+        raise ValueError("GroupMilestones.create requires non-null body field: title")
     payload["title"] = title
     if description is not _UNSET:
         payload["description"] = description
@@ -4129,6 +4269,8 @@ def group_milestones_show(group_id: str | int, milestone_id: str | int, sudo: st
 def group_relation_exports_download(group_id: str | int, relation: str, batched: bool | None | _Unset = _UNSET, batch_number: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupRelationExports.download (GET groups/${groupId}/export_relations/download). Body fields: relation, batched, batch_number, sudo."""
     payload: dict = {}
+    if relation is None:
+        raise ValueError("GroupRelationExports.download requires non-null query parameter: relation")
     payload["relation"] = relation
     if batched is not _UNSET:
         payload["batched"] = batched
@@ -4498,7 +4640,11 @@ def groups_all_transfer_locations(group_id: str | int, search: str | None | _Uns
 def groups_create(name: str, path: str, parent_id: int | None | _Unset = _UNSET, organization_id: int | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, visibility: Literal["private", "internal", "public"] | None | _Unset = _UNSET, avatar: str | None | _Unset = _UNSET, share_with_group_lock: bool | None | _Unset = _UNSET, require_two_factor_authentication: bool | None | _Unset = _UNSET, two_factor_grace_period: int | None | _Unset = _UNSET, project_creation_level: Literal["noone", "owner", "maintainer", "developer", "administrator"] | None | _Unset = _UNSET, auto_devops_enabled: bool | None | _Unset = _UNSET, subgroup_creation_level: Literal["owner", "maintainer"] | None | _Unset = _UNSET, emails_disabled: bool | None | _Unset = _UNSET, emails_enabled: bool | None | _Unset = _UNSET, show_diff_preview_in_email: bool | None | _Unset = _UNSET, mentions_disabled: bool | None | _Unset = _UNSET, lfs_enabled: bool | None | _Unset = _UNSET, request_access_enabled: bool | None | _Unset = _UNSET, default_branch: str | None | _Unset = _UNSET, default_branch_protection: Literal[0, 3, 1, 2, 4] | None | _Unset = _UNSET, default_branch_protection_defaults: dict | None | _Unset = _UNSET, enabled_git_access_protocol: Literal["ssh", "http", "all"] | None | _Unset = _UNSET, membership_lock: bool | None | _Unset = _UNSET, ldap_cn: str | None | _Unset = _UNSET, ldap_access: int | None | _Unset = _UNSET, shared_runners_minutes_limit: int | None | _Unset = _UNSET, extra_shared_runners_minutes_limit: int | None | _Unset = _UNSET, wiki_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, duo_availability: Literal["default_on", "default_off", "never_on"] | None | _Unset = _UNSET, duo_remote_flows_availability: bool | None | _Unset = _UNSET, duo_foundational_flows_availability: bool | None | _Unset = _UNSET, tool_approval_for_session_availability: bool | None | _Unset = _UNSET, amazon_q_auto_review_enabled: bool | None | _Unset = _UNSET, experiment_features_enabled: bool | None | _Unset = _UNSET, model_prompt_cache_enabled: bool | None | _Unset = _UNSET, foundational_agents_statuses: list[dict] | None | _Unset = _UNSET, ai_settings_attributes: dict | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Groups.create (POST groups). Body fields: name, path, parent_id, organization_id, description, visibility, avatar, share_with_group_lock, require_two_factor_authentication, two_factor_grace_period, project_creation_level, auto_devops_enabled, subgroup_creation_level, emails_disabled, emails_enabled, show_diff_preview_in_email, mentions_disabled, lfs_enabled, request_access_enabled, default_branch, default_branch_protection, default_branch_protection_defaults, enabled_git_access_protocol, membership_lock, ldap_cn, ldap_access, shared_runners_minutes_limit, extra_shared_runners_minutes_limit, wiki_access_level, duo_availability, duo_remote_flows_availability, duo_foundational_flows_availability, tool_approval_for_session_availability, amazon_q_auto_review_enabled, experiment_features_enabled, model_prompt_cache_enabled, foundational_agents_statuses, ai_settings_attributes, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("Groups.create requires non-null body field: name")
     payload["name"] = name
+    if path is None:
+        raise ValueError("Groups.create requires non-null body field: path")
     payload["path"] = path
     if parent_id is not _UNSET:
         payload["parent_id"] = parent_id
@@ -4808,6 +4954,8 @@ def groups_restore(group_id: str | int, sudo: str | int | _Unset = _UNSET):
 def groups_search(name_or_path: str, statistics: bool | None | _Unset = _UNSET, archived: bool | None | _Unset = _UNSET, skip_groups: list[int] | None | _Unset = _UNSET, all_available: bool | None | _Unset = _UNSET, visibility: Literal["private", "internal", "public"] | None | _Unset = _UNSET, search: str | None | _Unset = _UNSET, owned: bool | None | _Unset = _UNSET, order_by: Literal["name", "path", "id", "similarity"] | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, min_access_level: Literal[10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, top_level_only: bool | None | _Unset = _UNSET, marked_for_deletion_on: str | None | _Unset = _UNSET, active: bool | None | _Unset = _UNSET, repository_storage: str | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, with_custom_attributes: bool | None | _Unset = _UNSET, custom_attributes: dict | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Groups.search (GET groups). Body fields: name_or_path, statistics, archived, skip_groups, all_available, visibility, search, owned, order_by, sort, min_access_level, top_level_only, marked_for_deletion_on, active, repository_storage, page, per_page, with_custom_attributes, custom_attributes, sudo."""
     payload: dict = {}
+    if name_or_path is None:
+        raise ValueError("Groups.search requires non-null request parameter: name_or_path")
     payload["name_or_path"] = name_or_path
     if statistics is not _UNSET:
         payload["statistics"] = statistics
@@ -4850,9 +4998,14 @@ def groups_search(name_or_path: str, statistics: bool | None | _Unset = _UNSET, 
     return _ok(_get_client().request("GET", f"/groups", params=payload))
 
 
-def groups_share(group_id: str | int, group_access: int, expires_at: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Groups.share (POST groups/${groupId}/share). Body fields: group_access, expires_at, member_role_id, sudo."""
+def groups_share(group_id: str | int, shared_group_id: int, group_access: Literal[10, 15, 20, 30, 40, 50], expires_at: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """Groups.share (POST groups/${groupId}/share). Body fields: shared_group_id -> group_id, group_access, expires_at, member_role_id, sudo."""
     payload: dict = {}
+    if shared_group_id is None:
+        raise ValueError("Groups.share requires non-null body field: shared_group_id -> group_id")
+    payload["group_id"] = shared_group_id
+    if group_access is None:
+        raise ValueError("Groups.share requires non-null body field: group_access")
     payload["group_access"] = group_access
     if expires_at is not _UNSET:
         payload["expires_at"] = expires_at
@@ -4877,9 +5030,11 @@ def groups_show(group_id: str | int, with_custom_attributes: bool | None | _Unse
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}", params=payload))
 
 
-def groups_transfer(group_id: str | int, sudo: str | int | _Unset = _UNSET):
-    """Groups.transfer (POST groups/${groupId}/transfer). Body fields: sudo."""
+def groups_transfer(group_id: str | int, parent_group_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """Groups.transfer (POST groups/${groupId}/transfer). Body fields: parent_group_id -> group_id, sudo."""
     payload: dict = {}
+    if parent_group_id is not _UNSET:
+        payload["group_id"] = parent_group_id
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/transfer", json=payload))
@@ -4904,6 +5059,8 @@ def groups_unshare(group_id: str | int, shared_group_id: str | int, sudo: str | 
 def groups_upload_avatar(group_id: str | int, content: Any, filename: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Groups.uploadAvatar (PUT groups/${groupId}/avatar). Body fields: content, filename, sudo."""
     payload: dict = {}
+    if content is None:
+        raise ValueError("Groups.uploadAvatar requires non-null body field: content")
     payload["content"] = content
     if filename is not _UNSET:
         payload["filename"] = filename
@@ -4934,11 +5091,12 @@ def group_saml_identities_all(group_id: str | int, pagination: Any | _Unset = _U
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/saml/identities", params=payload))
 
 
-def group_saml_identities_edit(group_id: str | int, identity_id: str | int, extern_uid: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_saml_identities_edit(group_id: str | int, identity_id: str | int, extern_uid: str, sudo: str | int | _Unset = _UNSET):
     """GroupSAMLIdentities.edit (PATCH groups/${groupId}/saml/${identityId}). Body fields: extern_uid, sudo."""
     payload: dict = {}
-    if extern_uid is not _UNSET:
-        payload["extern_uid"] = extern_uid
+    if extern_uid is None:
+        raise ValueError("GroupSAMLIdentities.edit requires non-null body field: extern_uid")
+    payload["extern_uid"] = extern_uid
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     return _ok(_get_client().request("PATCH", f"/groups/{_enc(group_id)}/saml/{_enc(identity_id)}", json=payload))
@@ -4966,10 +5124,14 @@ def group_saml_links_all(group_id: str | int, pagination: Any | _Unset = _UNSET,
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/saml_group_links", params=payload))
 
 
-def group_saml_links_create(group_id: str | int, saml_group_name: str, access_level: Literal[0, 5, 10, 20, 30, 40, 50], member_role_id: int | None | _Unset = _UNSET, provider: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_saml_links_create(group_id: str | int, saml_group_name: str, access_level: Literal[5, 10, 15, 20, 30, 40, 50, 0], member_role_id: int | None | _Unset = _UNSET, provider: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupSAMLLinks.create (POST groups/${groupId}/saml_group_links). Body fields: saml_group_name, access_level, member_role_id, provider, sudo."""
     payload: dict = {}
+    if saml_group_name is None:
+        raise ValueError("GroupSAMLLinks.create requires non-null body field: saml_group_name")
     payload["saml_group_name"] = saml_group_name
+    if access_level is None:
+        raise ValueError("GroupSAMLLinks.create requires non-null body field: access_level")
     payload["access_level"] = access_level
     if member_role_id is not _UNSET:
         payload["member_role_id"] = member_role_id
@@ -5022,11 +5184,12 @@ def group_scim_identities_all(group_id: str | int, pagination: Any | _Unset = _U
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/scim/identities", params=payload))
 
 
-def group_scim_identities_edit(group_id: str | int, identity_id: str | int, extern_uid: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_scim_identities_edit(group_id: str | int, identity_id: str | int, extern_uid: str, sudo: str | int | _Unset = _UNSET):
     """GroupSCIMIdentities.edit (PATCH groups/${groupId}/scim/${identityId}). Body fields: extern_uid, sudo."""
     payload: dict = {}
-    if extern_uid is not _UNSET:
-        payload["extern_uid"] = extern_uid
+    if extern_uid is None:
+        raise ValueError("GroupSCIMIdentities.edit requires non-null body field: extern_uid")
+    payload["extern_uid"] = extern_uid
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     return _ok(_get_client().request("PATCH", f"/groups/{_enc(group_id)}/scim/{_enc(identity_id)}", json=payload))
@@ -5096,7 +5259,11 @@ def group_variables_all(group_id: str | int, page: int | None | _Unset = _UNSET,
 def group_variables_create(group_id: str | int, key: str, value: str, protected: bool | None | _Unset = _UNSET, masked_and_hidden: bool | None | _Unset = _UNSET, masked: bool | None | _Unset = _UNSET, raw: bool | None | _Unset = _UNSET, variable_type: Literal["env_var", "file"] | None | _Unset = _UNSET, environment_scope: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupVariables.create (POST groups/${groupId}/variables). Body fields: key, value, protected, masked_and_hidden, masked, raw, variable_type, environment_scope, description, sudo."""
     payload: dict = {}
+    if key is None:
+        raise ValueError("GroupVariables.create requires non-null body field: key")
     payload["key"] = key
+    if value is None:
+        raise ValueError("GroupVariables.create requires non-null body field: value")
     payload["value"] = value
     if protected is not _UNSET:
         payload["protected"] = protected
@@ -5120,7 +5287,11 @@ def group_variables_create(group_id: str | int, key: str, value: str, protected:
 def group_variables_edit(group_id: str | int, key: str | int, value: str, filter: dict, protected: bool | None | _Unset = _UNSET, masked: bool | None | _Unset = _UNSET, raw: bool | None | _Unset = _UNSET, variable_type: Literal["env_var", "file"] | None | _Unset = _UNSET, environment_scope: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupVariables.edit (PUT groups/${groupId}/variables/${key}). Body fields: value, filter, protected, masked, raw, variable_type, environment_scope, description, sudo."""
     payload: dict = {}
+    if value is None:
+        raise ValueError("GroupVariables.edit requires non-null body field: value")
     payload["value"] = value
+    if filter is None:
+        raise ValueError("GroupVariables.edit requires non-null body field: filter")
     payload["filter"] = filter
     if protected is not _UNSET:
         payload["protected"] = protected
@@ -5186,7 +5357,11 @@ def group_wikis_all(group_id: str | int, with_content: bool | None | _Unset = _U
 def group_wikis_create(group_id: str | int, content: str, title: str, front_matter: dict | None | _Unset = _UNSET, format: Literal["markdown", "rdoc", "asciidoc", "org"] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupWikis.create (POST groups/${groupId}/wikis). Body fields: content, title, front_matter, format, sudo."""
     payload: dict = {}
+    if content is None:
+        raise ValueError("GroupWikis.create requires non-null body field: content")
     payload["content"] = content
+    if title is None:
+        raise ValueError("GroupWikis.create requires non-null body field: title")
     payload["title"] = title
     if front_matter is not _UNSET:
         payload["front_matter"] = front_matter
@@ -5236,6 +5411,8 @@ def group_wikis_show(group_id: str | int, slug: str | int, version: str | None |
 def group_wikis_upload_attachment(group_id: str | int, file: dict, branch: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupWikis.uploadAttachment (POST groups/${groupId}/wikis/attachments). Body fields: file, branch, sudo."""
     payload: dict = {}
+    if file is None:
+        raise ValueError("GroupWikis.uploadAttachment requires non-null body field: file")
     payload["file"] = file
     if branch is not _UNSET:
         payload["branch"] = branch
@@ -5249,22 +5426,32 @@ def group_wikis_upload_attachment(group_id: str | int, file: dict, branch: str |
 def import_cancel_github_repository_import(project_id: int, sudo: str | int | _Unset = _UNSET):
     """Import.cancelGithubRepositoryImport (POST import/github/cancel). Body fields: project_id, sudo."""
     payload: dict = {}
+    if project_id is None:
+        raise ValueError("Import.cancelGithubRepositoryImport requires non-null body field: project_id")
     payload["project_id"] = project_id
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/import/github/cancel", json=payload))
 
 
-def import_import_bitbucket_server_repository(bitbucket_server_url: str, bitbucket_server_username: str, personal_access_token: str, bitbucket_server_project: str, bitbucket_server_repository: str, bitbucket_server_repo: str | None | _Unset = _UNSET, new_name: str | None | _Unset = _UNSET, new_namespace: str | None | _Unset = _UNSET, timeout_strategy: Literal["optimistic", "pessimistic"] | None | _Unset = _UNSET, target_namespace: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Import.importBitbucketServerRepository (POST import/bitbucket_server). Body fields: bitbucket_server_url, bitbucket_server_username, personal_access_token, bitbucket_server_project, bitbucket_server_repository, bitbucket_server_repo, new_name, new_namespace, timeout_strategy, target_namespace, sudo."""
+def import_import_bitbucket_server_repository(bitbucket_server_url: str, bitbucket_server_username: str, personal_access_token: str, bitbucket_server_project: str, bitbucket_server_repo: str, new_name: str | None | _Unset = _UNSET, new_namespace: str | None | _Unset = _UNSET, timeout_strategy: Literal["optimistic", "pessimistic"] | None | _Unset = _UNSET, target_namespace: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """Import.importBitbucketServerRepository (POST import/bitbucket_server). Body fields: bitbucket_server_url, bitbucket_server_username, personal_access_token, bitbucket_server_project, bitbucket_server_repo, new_name, new_namespace, timeout_strategy, target_namespace, sudo."""
     payload: dict = {}
+    if bitbucket_server_url is None:
+        raise ValueError("Import.importBitbucketServerRepository requires non-null body field: bitbucket_server_url")
     payload["bitbucket_server_url"] = bitbucket_server_url
+    if bitbucket_server_username is None:
+        raise ValueError("Import.importBitbucketServerRepository requires non-null body field: bitbucket_server_username")
     payload["bitbucket_server_username"] = bitbucket_server_username
+    if personal_access_token is None:
+        raise ValueError("Import.importBitbucketServerRepository requires non-null body field: personal_access_token")
     payload["personal_access_token"] = personal_access_token
+    if bitbucket_server_project is None:
+        raise ValueError("Import.importBitbucketServerRepository requires non-null body field: bitbucket_server_project")
     payload["bitbucket_server_project"] = bitbucket_server_project
-    payload["bitbucket_server_repository"] = bitbucket_server_repository
-    if bitbucket_server_repo is not _UNSET:
-        payload["bitbucket_server_repo"] = bitbucket_server_repo
+    if bitbucket_server_repo is None:
+        raise ValueError("Import.importBitbucketServerRepository requires non-null body field: bitbucket_server_repo")
+    payload["bitbucket_server_repo"] = bitbucket_server_repo
     if new_name is not _UNSET:
         payload["new_name"] = new_name
     if new_namespace is not _UNSET:
@@ -5281,20 +5468,26 @@ def import_import_bitbucket_server_repository(bitbucket_server_url: str, bitbuck
 def import_import_github_gists(personal_access_token: str, sudo: str | int | _Unset = _UNSET):
     """Import.importGithubGists (POST import/github/gists). Body fields: personal_access_token, sudo."""
     payload: dict = {}
+    if personal_access_token is None:
+        raise ValueError("Import.importGithubGists requires non-null body field: personal_access_token")
     payload["personal_access_token"] = personal_access_token
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/import/github/gists", json=payload))
 
 
-def import_import_github_repository(personal_access_token: str, repository_id: int, target_namespace: str, repo_id: int | None | _Unset = _UNSET, new_name: str | None | _Unset = _UNSET, github_hostname: str | None | _Unset = _UNSET, optional_stages: dict | None | _Unset = _UNSET, timeout_strategy: Literal["optimistic", "pessimistic"] | None | _Unset = _UNSET, pagination_limit: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Import.importGithubRepository (POST import/github). Body fields: personal_access_token, repository_id, target_namespace, repo_id, new_name, github_hostname, optional_stages, timeout_strategy, pagination_limit, sudo."""
+def import_import_github_repository(personal_access_token: str, repo_id: int, target_namespace: str, new_name: str | None | _Unset = _UNSET, github_hostname: str | None | _Unset = _UNSET, optional_stages: dict | None | _Unset = _UNSET, timeout_strategy: Literal["optimistic", "pessimistic"] | None | _Unset = _UNSET, pagination_limit: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """Import.importGithubRepository (POST import/github). Body fields: personal_access_token, repo_id, target_namespace, new_name, github_hostname, optional_stages, timeout_strategy, pagination_limit, sudo."""
     payload: dict = {}
+    if personal_access_token is None:
+        raise ValueError("Import.importGithubRepository requires non-null body field: personal_access_token")
     payload["personal_access_token"] = personal_access_token
-    payload["repository_id"] = repository_id
+    if repo_id is None:
+        raise ValueError("Import.importGithubRepository requires non-null body field: repo_id")
+    payload["repo_id"] = repo_id
+    if target_namespace is None:
+        raise ValueError("Import.importGithubRepository requires non-null body field: target_namespace")
     payload["target_namespace"] = target_namespace
-    if repo_id is not _UNSET:
-        payload["repo_id"] = repo_id
     if new_name is not _UNSET:
         payload["new_name"] = new_name
     if github_hostname is not _UNSET:
@@ -5327,7 +5520,11 @@ def instance_level_cicd_variables_all(page: int | None | _Unset = _UNSET, per_pa
 def instance_level_cicd_variables_create(key: str, value: str, description: str | None | _Unset = _UNSET, protected: bool | None | _Unset = _UNSET, masked: bool | None | _Unset = _UNSET, raw: bool | None | _Unset = _UNSET, variable_type: Literal["env_var", "file"] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """InstanceLevelCICDVariables.create (POST admin/ci/variables). Body fields: key, value, description, protected, masked, raw, variable_type, sudo."""
     payload: dict = {}
+    if key is None:
+        raise ValueError("InstanceLevelCICDVariables.create requires non-null body field: key")
     payload["key"] = key
+    if value is None:
+        raise ValueError("InstanceLevelCICDVariables.create requires non-null body field: value")
     payload["value"] = value
     if description is not _UNSET:
         payload["description"] = description
@@ -5347,6 +5544,8 @@ def instance_level_cicd_variables_create(key: str, value: str, description: str 
 def instance_level_cicd_variables_edit(key_id: str | int, value: str, description: str | None | _Unset = _UNSET, protected: bool | None | _Unset = _UNSET, masked: bool | None | _Unset = _UNSET, raw: bool | None | _Unset = _UNSET, variable_type: Literal["env_var", "file"] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """InstanceLevelCICDVariables.edit (PUT admin/ci/variables/${keyId}). Body fields: value, description, protected, masked, raw, variable_type, sudo."""
     payload: dict = {}
+    if value is None:
+        raise ValueError("InstanceLevelCICDVariables.edit requires non-null body field: value")
     payload["value"] = value
     if description is not _UNSET:
         payload["description"] = description
@@ -5438,6 +5637,8 @@ def issue_award_emojis_all(project_id: str | int, resource_iid: str | int, page:
 def issue_award_emojis_award(project_id: str | int, resource_iid: str | int, name: str, sudo: str | int | _Unset = _UNSET):
     """IssueAwardEmojis.award (POST projects/${projectId}/issues/${resourceIId}/award_emoji). Body fields: name, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("IssueAwardEmojis.award requires non-null body field: name")
     payload["name"] = name
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -5465,6 +5666,8 @@ def issue_award_emojis_show(project_id: str | int, resource_iid: str | int, awar
 def issue_discussions_add_note(project_id: str | int, issue_iid: str | int, discussion_id: str | int, body: str, created_at: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """IssueDiscussions.addNote (POST projects/${projectId}/issues/${issueIid}/discussions/${discussionId}/notes). Body fields: body, created_at, sudo."""
     payload: dict = {}
+    if body is None:
+        raise ValueError("IssueDiscussions.addNote requires non-null body field: body")
     payload["body"] = body
     if created_at is not _UNSET:
         payload["created_at"] = created_at
@@ -5496,6 +5699,8 @@ def issue_discussions_all(project_id: str | int, issue_iid: str | int, page: int
 def issue_discussions_create(project_id: str | int, issue_iid: str | int, body: str, created_at: str | None | _Unset = _UNSET, position: dict | _Unset = _UNSET, commit_id: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """IssueDiscussions.create (POST projects/${projectId}/issues/${issueIid}/discussions). Body fields: body, created_at, position, commit_id, sudo."""
     payload: dict = {}
+    if body is None:
+        raise ValueError("IssueDiscussions.create requires non-null body field: body")
     payload["body"] = body
     if created_at is not _UNSET:
         payload["created_at"] = created_at
@@ -5618,10 +5823,14 @@ def issue_links_all(project_id: str | int, issue_iid: str | int, sudo: str | int
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/links", params=payload))
 
 
-def issue_links_create(project_id: str | int, issue_iid: str | int, target_project_id: str | int, target_issue_iid: int, link_type: Literal["relates_to", "blocks", "is_blocked_by"] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def issue_links_create(project_id: str | int, issue_iid: str | int, target_project_id: str | int, target_issue_iid: str | int, link_type: Literal["relates_to", "blocks", "is_blocked_by"] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """IssueLinks.create (POST projects/${projectId}/issues/${issueIId}/links). Body fields: target_project_id, target_issue_iid, link_type, sudo."""
     payload: dict = {}
+    if target_project_id is None:
+        raise ValueError("IssueLinks.create requires non-null body field: target_project_id")
     payload["target_project_id"] = target_project_id
+    if target_issue_iid is None:
+        raise ValueError("IssueLinks.create requires non-null body field: target_issue_iid")
     payload["target_issue_iid"] = target_issue_iid
     if link_type is not _UNSET:
         payload["link_type"] = link_type
@@ -5695,6 +5904,8 @@ def issue_note_award_emojis_all(project_id: str | int, resource_iid: str | int, 
 def issue_note_award_emojis_award(project_id: str | int, resource_iid: str | int, note_id: str | int, name: str, sudo: str | int | _Unset = _UNSET):
     """IssueNoteAwardEmojis.award (POST issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji). Body fields: name, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("IssueNoteAwardEmojis.award requires non-null body field: name")
     payload["name"] = name
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -5744,6 +5955,8 @@ def issue_notes_all(project_id: str | int, issue_iid: str | int, order_by: Liter
 def issue_notes_create(project_id: str | int, issue_iid: str | int, body: str, confidential: bool | None | _Unset = _UNSET, internal: bool | None | _Unset = _UNSET, created_at: str | None | _Unset = _UNSET, merge_request_diff_head_sha: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """IssueNotes.create (POST projects/${projectId}/issues/${issueIid}/notes). Body fields: body, confidential, internal, created_at, merge_request_diff_head_sha, sudo."""
     payload: dict = {}
+    if body is None:
+        raise ValueError("IssueNotes.create requires non-null body field: body")
     payload["body"] = body
     if confidential is not _UNSET:
         payload["confidential"] = confidential
@@ -5791,6 +6004,8 @@ def issue_notes_show(project_id: str | int, issue_iid: str | int, note_id: str |
 def issues_add_spent_time(project_id: str | int, issue_iid: str | int, duration: str, summary: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Issues.addSpentTime (POST projects/${projectId}/issues/${issueIId}/add_spent_time). Body fields: duration, summary, sudo."""
     payload: dict = {}
+    if duration is None:
+        raise ValueError("Issues.addSpentTime requires non-null body field: duration")
     payload["duration"] = duration
     if summary is not _UNSET:
         payload["summary"] = summary
@@ -5802,6 +6017,8 @@ def issues_add_spent_time(project_id: str | int, issue_iid: str | int, duration:
 def issues_add_time_estimate(project_id: str | int, issue_iid: str | int, duration: str, sudo: str | int | _Unset = _UNSET):
     """Issues.addTimeEstimate (POST projects/${projectId}/issues/${issueIId}/time_estimate). Body fields: duration, sudo."""
     payload: dict = {}
+    if duration is None:
+        raise ValueError("Issues.addTimeEstimate requires non-null body field: duration")
     payload["duration"] = duration
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -5944,9 +6161,11 @@ def issues_all_related_merge_requests(project_id: str | int, issue_iid: str | in
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/related_merge_requests", params=payload))
 
 
-def issues_clone(project_id: str | int, issue_iid: str | int, to_project_id: str | int, with_notes: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def issues_clone(project_id: str | int, issue_iid: str | int, to_project_id: int, with_notes: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Issues.clone (POST projects/${projectId}/issues/${issueIId}/clone). Body fields: to_project_id, with_notes, sudo."""
     payload: dict = {}
+    if to_project_id is None:
+        raise ValueError("Issues.clone requires non-null body field: to_project_id")
     payload["to_project_id"] = to_project_id
     if with_notes is not _UNSET:
         payload["with_notes"] = with_notes
@@ -5958,6 +6177,8 @@ def issues_clone(project_id: str | int, issue_iid: str | int, to_project_id: str
 def issues_create(project_id: str | int, title: str, created_at: str | None | _Unset = _UNSET, merge_request_to_resolve_discussions_of: int | None | _Unset = _UNSET, discussion_to_resolve: str | None | _Unset = _UNSET, iid: int | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, assignee_ids: list[int] | None | _Unset = _UNSET, assignee_id: int | None | _Unset = _UNSET, milestone_id: int | None | _Unset = _UNSET, labels: list[str] | None | _Unset = _UNSET, add_labels: list[str] | None | _Unset = _UNSET, remove_labels: list[str] | None | _Unset = _UNSET, due_date: str | None | _Unset = _UNSET, confidential: bool | None | _Unset = _UNSET, discussion_locked: bool | None | _Unset = _UNSET, issue_type: Literal["issue", "incident", "test_case", "requirement", "task", "ticket"] | None | _Unset = _UNSET, weight: int | None | _Unset = _UNSET, epic_id: int | None | _Unset = _UNSET, epic_iid: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Issues.create (POST projects/${projectId}/issues). Body fields: title, created_at, merge_request_to_resolve_discussions_of, discussion_to_resolve, iid, description, assignee_ids, assignee_id, milestone_id, labels, add_labels, remove_labels, due_date, confidential, discussion_locked, issue_type, weight, epic_id, epic_iid, sudo."""
     payload: dict = {}
+    if title is None:
+        raise ValueError("Issues.create requires non-null body field: title")
     payload["title"] = title
     if created_at is not _UNSET:
         payload["created_at"] = created_at
@@ -6064,9 +6285,11 @@ def issues_edit_metric_image(project_id: str | int, issue_iid: str | int, image_
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/metric_images/{_enc(image_id)}", json=payload))
 
 
-def issues_move(project_id: str | int, issue_iid: str | int, to_project_id: str | int, sudo: str | int | _Unset = _UNSET):
+def issues_move(project_id: str | int, issue_iid: str | int, to_project_id: int, sudo: str | int | _Unset = _UNSET):
     """Issues.move (POST projects/${projectId}/issues/${issueIId}/move). Body fields: to_project_id, sudo."""
     payload: dict = {}
+    if to_project_id is None:
+        raise ValueError("Issues.move requires non-null body field: to_project_id")
     payload["to_project_id"] = to_project_id
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -6076,6 +6299,8 @@ def issues_move(project_id: str | int, issue_iid: str | int, to_project_id: str 
 def issues_promote(project_id: str | int, issue_iid: str | int, body: str, confidential: bool | None | _Unset = _UNSET, internal: bool | None | _Unset = _UNSET, created_at: str | None | _Unset = _UNSET, merge_request_diff_head_sha: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Issues.promote (POST projects/${projectId}/issues/${issueIId}/notes). Body fields: body, confidential, internal, created_at, merge_request_diff_head_sha, sudo."""
     payload: dict = {}
+    if body is None:
+        raise ValueError("Issues.promote requires non-null body field: body")
     payload["body"] = body
     if confidential is not _UNSET:
         payload["confidential"] = confidential
@@ -6179,6 +6404,8 @@ def issues_unsubscribe(project_id: str | int, issue_iid: str | int, sudo: str | 
 def issues_upload_metric_image(project_id: str | int, issue_iid: str | int, metric_image: dict, file: str | None | _Unset = _UNSET, url: str | None | _Unset = _UNSET, url_text: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Issues.uploadMetricImage (POST projects/${projectId}/issues/${issueIId}/metric_images). Body fields: metric_image, file, url, url_text, sudo."""
     payload: dict = {}
+    if metric_image is None:
+        raise ValueError("Issues.uploadMetricImage requires non-null body field: metric_image")
     payload["metric_image"] = metric_image
     if file is not _UNSET:
         payload["file"] = file
@@ -6490,6 +6717,8 @@ def keys_show(key_id: int | _Unset = _UNSET, fingerprint: str | _Unset = _UNSET,
 def license_add(license: str, sudo: str | int | _Unset = _UNSET):
     """License.add (POST license). Body fields: license, sudo."""
     payload: dict = {}
+    if license is None:
+        raise ValueError("License.add requires non-null body field: license")
     payload["license"] = license
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -6570,10 +6799,14 @@ def linked_epics_all(group_id: str | int, epic_iid: str | int, created_after: st
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/epics/{_enc(epic_iid)}/related_epics", params=payload))
 
 
-def linked_epics_create(group_id: str | int, epic_iid: str | int, target_epic_iid: str | int, target_group_id: str | int, link_type: Literal["relates_to", "blocks", "is_blocked_by"] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def linked_epics_create(group_id: str | int, epic_iid: str | int, target_epic_iid: int, target_group_id: str | int, link_type: Literal["relates_to", "blocks", "is_blocked_by"] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """LinkedEpics.create (POST groups/${groupId}/epics/${epicIId}/related_epics). Body fields: target_epic_iid, target_group_id, link_type, sudo."""
     payload: dict = {}
+    if target_epic_iid is None:
+        raise ValueError("LinkedEpics.create requires non-null body field: target_epic_iid")
     payload["target_epic_iid"] = target_epic_iid
+    if target_group_id is None:
+        raise ValueError("LinkedEpics.create requires non-null body field: target_group_id")
     payload["target_group_id"] = target_group_id
     if link_type is not _UNSET:
         payload["link_type"] = link_type
@@ -6615,6 +6848,8 @@ def lint_check(project_id: str | int, sha: str | None | _Unset = _UNSET, content
 def lint_lint(project_id: str | int, content: str, dry_run: bool | None | _Unset = _UNSET, include_jobs: bool | None | _Unset = _UNSET, ref: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Lint.lint (POST projects/${projectId}/ci/lint). Body fields: content, dry_run, include_jobs, ref, sudo."""
     payload: dict = {}
+    if content is None:
+        raise ValueError("Lint.lint requires non-null body field: content")
     payload["content"] = content
     if dry_run is not _UNSET:
         payload["dry_run"] = dry_run
@@ -6632,6 +6867,8 @@ def lint_lint(project_id: str | int, content: str, dry_run: bool | None | _Unset
 def markdown_render(text: str, gfm: bool | None | _Unset = _UNSET, project: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Markdown.render (POST markdown). Body fields: text, gfm, project, sudo."""
     payload: dict = {}
+    if text is None:
+        raise ValueError("Markdown.render requires non-null body field: text")
     payload["text"] = text
     if gfm is not _UNSET:
         payload["gfm"] = gfm
@@ -6672,10 +6909,14 @@ def merge_request_approvals_approve(project_id: str | int, mergerequest_iid: str
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/approve", json=payload))
 
 
-def merge_request_approvals_create_approval_rule(project_id: str | int, name: str, approvals_required: int, mergerequest_iid: int | _Unset = _UNSET, rule_type: str | None | _Unset = _UNSET, users: list[int] | None | _Unset = _UNSET, user_ids: list[int] | None | _Unset = _UNSET, groups: list[int] | None | _Unset = _UNSET, group_ids: list[int] | None | _Unset = _UNSET, usernames: list[str] | None | _Unset = _UNSET, protected_branch_ids: list[int] | None | _Unset = _UNSET, applies_to_all_protected_branches: bool | None | _Unset = _UNSET, report_type: Literal["code_coverage"] | None | _Unset = _UNSET, vulnerabilities_allowed: int | None | _Unset = _UNSET, scanners: list[str] | None | _Unset = _UNSET, severity_levels: list[str] | None | _Unset = _UNSET, vulnerability_states: list[str] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def merge_request_approvals_create_approval_rule(project_id: str | int, name: str, approvals_required: int, mergerequest_iid: int | _Unset = _UNSET, rule_type: str | None | _Unset = _UNSET, users: list[int] | None | _Unset = _UNSET, user_ids: list[int] | None | _Unset = _UNSET, groups: list[int] | None | _Unset = _UNSET, group_ids: list[int] | None | _Unset = _UNSET, usernames: list[str] | None | _Unset = _UNSET, protected_branch_ids: list[int] | None | _Unset = _UNSET, applies_to_all_protected_branches: bool | None | _Unset = _UNSET, report_type: Literal["code_coverage"] | None | _Unset = _UNSET, vulnerabilities_allowed: int | None | _Unset = _UNSET, scanners: list[str] | None | _Unset = _UNSET, severity_levels: list[str] | None | _Unset = _UNSET, vulnerability_states: list[str] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET, approval_project_rule_id: int | None | _Unset = _UNSET):
     """MergeRequestApprovals.createApprovalRule (POST; selector-driven path: if mergerequest_iid: projects/${projectId}/merge_requests/${mergerequestIId}/approval_rules; else: projects/${projectId}/approval_rules)."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("MergeRequestApprovals.createApprovalRule requires non-null body field: name")
     payload["name"] = name
+    if approvals_required is None:
+        raise ValueError("MergeRequestApprovals.createApprovalRule requires non-null body field: approvals_required")
     payload["approvals_required"] = approvals_required
     if rule_type is not _UNSET:
         payload["rule_type"] = rule_type
@@ -6706,14 +6947,22 @@ def merge_request_approvals_create_approval_rule(project_id: str | int, name: st
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     if mergerequest_iid:
+        if approval_project_rule_id is not _UNSET:
+            payload["approval_project_rule_id"] = approval_project_rule_id
         return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/approval_rules", json=payload))
+    if approval_project_rule_id is not _UNSET:
+        raise ValueError("MergeRequestApprovals.createApprovalRule approval_project_rule_id requires mergerequest_iid")
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/approval_rules", json=payload))
 
 
 def merge_request_approvals_edit_approval_rule(project_id: str | int, approval_rule_id: int, name: str, approvals_required: int, mergerequest_iid: int | _Unset = _UNSET, users: list[int] | None | _Unset = _UNSET, user_ids: list[int] | None | _Unset = _UNSET, groups: list[int] | None | _Unset = _UNSET, group_ids: list[int] | None | _Unset = _UNSET, usernames: list[str] | None | _Unset = _UNSET, protected_branch_ids: list[int] | None | _Unset = _UNSET, applies_to_all_protected_branches: bool | None | _Unset = _UNSET, remove_hidden_groups: bool | None | _Unset = _UNSET, vulnerabilities_allowed: int | None | _Unset = _UNSET, scanners: list[str] | None | _Unset = _UNSET, severity_levels: list[str] | None | _Unset = _UNSET, vulnerability_states: list[str] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """MergeRequestApprovals.editApprovalRule (PUT; selector-driven path: if mergerequest_iid: projects/${projectId}/merge_requests/${mergerequestIId}/approval_rules/${approvalRuleId}; else: projects/${projectId}/approval_rules/${approvalRuleId})."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("MergeRequestApprovals.editApprovalRule requires non-null body field: name")
     payload["name"] = name
+    if approvals_required is None:
+        raise ValueError("MergeRequestApprovals.editApprovalRule requires non-null body field: approvals_required")
     payload["approvals_required"] = approvals_required
     if users is not _UNSET:
         payload["users"] = users
@@ -6839,6 +7088,8 @@ def merge_request_award_emojis_all(project_id: str | int, resource_iid: str | in
 def merge_request_award_emojis_award(project_id: str | int, resource_iid: str | int, name: str, sudo: str | int | _Unset = _UNSET):
     """MergeRequestAwardEmojis.award (POST projects/${projectId}/merge_requests/${resourceIId}/award_emoji). Body fields: name, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("MergeRequestAwardEmojis.award requires non-null body field: name")
     payload["name"] = name
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -6883,9 +7134,11 @@ def merge_request_context_commits_all(project_id: str | int, mergerequest_iid: s
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(mergerequest_iid)}/context_commits", params=payload))
 
 
-def merge_request_context_commits_remove(project_id: str | int, mergerequest_iid: str | int, commits: list[str] | None, sudo: str | int | _Unset = _UNSET):
+def merge_request_context_commits_remove(project_id: str | int, mergerequest_iid: str | int, commits: list[str], sudo: str | int | _Unset = _UNSET):
     """MergeRequestContextCommits.remove (DELETE projects/${projectId}/merge_requests/${mergerequestIId}/context_commits). Body fields: commits, sudo."""
     payload: dict = {}
+    if commits is None:
+        raise ValueError("MergeRequestContextCommits.remove requires non-null query parameter: commits")
     payload["commits"] = commits
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -6897,6 +7150,8 @@ def merge_request_context_commits_remove(project_id: str | int, mergerequest_iid
 def merge_request_discussions_add_note(project_id: str | int, merge_request_iid: str | int, discussion_id: str | int, body: str, created_at: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """MergeRequestDiscussions.addNote (POST projects/${projectId}/merge_requests/${mergeRequestIid}/discussions/${discussionId}/notes). Body fields: body, created_at, sudo."""
     payload: dict = {}
+    if body is None:
+        raise ValueError("MergeRequestDiscussions.addNote requires non-null body field: body")
     payload["body"] = body
     if created_at is not _UNSET:
         payload["created_at"] = created_at
@@ -6928,6 +7183,8 @@ def merge_request_discussions_all(project_id: str | int, merge_request_iid: str 
 def merge_request_discussions_create(project_id: str | int, merge_request_iid: str | int, body: str, created_at: str | None | _Unset = _UNSET, position: dict | None | _Unset = _UNSET, commit_id: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """MergeRequestDiscussions.create (POST projects/${projectId}/merge_requests/${mergeRequestIid}/discussions). Body fields: body, created_at, position, commit_id, sudo."""
     payload: dict = {}
+    if body is None:
+        raise ValueError("MergeRequestDiscussions.create requires non-null body field: body")
     payload["body"] = body
     if created_at is not _UNSET:
         payload["created_at"] = created_at
@@ -6993,6 +7250,8 @@ def merge_request_draft_notes_all(project_id: str | int, mergerequest_iid: str |
 def merge_request_draft_notes_create(project_id: str | int, mergerequest_iid: str | int, note: str, in_reply_to_discussion_id: str | None | _Unset = _UNSET, commit_id: str | None | _Unset = _UNSET, resolve_discussion: bool | None | _Unset = _UNSET, position: dict | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """MergeRequestDraftNotes.create (POST projects/${projectId}/merge_requests/${mergerequestIId}/draft_notes). Body fields: note, in_reply_to_discussion_id, commit_id, resolve_discussion, position, sudo."""
     payload: dict = {}
+    if note is None:
+        raise ValueError("MergeRequestDraftNotes.create requires non-null body field: note")
     payload["note"] = note
     if in_reply_to_discussion_id is not _UNSET:
         payload["in_reply_to_discussion_id"] = in_reply_to_discussion_id
@@ -7136,6 +7395,8 @@ def merge_request_note_award_emojis_all(project_id: str | int, resource_iid: str
 def merge_request_note_award_emojis_award(project_id: str | int, resource_iid: str | int, note_id: str | int, name: str, sudo: str | int | _Unset = _UNSET):
     """MergeRequestNoteAwardEmojis.award (POST merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji). Body fields: name, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("MergeRequestNoteAwardEmojis.award requires non-null body field: name")
     payload["name"] = name
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -7185,6 +7446,8 @@ def merge_request_notes_all(project_id: str | int, merge_request_iid: str | int,
 def merge_request_notes_create(project_id: str | int, merge_request_iid: str | int, body: str, confidential: bool | None | _Unset = _UNSET, internal: bool | None | _Unset = _UNSET, created_at: str | None | _Unset = _UNSET, merge_request_diff_head_sha: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """MergeRequestNotes.create (POST projects/${projectId}/merge_requests/${mergeRequestIid}/notes). Body fields: body, confidential, internal, created_at, merge_request_diff_head_sha, sudo."""
     payload: dict = {}
+    if body is None:
+        raise ValueError("MergeRequestNotes.create requires non-null body field: body")
     payload["body"] = body
     if confidential is not _UNSET:
         payload["confidential"] = confidential
@@ -7237,6 +7500,8 @@ def merge_requests_accept(project_id: str | int, mergerequest_iid: str | int, me
 def merge_requests_add_spent_time(project_id: str | int, mergerequest_iid: str | int, duration: str, sudo: str | int | _Unset = _UNSET):
     """MergeRequests.addSpentTime (POST projects/${projectId}/merge_requests/${mergerequestIId}/add_spent_time). Body fields: duration, sudo."""
     payload: dict = {}
+    if duration is None:
+        raise ValueError("MergeRequests.addSpentTime requires non-null body field: duration")
     payload["duration"] = duration
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -7474,8 +7739,14 @@ def merge_requests_cancel_on_pipeline_success(project_id: str | int, mergereques
 def merge_requests_create(project_id: str | int, source_branch: str, target_branch: str, title: str, target_project_id: int | None | _Unset = _UNSET, assignee_id: int | None | _Unset = _UNSET, assignee_ids: list[int] | None | _Unset = _UNSET, reviewer_ids: list[int] | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, labels: list[str] | None | _Unset = _UNSET, add_labels: list[str] | None | _Unset = _UNSET, remove_labels: list[str] | None | _Unset = _UNSET, milestone_id: int | None | _Unset = _UNSET, remove_source_branch: bool | None | _Unset = _UNSET, allow_collaboration: bool | None | _Unset = _UNSET, allow_maintainer_to_push: bool | None | _Unset = _UNSET, squash: bool | None | _Unset = _UNSET, merge_after: str | None | _Unset = _UNSET, approvals_before_merge: int | None | _Unset = _UNSET, approval_rules_attributes: list[dict] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """MergeRequests.create (POST projects/${projectId}/merge_requests). Body fields: source_branch, target_branch, title, target_project_id, assignee_id, assignee_ids, reviewer_ids, description, labels, add_labels, remove_labels, milestone_id, remove_source_branch, allow_collaboration, allow_maintainer_to_push, squash, merge_after, approvals_before_merge, approval_rules_attributes, sudo."""
     payload: dict = {}
+    if source_branch is None:
+        raise ValueError("MergeRequests.create requires non-null body field: source_branch")
     payload["source_branch"] = source_branch
+    if target_branch is None:
+        raise ValueError("MergeRequests.create requires non-null body field: target_branch")
     payload["target_branch"] = target_branch
+    if title is None:
+        raise ValueError("MergeRequests.create requires non-null body field: title")
     payload["title"] = title
     if target_project_id is not _UNSET:
         payload["target_project_id"] = target_project_id
@@ -7515,7 +7786,7 @@ def merge_requests_create(project_id: str | int, source_branch: str, target_bran
 
 
 def merge_requests_create_pipeline(project_id: str | int, mergerequest_iid: str | int, async_: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """MergeRequests.createPipeline (POST projects/${projectId}/merge_requests/${mergerequestIId}/pipelines). Body fields: async, sudo."""
+    """MergeRequests.createPipeline (POST projects/${projectId}/merge_requests/${mergerequestIId}/pipelines). Body fields: async_ -> async, sudo."""
     payload: dict = {}
     if async_ is not _UNSET:
         payload["async"] = async_
@@ -7649,6 +7920,8 @@ def merge_requests_reset_time_estimate(project_id: str | int, mergerequest_iid: 
 def merge_requests_set_time_estimate(project_id: str | int, mergerequest_iid: str | int, duration: str, sudo: str | int | _Unset = _UNSET):
     """MergeRequests.setTimeEstimate (POST projects/${projectId}/merge_requests/${mergerequestIId}/time_estimate). Body fields: duration, sudo."""
     payload: dict = {}
+    if duration is None:
+        raise ValueError("MergeRequests.setTimeEstimate requires non-null body field: duration")
     payload["duration"] = duration
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -7862,7 +8135,11 @@ def migrations_all_entities(page: int | None | _Unset = _UNSET, per_page: int | 
 def migrations_create(configuration: dict, entities: list[dict], sudo: str | int | _Unset = _UNSET):
     """Migrations.create (POST bulk_imports). Body fields: configuration, entities, sudo."""
     payload: dict = {}
+    if configuration is None:
+        raise ValueError("Migrations.create requires non-null body field: configuration")
     payload["configuration"] = configuration
+    if entities is None:
+        raise ValueError("Migrations.create requires non-null body field: entities")
     payload["entities"] = entities
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -7977,7 +8254,11 @@ def npm_show_metadata(package_name: str | int, project_id: str | int | _Unset = 
 def npm_upload_package_file(project_id: str | int, package_name: str | int, versions: str, metadata: dict, file: str | None | _Unset = _UNSET):
     """NPM.uploadPackageFile (PUT projects/${projectId}/packages/npm/${packageName}). Body fields: versions, metadata, file."""
     payload: dict = {}
+    if versions is None:
+        raise ValueError("NPM.uploadPackageFile requires non-null body field: versions")
     payload["versions"] = versions
+    if metadata is None:
+        raise ValueError("NPM.uploadPackageFile requires non-null body field: metadata")
     payload["metadata"] = metadata
     if file is not _UNSET:
         payload["file"] = file
@@ -7994,6 +8275,8 @@ def nu_get_download_package_file(project_id: str | int, package_name: str | int,
 def nu_get_search(q: str, project_id: str | int | _Unset = _UNSET, group_id: str | int | _Unset = _UNSET, skip: int | _Unset = _UNSET, take: int | _Unset = _UNSET, prerelease: bool | _Unset = _UNSET):
     """NuGet.search (GET /query). Body fields: q, project_id, group_id, skip, take, prerelease."""
     payload: dict = {}
+    if q is None:
+        raise ValueError("NuGet.search requires non-null request parameter: q")
     payload["q"] = q
     if project_id is not _UNSET:
         payload["project_id"] = project_id
@@ -8046,8 +8329,14 @@ def nu_get_show_version_metadata(package_name: str | int, package_version: str |
 def nu_get_upload_package_file(project_id: str | int, package_name: str, package_version: str, package_file: dict, package: str | None | _Unset = _UNSET):
     """NuGet.uploadPackageFile (PUT projects/${projectId}/packages/nuget). Body fields: package_name, package_version, package_file, package."""
     payload: dict = {}
+    if package_name is None:
+        raise ValueError("NuGet.uploadPackageFile requires non-null body field: package_name")
     payload["package_name"] = package_name
+    if package_version is None:
+        raise ValueError("NuGet.uploadPackageFile requires non-null body field: package_version")
     payload["package_version"] = package_version
+    if package_file is None:
+        raise ValueError("NuGet.uploadPackageFile requires non-null body field: package_file")
     payload["package_file"] = package_file
     if package is not _UNSET:
         payload["package"] = package
@@ -8057,8 +8346,14 @@ def nu_get_upload_package_file(project_id: str | int, package_name: str, package
 def nu_get_upload_symbol_package(project_id: str | int, package_name: str, package_version: str, package_file: dict, package: str | None | _Unset = _UNSET):
     """NuGet.uploadSymbolPackage (PUT projects/${projectId}/packages/nuget/symbolpackage). Body fields: package_name, package_version, package_file, package."""
     payload: dict = {}
+    if package_name is None:
+        raise ValueError("NuGet.uploadSymbolPackage requires non-null body field: package_name")
     payload["package_name"] = package_name
+    if package_version is None:
+        raise ValueError("NuGet.uploadSymbolPackage requires non-null body field: package_version")
     payload["package_version"] = package_version
+    if package_file is None:
+        raise ValueError("NuGet.uploadSymbolPackage requires non-null body field: package_file")
     payload["package_file"] = package_file
     if package is not _UNSET:
         payload["package"] = package
@@ -8174,6 +8469,8 @@ def pages_domains_all(domain: str | None | _Unset = _UNSET, page: int | None | _
 def pages_domains_create(project_id: str | int, domain: str, certificate: str | None | _Unset = _UNSET, key: str | None | _Unset = _UNSET, auto_ssl_enabled: bool | None | _Unset = _UNSET, user_provided_certificate: str | None | _Unset = _UNSET, user_provided_key: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """PagesDomains.create (POST projects/${projectId}/pages/domains). Body fields: domain, certificate, key, auto_ssl_enabled, user_provided_certificate, user_provided_key, sudo."""
     payload: dict = {}
+    if domain is None:
+        raise ValueError("PagesDomains.create requires non-null body field: domain")
     payload["domain"] = domain
     if certificate is not _UNSET:
         payload["certificate"] = certificate
@@ -8271,7 +8568,11 @@ def personal_access_tokens_all(user_id: int | None | _Unset = _UNSET, revoked: b
 def personal_access_tokens_create(user_id: str | int, name: str, scopes: list[str], description: str | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """PersonalAccessTokens.create (POST users/${userId}/personal_access_tokens). Body fields: name, scopes, description, expires_at, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("PersonalAccessTokens.create requires non-null body field: name")
     payload["name"] = name
+    if scopes is None:
+        raise ValueError("PersonalAccessTokens.create requires non-null body field: scopes")
     payload["scopes"] = scopes
     if description is not _UNSET:
         payload["description"] = description
@@ -8377,6 +8678,8 @@ def pipelines_cancel(project_id: str | int, pipeline_id: str | int, sudo: str | 
 def pipelines_create(project_id: str | int, ref: str, variables: list[dict] | None | _Unset = _UNSET, inputs: dict | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Pipelines.create (POST projects/${projectId}/pipeline). Body fields: ref, variables, inputs, sudo."""
     payload: dict = {}
+    if ref is None:
+        raise ValueError("Pipelines.create requires non-null body field: ref")
     payload["ref"] = ref
     if variables is not _UNSET:
         payload["variables"] = variables
@@ -8492,8 +8795,14 @@ def pipeline_schedules_all_triggered_pipelines(project_id: str | int, pipeline_s
 def pipeline_schedules_create(project_id: str | int, description: str, ref: str, cron: str, cron_timezone: str | None | _Unset = _UNSET, active: bool | None | _Unset = _UNSET, inputs: list[dict] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """PipelineSchedules.create (POST projects/${projectId}/pipeline_schedules). Body fields: description, ref, cron, cron_timezone, active, inputs, sudo."""
     payload: dict = {}
+    if description is None:
+        raise ValueError("PipelineSchedules.create requires non-null body field: description")
     payload["description"] = description
+    if ref is None:
+        raise ValueError("PipelineSchedules.create requires non-null body field: ref")
     payload["ref"] = ref
+    if cron is None:
+        raise ValueError("PipelineSchedules.create requires non-null body field: cron")
     payload["cron"] = cron
     if cron_timezone is not _UNSET:
         payload["cron_timezone"] = cron_timezone
@@ -8583,7 +8892,11 @@ def pipeline_schedule_variables_all(project_id: str | int, pipeline_schedule_id:
 def pipeline_schedule_variables_create(project_id: str | int, pipeline_schedule_id: str | int, key: str, value: str, variable_type: Literal["env_var", "file"] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """PipelineScheduleVariables.create (POST projects/${projectId}/pipeline_schedules/${pipelineScheduleId}/variables). Body fields: key, value, variable_type, sudo."""
     payload: dict = {}
+    if key is None:
+        raise ValueError("PipelineScheduleVariables.create requires non-null body field: key")
     payload["key"] = key
+    if value is None:
+        raise ValueError("PipelineScheduleVariables.create requires non-null body field: value")
     payload["value"] = value
     if variable_type is not _UNSET:
         payload["variable_type"] = variable_type
@@ -8595,6 +8908,8 @@ def pipeline_schedule_variables_create(project_id: str | int, pipeline_schedule_
 def pipeline_schedule_variables_edit(project_id: str | int, pipeline_schedule_id: str | int, key: str | int, value: str, variable_type: Literal["env_var", "file"] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """PipelineScheduleVariables.edit (PUT projects/${projectId}/pipeline_schedules/${pipelineScheduleId}/variables/${key}). Body fields: value, variable_type, sudo."""
     payload: dict = {}
+    if value is None:
+        raise ValueError("PipelineScheduleVariables.edit requires non-null body field: value")
     payload["value"] = value
     if variable_type is not _UNSET:
         payload["variable_type"] = variable_type
@@ -8636,6 +8951,8 @@ def pipeline_trigger_tokens_all(project_id: str | int, page: int | None | _Unset
 def pipeline_trigger_tokens_create(project_id: str | int, description: str, expires_at: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """PipelineTriggerTokens.create (POST projects/${projectId}/triggers). Body fields: description, expires_at, sudo."""
     payload: dict = {}
+    if description is None:
+        raise ValueError("PipelineTriggerTokens.create requires non-null body field: description")
     payload["description"] = description
     if expires_at is not _UNSET:
         payload["expires_at"] = expires_at
@@ -8673,7 +8990,11 @@ def pipeline_trigger_tokens_show(project_id: str | int, trigger_id: str | int, s
 def pipeline_trigger_tokens_trigger(project_id: str | int, ref: str, token: str, variables: dict | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """PipelineTriggerTokens.trigger (POST projects/${projectId}/trigger/pipeline). Body fields: ref, token, variables, sudo."""
     payload: dict = {}
+    if ref is None:
+        raise ValueError("PipelineTriggerTokens.trigger requires non-null body field: ref")
     payload["ref"] = ref
+    if token is None:
+        raise ValueError("PipelineTriggerTokens.trigger requires non-null body field: token")
     payload["token"] = token
     if variables is not _UNSET:
         payload["variables"] = variables
@@ -8692,11 +9013,12 @@ def product_analytics_all_funnels(project_id: str | int, sudo: str | int | _Unse
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/product_analytics/funnels", params=payload))
 
 
-def product_analytics_dry_run(project_id: str | int, query: dict | None | _Unset = _UNSET, queryType: str | None | _Unset = _UNSET, include_token: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def product_analytics_dry_run(project_id: str | int, query: dict, queryType: str | None | _Unset = _UNSET, include_token: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProductAnalytics.dryRun (POST projects/${projectId}/product_analytics/request/dry-run). Body fields: query, queryType, include_token, sudo."""
     payload: dict = {}
-    if query is not _UNSET:
-        payload["query"] = query
+    if query is None:
+        raise ValueError("ProductAnalytics.dryRun requires non-null body field: query")
+    payload["query"] = query
     if queryType is not _UNSET:
         payload["queryType"] = queryType
     if include_token is not _UNSET:
@@ -8706,11 +9028,12 @@ def product_analytics_dry_run(project_id: str | int, query: dict | None | _Unset
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/product_analytics/request/dry-run", json=payload))
 
 
-def product_analytics_load(project_id: str | int, query: dict | None | _Unset = _UNSET, queryType: str | None | _Unset = _UNSET, include_token: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def product_analytics_load(project_id: str | int, query: dict, queryType: str | None | _Unset = _UNSET, include_token: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProductAnalytics.load (POST projects/${projectId}/product_analytics/request/load). Body fields: query, queryType, include_token, sudo."""
     payload: dict = {}
-    if query is not _UNSET:
-        payload["query"] = query
+    if query is None:
+        raise ValueError("ProductAnalytics.load requires non-null body field: query")
+    payload["query"] = query
     if queryType is not _UNSET:
         payload["queryType"] = queryType
     if include_token is not _UNSET:
@@ -8750,7 +9073,7 @@ def project_access_requests_all(project_id: str | int, page: int | None | _Unset
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/access_requests", params=payload))
 
 
-def project_access_requests_approve(project_id: str | int, user_id: str | int, access_level: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def project_access_requests_approve(project_id: str | int, user_id: str | int, access_level: Literal[0, 5, 10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectAccessRequests.approve (PUT projects/${projectId}/access_requests/${userId}/approve). Body fields: access_level, sudo."""
     payload: dict = {}
     if access_level is not _UNSET:
@@ -8819,8 +9142,14 @@ def project_access_tokens_all(project_id: str | int, revoked: bool | None | _Uns
 def project_access_tokens_create(project_id: str | int, name: str, scopes: list[Literal["read_repository", "read_registry", "write_registry", "api", "read_api", "create_runner", "write_repository"]], expires_at: str, description: str | None | _Unset = _UNSET, access_level: Literal[10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectAccessTokens.create (POST projects/${projectId}/access_tokens). Body fields: name, scopes, expires_at, description, access_level, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("ProjectAccessTokens.create requires non-null body field: name")
     payload["name"] = name
+    if scopes is None:
+        raise ValueError("ProjectAccessTokens.create requires non-null body field: scopes")
     payload["scopes"] = scopes
+    if expires_at is None:
+        raise ValueError("ProjectAccessTokens.create requires non-null body field: expires_at")
     payload["expires_at"] = expires_at
     if description is not _UNSET:
         payload["description"] = description
@@ -8882,7 +9211,11 @@ def project_aliases_all(page: int | None | _Unset = _UNSET, per_page: int | None
 def project_aliases_create(project_id: str | int, name: str, sudo: str | int | _Unset = _UNSET):
     """ProjectAliases.create (POST project_aliases). Body fields: project_id, name, sudo."""
     payload: dict = {}
+    if project_id is None:
+        raise ValueError("ProjectAliases.create requires non-null body field: project_id")
     payload["project_id"] = project_id
+    if name is None:
+        raise ValueError("ProjectAliases.create requires non-null body field: name")
     payload["name"] = name
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -8910,7 +9243,11 @@ def project_aliases_remove(name: str | int, sudo: str | int | _Unset = _UNSET):
 def project_badges_add(project_id: str | int, link_url: str, image_url: str, name: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectBadges.add (POST projects/${projectId}/badges). Body fields: link_url, image_url, name, sudo."""
     payload: dict = {}
+    if link_url is None:
+        raise ValueError("ProjectBadges.add requires non-null body field: link_url")
     payload["link_url"] = link_url
+    if image_url is None:
+        raise ValueError("ProjectBadges.add requires non-null body field: image_url")
     payload["image_url"] = image_url
     if name is not _UNSET:
         payload["name"] = name
@@ -8958,7 +9295,11 @@ def project_badges_edit(project_id: str | int, badge_id: str | int, link_url: st
 def project_badges_preview(project_id: str | int, link_url: str, image_url: str, sudo: str | int | _Unset = _UNSET):
     """ProjectBadges.preview (GET projects/${projectId}/badges/render). Body fields: link_url, image_url, sudo."""
     payload: dict = {}
+    if link_url is None:
+        raise ValueError("ProjectBadges.preview requires non-null query parameter: link_url")
     payload["link_url"] = link_url
+    if image_url is None:
+        raise ValueError("ProjectBadges.preview requires non-null query parameter: image_url")
     payload["image_url"] = image_url
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -9014,6 +9355,8 @@ def project_custom_attributes_remove(project_id: str | int, custom_attribute_id:
 def project_custom_attributes_set(project_id: str | int, custom_attribute_id: str | int, value: str, sudo: str | int | _Unset = _UNSET):
     """ProjectCustomAttributes.set (PUT projects/${projectId}/custom_attributes/${customAttributeId}). Body fields: value, sudo."""
     payload: dict = {}
+    if value is None:
+        raise ValueError("ProjectCustomAttributes.set requires non-null body field: value")
     payload["value"] = value
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -9033,6 +9376,8 @@ def project_custom_attributes_show(project_id: str | int, custom_attribute_id: s
 def project_hooks_add(project_id: str | int, url: str, name: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, push_events: bool | None | _Unset = _UNSET, issues_events: bool | None | _Unset = _UNSET, confidential_issues_events: bool | None | _Unset = _UNSET, merge_requests_events: bool | None | _Unset = _UNSET, tag_push_events: bool | None | _Unset = _UNSET, note_events: bool | None | _Unset = _UNSET, confidential_note_events: bool | None | _Unset = _UNSET, job_events: bool | None | _Unset = _UNSET, pipeline_events: bool | None | _Unset = _UNSET, wiki_page_events: bool | None | _Unset = _UNSET, deployment_events: bool | None | _Unset = _UNSET, feature_flag_events: bool | None | _Unset = _UNSET, releases_events: bool | None | _Unset = _UNSET, milestone_events: bool | None | _Unset = _UNSET, emoji_events: bool | None | _Unset = _UNSET, resource_access_token_events: bool | None | _Unset = _UNSET, resource_deploy_token_events: bool | None | _Unset = _UNSET, enable_ssl_verification: bool | None | _Unset = _UNSET, token: str | None | _Unset = _UNSET, push_events_branch_filter: str | None | _Unset = _UNSET, custom_webhook_template: str | None | _Unset = _UNSET, branch_filter_strategy: Literal["wildcard", "regex", "all_branches"] | None | _Unset = _UNSET, vulnerability_events: bool | None | _Unset = _UNSET, url_variables: list[dict] | None | _Unset = _UNSET, custom_headers: list[dict] | None | _Unset = _UNSET, subgroup_events: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectHooks.add (POST projects/${projectId}/hooks). Body fields: url, name, description, push_events, issues_events, confidential_issues_events, merge_requests_events, tag_push_events, note_events, confidential_note_events, job_events, pipeline_events, wiki_page_events, deployment_events, feature_flag_events, releases_events, milestone_events, emoji_events, resource_access_token_events, resource_deploy_token_events, enable_ssl_verification, token, push_events_branch_filter, custom_webhook_template, branch_filter_strategy, vulnerability_events, url_variables, custom_headers, subgroup_events, sudo."""
     payload: dict = {}
+    if url is None:
+        raise ValueError("ProjectHooks.add requires non-null body field: url")
     payload["url"] = url
     if name is not _UNSET:
         payload["name"] = name
@@ -9118,6 +9463,8 @@ def project_hooks_all(project_id: str | int, page: int | None | _Unset = _UNSET,
 def project_hooks_edit(project_id: str | int, hook_id: str | int, url: str, name: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, push_events: bool | None | _Unset = _UNSET, issues_events: bool | None | _Unset = _UNSET, confidential_issues_events: bool | None | _Unset = _UNSET, merge_requests_events: bool | None | _Unset = _UNSET, tag_push_events: bool | None | _Unset = _UNSET, note_events: bool | None | _Unset = _UNSET, confidential_note_events: bool | None | _Unset = _UNSET, job_events: bool | None | _Unset = _UNSET, pipeline_events: bool | None | _Unset = _UNSET, wiki_page_events: bool | None | _Unset = _UNSET, deployment_events: bool | None | _Unset = _UNSET, feature_flag_events: bool | None | _Unset = _UNSET, releases_events: bool | None | _Unset = _UNSET, milestone_events: bool | None | _Unset = _UNSET, emoji_events: bool | None | _Unset = _UNSET, resource_access_token_events: bool | None | _Unset = _UNSET, resource_deploy_token_events: bool | None | _Unset = _UNSET, enable_ssl_verification: bool | None | _Unset = _UNSET, token: str | None | _Unset = _UNSET, push_events_branch_filter: str | None | _Unset = _UNSET, custom_webhook_template: str | None | _Unset = _UNSET, branch_filter_strategy: Literal["wildcard", "regex", "all_branches"] | None | _Unset = _UNSET, vulnerability_events: bool | None | _Unset = _UNSET, url_variables: list[dict] | None | _Unset = _UNSET, custom_headers: list[dict] | None | _Unset = _UNSET, subgroup_events: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectHooks.edit (PUT projects/${projectId}/hooks/${hookId}). Body fields: url, name, description, push_events, issues_events, confidential_issues_events, merge_requests_events, tag_push_events, note_events, confidential_note_events, job_events, pipeline_events, wiki_page_events, deployment_events, feature_flag_events, releases_events, milestone_events, emoji_events, resource_access_token_events, resource_deploy_token_events, enable_ssl_verification, token, push_events_branch_filter, custom_webhook_template, branch_filter_strategy, vulnerability_events, url_variables, custom_headers, subgroup_events, sudo."""
     payload: dict = {}
+    if url is None:
+        raise ValueError("ProjectHooks.edit requires non-null body field: url")
     payload["url"] = url
     if name is not _UNSET:
         payload["name"] = name
@@ -9207,9 +9554,13 @@ def project_import_exports_download(project_id: str | int, sudo: str | int | _Un
 
 
 def project_import_exports_import(file: dict, path: str, name: str | None | _Unset = _UNSET, namespace: str | None | _Unset = _UNSET, namespace_id: int | None | _Unset = _UNSET, namespace_path: str | None | _Unset = _UNSET, overwrite: bool | None | _Unset = _UNSET, override_params: dict | None | _Unset = _UNSET, file_path: str | None | _Unset = _UNSET, file_name: str | None | _Unset = _UNSET, file_type: str | None | _Unset = _UNSET, file_size: int | None | _Unset = _UNSET, file_md5: str | None | _Unset = _UNSET, file_sha1: str | None | _Unset = _UNSET, file_sha256: str | None | _Unset = _UNSET, file_etag: str | None | _Unset = _UNSET, file_remote_id: str | None | _Unset = _UNSET, file_remote_url: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """ProjectImportExports.import (POST projects/import). Body fields: file, path, name, namespace, namespace_id, namespace_path, overwrite, override_params, file.path, file.name, file.type, file.size, file.md5, file.sha1, file.sha256, file.etag, file.remote_id, file.remote_url, sudo."""
+    """ProjectImportExports.import (POST projects/import). Body fields: file, path, name, namespace, namespace_id, namespace_path, overwrite, override_params, file_path -> file.path, file_name -> file.name, file_type -> file.type, file_size -> file.size, file_md5 -> file.md5, file_sha1 -> file.sha1, file_sha256 -> file.sha256, file_etag -> file.etag, file_remote_id -> file.remote_id, file_remote_url -> file.remote_url, sudo."""
     payload: dict = {}
+    if file is None:
+        raise ValueError("ProjectImportExports.import requires non-null body field: file")
     payload["file"] = file
+    if path is None:
+        raise ValueError("ProjectImportExports.import requires non-null body field: path")
     payload["path"] = path
     if name is not _UNSET:
         payload["name"] = name
@@ -9251,7 +9602,11 @@ def project_import_exports_import(file: dict, path: str, name: str | None | _Uns
 def project_import_exports_import_remote(url: str, path: str, name: str | None | _Unset = _UNSET, namespace: str | None | _Unset = _UNSET, namespace_id: int | None | _Unset = _UNSET, namespace_path: str | None | _Unset = _UNSET, overwrite: bool | None | _Unset = _UNSET, override_params: dict | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectImportExports.importRemote (POST projects/remote-import). Body fields: url, path, name, namespace, namespace_id, namespace_path, overwrite, override_params, sudo."""
     payload: dict = {}
+    if url is None:
+        raise ValueError("ProjectImportExports.importRemote requires non-null body field: url")
     payload["url"] = url
+    if path is None:
+        raise ValueError("ProjectImportExports.importRemote requires non-null body field: path")
     payload["path"] = path
     if name is not _UNSET:
         payload["name"] = name
@@ -9273,11 +9628,23 @@ def project_import_exports_import_remote(url: str, path: str, name: str | None |
 def project_import_exports_import_remote_s3(access_key_id: str, bucket_name: str, file_key: str, path: str, region: str, secret_access_key: str, url: str | None | _Unset = _UNSET, name: str | None | _Unset = _UNSET, namespace: str | None | _Unset = _UNSET, namespace_id: int | None | _Unset = _UNSET, namespace_path: str | None | _Unset = _UNSET, overwrite: bool | None | _Unset = _UNSET, override_params: dict | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectImportExports.importRemoteS3 (POST projects/remote-import). Body fields: access_key_id, bucket_name, file_key, path, region, secret_access_key, url, name, namespace, namespace_id, namespace_path, overwrite, override_params, sudo."""
     payload: dict = {}
+    if access_key_id is None:
+        raise ValueError("ProjectImportExports.importRemoteS3 requires non-null body field: access_key_id")
     payload["access_key_id"] = access_key_id
+    if bucket_name is None:
+        raise ValueError("ProjectImportExports.importRemoteS3 requires non-null body field: bucket_name")
     payload["bucket_name"] = bucket_name
+    if file_key is None:
+        raise ValueError("ProjectImportExports.importRemoteS3 requires non-null body field: file_key")
     payload["file_key"] = file_key
+    if path is None:
+        raise ValueError("ProjectImportExports.importRemoteS3 requires non-null body field: path")
     payload["path"] = path
+    if region is None:
+        raise ValueError("ProjectImportExports.importRemoteS3 requires non-null body field: region")
     payload["region"] = region
+    if secret_access_key is None:
+        raise ValueError("ProjectImportExports.importRemoteS3 requires non-null body field: secret_access_key")
     payload["secret_access_key"] = secret_access_key
     if url is not _UNSET:
         payload["url"] = url
@@ -9301,6 +9668,8 @@ def project_import_exports_import_remote_s3(access_key_id: str, bucket_name: str
 def project_import_exports_schedule_export(project_id: str | int, upload: dict, description: str | None | _Unset = _UNSET, excluded_relations: list[str] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectImportExports.scheduleExport (POST projects/${projectId}/export). Body fields: upload, description, excluded_relations, sudo."""
     payload: dict = {}
+    if upload is None:
+        raise ValueError("ProjectImportExports.scheduleExport requires non-null body field: upload")
     payload["upload"] = upload
     if description is not _UNSET:
         payload["description"] = description
@@ -9329,9 +9698,11 @@ def project_import_exports_show_import_status(project_id: str | int, sudo: str |
 
 # ── ProjectInvitations ────────────────────────────────────────────────────
 
-def project_invitations_add(project_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50], email: list[str] | None | _Unset = _UNSET, user_id: list[str] | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, tasks_to_be_done: list[str] | _Unset = _UNSET, tasks_project_id: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def project_invitations_add(project_id: str | int, access_level: Literal[10, 15, 20, 30, 40, 50, 5, 0], email: list[str] | None | _Unset = _UNSET, user_id: list[str] | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, tasks_to_be_done: list[str] | _Unset = _UNSET, tasks_project_id: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectInvitations.add (POST projects/${projectId}/invitations). Body fields: access_level, email, user_id, expires_at, invite_source, member_role_id, tasks_to_be_done, tasks_project_id, sudo."""
     payload: dict = {}
+    if access_level is None:
+        raise ValueError("ProjectInvitations.add requires non-null body field: access_level")
     payload["access_level"] = access_level
     if email is not _UNSET:
         payload["email"] = email
@@ -9433,6 +9804,8 @@ def project_issue_boards_all_lists(project_id: str | int, board_id: str | int, p
 def project_issue_boards_create(project_id: str | int, name: str, sudo: str | int | _Unset = _UNSET):
     """ProjectIssueBoards.create (POST projects/${projectId}/boards). Body fields: name, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("ProjectIssueBoards.create requires non-null body field: name")
     payload["name"] = name
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -9480,6 +9853,8 @@ def project_issue_boards_edit(project_id: str | int, board_id: str | int, name: 
 def project_issue_boards_edit_list(project_id: str | int, board_id: str | int, list_id: str | int, position: int, sudo: str | int | _Unset = _UNSET):
     """ProjectIssueBoards.editList (PUT projects/${projectId}/boards/${boardId}/lists/${listId}). Body fields: position, sudo."""
     payload: dict = {}
+    if position is None:
+        raise ValueError("ProjectIssueBoards.editList requires non-null body field: position")
     payload["position"] = position
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -9555,15 +9930,19 @@ def project_iterations_all(project_id: str | int, state: Literal["closed", "all"
 def project_job_token_scopes_add_to_groups_allow_list(project_id: str | int, target_group_id: int, sudo: str | int | _Unset = _UNSET):
     """ProjectJobTokenScopes.addToGroupsAllowList (POST projects/${projectId}/job_token_scope/groups_allowlist). Body fields: target_group_id, sudo."""
     payload: dict = {}
+    if target_group_id is None:
+        raise ValueError("ProjectJobTokenScopes.addToGroupsAllowList requires non-null body field: target_group_id")
     payload["target_group_id"] = target_group_id
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/job_token_scope/groups_allowlist", json=payload))
 
 
-def project_job_token_scopes_add_to_inbound_allow_list(project_id: str | int, target_project_id: str | int, sudo: str | int | _Unset = _UNSET):
+def project_job_token_scopes_add_to_inbound_allow_list(project_id: str | int, target_project_id: int, sudo: str | int | _Unset = _UNSET):
     """ProjectJobTokenScopes.addToInboundAllowList (POST projects/${projectId}/job_token_scope/allowlist). Body fields: target_project_id, sudo."""
     payload: dict = {}
+    if target_project_id is None:
+        raise ValueError("ProjectJobTokenScopes.addToInboundAllowList requires non-null body field: target_project_id")
     payload["target_project_id"] = target_project_id
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -9573,6 +9952,8 @@ def project_job_token_scopes_add_to_inbound_allow_list(project_id: str | int, ta
 def project_job_token_scopes_edit(project_id: str | int, enabled: bool, sudo: str | int | _Unset = _UNSET):
     """ProjectJobTokenScopes.edit (PATCH projects/${projectId}/job_token_scope). Body fields: enabled, sudo."""
     payload: dict = {}
+    if enabled is None:
+        raise ValueError("ProjectJobTokenScopes.edit requires non-null body field: enabled")
     payload["enabled"] = enabled
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -9660,7 +10041,11 @@ def project_labels_all(project_id: str | int, with_counts: bool | None | _Unset 
 def project_labels_create(project_id: str | int, name: str, color: str, description: str | None | _Unset = _UNSET, archived: bool | None | _Unset = _UNSET, priority: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectLabels.create (POST projects/${projectId}/labels). Body fields: name, color, description, archived, priority, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("ProjectLabels.create requires non-null body field: name")
     payload["name"] = name
+    if color is None:
+        raise ValueError("ProjectLabels.create requires non-null body field: color")
     payload["color"] = color
     if description is not _UNSET:
         payload["description"] = description
@@ -9758,6 +10143,8 @@ def project_markdown_uploads_all(project_id: str | int, page: int | None | _Unse
 def project_markdown_uploads_download(project_id: str | int, upload_id_or_secret: str | int, filename: str | int, secret: str | int | str, sudo: str | int | _Unset = _UNSET):
     """ProjectMarkdownUploads.download (GET projects/${projectId}/uploads/${uploadIdOrSecret}/${filename}). Body fields: secret, sudo."""
     payload: dict = {}
+    if secret is None:
+        raise ValueError("ProjectMarkdownUploads.download requires non-null request parameter: secret")
     payload["secret"] = secret
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -9767,6 +10154,8 @@ def project_markdown_uploads_download(project_id: str | int, upload_id_or_secret
 def project_markdown_uploads_remove(project_id: str | int, upload_id_or_secret: str | int, filename: str | int, secret: str | int | str, sudo: str | int | _Unset = _UNSET):
     """ProjectMarkdownUploads.remove (DELETE projects/${projectId}/uploads/${uploadIdOrSecret}/${filename}). Body fields: secret, sudo."""
     payload: dict = {}
+    if secret is None:
+        raise ValueError("ProjectMarkdownUploads.remove requires non-null request parameter: secret")
     payload["secret"] = secret
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -9775,9 +10164,11 @@ def project_markdown_uploads_remove(project_id: str | int, upload_id_or_secret: 
 
 # ── ProjectMembers ────────────────────────────────────────────────────────
 
-def project_members_add(project_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50], user_id: int | str | None | _Unset = _UNSET, username: str | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, tasks_to_be_done: list[str] | _Unset = _UNSET, tasks_project_id: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def project_members_add(project_id: str | int, access_level: Literal[0, 5, 10, 15, 20, 30, 40, 50], user_id: int | str | None | _Unset = _UNSET, username: str | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, tasks_to_be_done: list[str] | _Unset = _UNSET, tasks_project_id: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectMembers.add (POST projects/${projectId}/members). Body fields: access_level, user_id, username, expires_at, invite_source, tasks_to_be_done, tasks_project_id, sudo."""
     payload: dict = {}
+    if access_level is None:
+        raise ValueError("ProjectMembers.add requires non-null body field: access_level")
     payload["access_level"] = access_level
     if user_id is not _UNSET:
         payload["user_id"] = user_id
@@ -9828,9 +10219,11 @@ def project_members_all(project_id: str | int, query: str | None | _Unset = _UNS
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/members", params=payload))
 
 
-def project_members_edit(project_id: str | int, user_id: str | int, access_level: Literal[0, 5, 10, 20, 30, 40, 50], expires_at: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def project_members_edit(project_id: str | int, user_id: str | int, access_level: Literal[0, 5, 10, 15, 20, 30, 40, 50], expires_at: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectMembers.edit (PUT projects/${projectId}/members/${userId}). Body fields: access_level, expires_at, member_role_id, sudo."""
     payload: dict = {}
+    if access_level is None:
+        raise ValueError("ProjectMembers.edit requires non-null body field: access_level")
     payload["access_level"] = access_level
     if expires_at is not _UNSET:
         payload["expires_at"] = expires_at
@@ -9928,6 +10321,8 @@ def project_milestones_all_burndown_chart_events(project_id: str | int, mileston
 def project_milestones_create(project_id: str | int, title: str, description: str | None | _Unset = _UNSET, due_date: str | None | _Unset = _UNSET, start_date: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectMilestones.create (POST projects/${projectId}/milestones). Body fields: title, description, due_date, start_date, sudo."""
     payload: dict = {}
+    if title is None:
+        raise ValueError("ProjectMilestones.create requires non-null body field: title")
     payload["title"] = title
     if description is not _UNSET:
         payload["description"] = description
@@ -9979,6 +10374,8 @@ def project_milestones_show(project_id: str | int, milestone_id: str | int, sudo
 def project_relations_export_download(project_id: str | int, relation: str, batched: bool | None | _Unset = _UNSET, batch_number: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectRelationsExport.download (GET projects/${projectId}/export_relations/download). Body fields: relation, batched, batch_number, sudo."""
     payload: dict = {}
+    if relation is None:
+        raise ValueError("ProjectRelationsExport.download requires non-null query parameter: relation")
     payload["relation"] = relation
     if batched is not _UNSET:
         payload["batched"] = batched
@@ -10037,11 +10434,12 @@ def project_releases_all(project_id: str | int, page: int | None | _Unset = _UNS
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/releases", params=payload))
 
 
-def project_releases_create(project_id: str | int, tag_name: str | None | _Unset = _UNSET, tag_message: str | None | _Unset = _UNSET, name: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, ref: str | None | _Unset = _UNSET, assets: dict | None | _Unset = _UNSET, milestones: list[str] | None | _Unset = _UNSET, milestone_ids: str | int | None | _Unset = _UNSET, released_at: str | None | _Unset = _UNSET, legacy_catalog_publish: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def project_releases_create(project_id: str | int, tag_name: str, tag_message: str | None | _Unset = _UNSET, name: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, ref: str | None | _Unset = _UNSET, assets: dict | None | _Unset = _UNSET, milestones: list[str] | None | _Unset = _UNSET, milestone_ids: str | int | None | _Unset = _UNSET, released_at: str | None | _Unset = _UNSET, legacy_catalog_publish: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectReleases.create (POST projects/${projectId}/releases). Body fields: tag_name, tag_message, name, description, ref, assets, milestones, milestone_ids, released_at, legacy_catalog_publish, sudo."""
     payload: dict = {}
-    if tag_name is not _UNSET:
-        payload["tag_name"] = tag_name
+    if tag_name is None:
+        raise ValueError("ProjectReleases.create requires non-null body field: tag_name")
+    payload["tag_name"] = tag_name
     if tag_message is not _UNSET:
         payload["tag_message"] = tag_message
     if name is not _UNSET:
@@ -10164,9 +10562,13 @@ def project_remote_mirrors_all(project_id: str | int, page: int | None | _Unset 
 
 
 def project_remote_mirrors_create_pull_mirror(project_id: str | int, url: str, mirror: bool, action: str | None | _Unset = _UNSET, pull_request_number: int | None | _Unset = _UNSET, pull_request_head_ref: str | None | _Unset = _UNSET, pull_request_head_sha: str | None | _Unset = _UNSET, pull_request_head_repo_full_name: str | None | _Unset = _UNSET, pull_request_base_ref: str | None | _Unset = _UNSET, pull_request_base_sha: str | None | _Unset = _UNSET, pull_request_base_repo_full_name: str | None | _Unset = _UNSET, only_protected_branches: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """ProjectRemoteMirrors.createPullMirror (POST projects/${projectId}/mirror/pull). Body fields: url, mirror, action, pull_request.number, pull_request.head.ref, pull_request.head.sha, pull_request.head.repo.full_name, pull_request.base.ref, pull_request.base.sha, pull_request.base.repo.full_name, only_protected_branches, sudo."""
+    """ProjectRemoteMirrors.createPullMirror (POST projects/${projectId}/mirror/pull). Body fields: url -> import_url, mirror, action, pull_request_number -> pull_request.number, pull_request_head_ref -> pull_request.head.ref, pull_request_head_sha -> pull_request.head.sha, pull_request_head_repo_full_name -> pull_request.head.repo.full_name, pull_request_base_ref -> pull_request.base.ref, pull_request_base_sha -> pull_request.base.sha, pull_request_base_repo_full_name -> pull_request.base.repo.full_name, only_protected_branches, sudo."""
     payload: dict = {}
-    payload["url"] = url
+    if url is None:
+        raise ValueError("ProjectRemoteMirrors.createPullMirror requires non-null body field: url -> import_url")
+    payload["import_url"] = url
+    if mirror is None:
+        raise ValueError("ProjectRemoteMirrors.createPullMirror requires non-null body field: mirror")
     payload["mirror"] = mirror
     if action is not _UNSET:
         payload["action"] = action
@@ -10194,6 +10596,8 @@ def project_remote_mirrors_create_pull_mirror(project_id: str | int, url: str, m
 def project_remote_mirrors_create_push_mirror(project_id: str | int, url: str, enabled: bool | None | _Unset = _UNSET, auth_method: Literal["ssh_public_key", "password"] | None | _Unset = _UNSET, keep_divergent_refs: bool | None | _Unset = _UNSET, only_protected_branches: bool | None | _Unset = _UNSET, mirror_branch_regex: str | None | _Unset = _UNSET, host_keys: list[str] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectRemoteMirrors.createPushMirror (POST projects/${projectId}/remote_mirrors). Body fields: url, enabled, auth_method, keep_divergent_refs, only_protected_branches, mirror_branch_regex, host_keys, sudo."""
     payload: dict = {}
+    if url is None:
+        raise ValueError("ProjectRemoteMirrors.createPushMirror requires non-null body field: url")
     payload["url"] = url
     if enabled is not _UNSET:
         payload["enabled"] = enabled
@@ -10448,7 +10852,7 @@ def projects_all_groups(project_id: str | int, search: str | None | _Unset = _UN
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/groups", params=payload))
 
 
-def projects_all_invited_groups(project_id: str | int, relation: list[str] | None | _Unset = _UNSET, search: str | None | _Unset = _UNSET, min_access_level: Literal[10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, with_custom_attributes: bool | None | _Unset = _UNSET, custom_attributes: dict | None | _Unset = _UNSET, shared_min_access_level: Literal[0, 5, 10, 20, 30, 40, 50] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def projects_all_invited_groups(project_id: str | int, relation: list[str] | None | _Unset = _UNSET, search: str | None | _Unset = _UNSET, min_access_level: Literal[10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, with_custom_attributes: bool | None | _Unset = _UNSET, custom_attributes: dict | None | _Unset = _UNSET, shared_min_access_level: Literal[0, 5, 10, 20, 30, 40, 50, 15] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Projects.allInvitedGroups (GET projects/${projectId}/invited_groups). Body fields: relation, search, min_access_level, page, per_page, with_custom_attributes, custom_attributes, shared_min_access_level, sudo."""
     payload: dict = {}
     if relation is not _UNSET:
@@ -10763,9 +11167,13 @@ def projects_create_fork_relationship(project_id: str | int, forked_from_id: str
 
 
 def projects_create_pull_mirror(project_id: str | int, url: str, mirror: bool, action: str | None | _Unset = _UNSET, pull_request_number: int | None | _Unset = _UNSET, pull_request_head_ref: str | None | _Unset = _UNSET, pull_request_head_sha: str | None | _Unset = _UNSET, pull_request_head_repo_full_name: str | None | _Unset = _UNSET, pull_request_base_ref: str | None | _Unset = _UNSET, pull_request_base_sha: str | None | _Unset = _UNSET, pull_request_base_repo_full_name: str | None | _Unset = _UNSET, mirror_trigger_builds: bool | _Unset = _UNSET, mirror_branch_regex: str | _Unset = _UNSET, only_protected_branches: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Projects.createPullMirror (POST projects/${projectId}/mirror/pull). Body fields: url, mirror, action, pull_request.number, pull_request.head.ref, pull_request.head.sha, pull_request.head.repo.full_name, pull_request.base.ref, pull_request.base.sha, pull_request.base.repo.full_name, mirror_trigger_builds, mirror_branch_regex, only_protected_branches, sudo."""
+    """Projects.createPullMirror (POST projects/${projectId}/mirror/pull). Body fields: url -> import_url, mirror, action, pull_request_number -> pull_request.number, pull_request_head_ref -> pull_request.head.ref, pull_request_head_sha -> pull_request.head.sha, pull_request_head_repo_full_name -> pull_request.head.repo.full_name, pull_request_base_ref -> pull_request.base.ref, pull_request_base_sha -> pull_request.base.sha, pull_request_base_repo_full_name -> pull_request.base.repo.full_name, mirror_trigger_builds, mirror_branch_regex, only_protected_branches, sudo."""
     payload: dict = {}
-    payload["url"] = url
+    if url is None:
+        raise ValueError("Projects.createPullMirror requires non-null body field: url -> import_url")
+    payload["import_url"] = url
+    if mirror is None:
+        raise ValueError("Projects.createPullMirror requires non-null body field: mirror")
     payload["mirror"] = mirror
     if action is not _UNSET:
         payload["action"] = action
@@ -11351,6 +11759,8 @@ def projects_restore(project_id: str | int, sudo: str | int | _Unset = _UNSET):
 def projects_search(project_name: str, order_by: Literal["id", "name", "path", "created_at", "updated_at", "last_activity_at", "similarity", "star_count", "storage_size", "repository_size", "wiki_size", "packages_size"] | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, archived: bool | None | _Unset = _UNSET, visibility: Literal["private", "internal", "public"] | None | _Unset = _UNSET, search: str | None | _Unset = _UNSET, search_namespaces: bool | None | _Unset = _UNSET, owned: bool | None | _Unset = _UNSET, starred: bool | None | _Unset = _UNSET, imported: bool | None | _Unset = _UNSET, membership: bool | None | _Unset = _UNSET, with_issues_enabled: bool | None | _Unset = _UNSET, with_merge_requests_enabled: bool | None | _Unset = _UNSET, with_programming_language: str | None | _Unset = _UNSET, min_access_level: Literal[10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, id_after: int | None | _Unset = _UNSET, id_before: int | None | _Unset = _UNSET, last_activity_after: str | None | _Unset = _UNSET, last_activity_before: str | None | _Unset = _UNSET, repository_storage: str | None | _Unset = _UNSET, topic: list[str] | None | _Unset = _UNSET, topic_id: int | None | _Unset = _UNSET, updated_before: str | None | _Unset = _UNSET, updated_after: str | None | _Unset = _UNSET, include_pending_delete: bool | None | _Unset = _UNSET, marked_for_deletion_on: str | None | _Unset = _UNSET, active: bool | None | _Unset = _UNSET, wiki_checksum_failed: bool | None | _Unset = _UNSET, repository_checksum_failed: bool | None | _Unset = _UNSET, include_hidden: bool | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, simple: bool | None | _Unset = _UNSET, statistics: bool | None | _Unset = _UNSET, with_custom_attributes: bool | None | _Unset = _UNSET, custom_attributes: dict | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Projects.search (GET projects). Body fields: project_name, order_by, sort, archived, visibility, search, search_namespaces, owned, starred, imported, membership, with_issues_enabled, with_merge_requests_enabled, with_programming_language, min_access_level, id_after, id_before, last_activity_after, last_activity_before, repository_storage, topic, topic_id, updated_before, updated_after, include_pending_delete, marked_for_deletion_on, active, wiki_checksum_failed, repository_checksum_failed, include_hidden, page, per_page, simple, statistics, with_custom_attributes, custom_attributes, sudo."""
     payload: dict = {}
+    if project_name is None:
+        raise ValueError("Projects.search requires non-null request parameter: project_name")
     payload["project_name"] = project_name
     if order_by is not _UNSET:
         payload["order_by"] = order_by
@@ -11427,10 +11837,14 @@ def projects_search(project_name: str, order_by: Literal["id", "name", "path", "
     return _ok(_get_client().request("GET", f"/projects", params=payload))
 
 
-def projects_share(project_id: str | int, group_id: str | int, group_access: int, expires_at: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def projects_share(project_id: str | int, group_id: int, group_access: Literal[10, 15, 20, 30, 40, 50], expires_at: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Projects.share (POST projects/${projectId}/share). Body fields: group_id, group_access, expires_at, member_role_id, sudo."""
     payload: dict = {}
+    if group_id is None:
+        raise ValueError("Projects.share requires non-null body field: group_id")
     payload["group_id"] = group_id
+    if group_access is None:
+        raise ValueError("Projects.share requires non-null body field: group_access")
     payload["group_access"] = group_access
     if expires_at is not _UNSET:
         payload["expires_at"] = expires_at
@@ -11484,6 +11898,8 @@ def projects_star(project_id: str | int, sudo: str | int | _Unset = _UNSET):
 def projects_transfer(project_id: str | int, namespace: str | int, sudo: str | int | _Unset = _UNSET):
     """Projects.transfer (PUT projects/${projectId}/transfer). Body fields: namespace, sudo."""
     payload: dict = {}
+    if namespace is None:
+        raise ValueError("Projects.transfer requires non-null body field: namespace")
     payload["namespace"] = namespace
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -11517,6 +11933,8 @@ def projects_unstar(project_id: str | int, sudo: str | int | _Unset = _UNSET):
 def projects_upload_avatar(project_id: str | int, avatar: dict, name: str | None | _Unset = _UNSET, default_branch: str | None | _Unset = _UNSET, path: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, build_git_strategy: Literal["fetch", "clone"] | None | _Unset = _UNSET, build_timeout: int | None | _Unset = _UNSET, auto_cancel_pending_pipelines: Literal["disabled", "enabled"] | None | _Unset = _UNSET, ci_config_path: str | None | _Unset = _UNSET, service_desk_enabled: bool | None | _Unset = _UNSET, issues_enabled: bool | None | _Unset = _UNSET, merge_requests_enabled: bool | None | _Unset = _UNSET, wiki_enabled: bool | None | _Unset = _UNSET, jobs_enabled: bool | None | _Unset = _UNSET, snippets_enabled: bool | None | _Unset = _UNSET, issues_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, repository_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, merge_requests_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, forking_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, wiki_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, builds_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, snippets_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, package_registry_access_level: Literal["disabled", "private", "enabled", "public"] | None | _Unset = _UNSET, pages_access_level: Literal["disabled", "private", "enabled", "public"] | None | _Unset = _UNSET, analytics_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, container_registry_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, security_and_compliance_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, releases_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, environments_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, feature_flags_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, infrastructure_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, monitor_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, model_experiments_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, model_registry_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, emails_disabled: bool | None | _Unset = _UNSET, emails_enabled: bool | None | _Unset = _UNSET, show_default_award_emojis: bool | None | _Unset = _UNSET, show_diff_preview_in_email: bool | None | _Unset = _UNSET, warn_about_potentially_unwanted_characters: bool | None | _Unset = _UNSET, enforce_auth_checks_on_uploads: bool | None | _Unset = _UNSET, shared_runners_enabled: bool | None | _Unset = _UNSET, group_runners_enabled: bool | None | _Unset = _UNSET, resource_group_default_process_mode: Literal["unordered", "oldest_first", "newest_first", "newest_ready_first"] | None | _Unset = _UNSET, resolve_outdated_diff_discussions: bool | None | _Unset = _UNSET, remove_source_branch_after_merge: bool | None | _Unset = _UNSET, packages_enabled: bool | None | _Unset = _UNSET, container_registry_enabled: bool | None | _Unset = _UNSET, container_expiration_policy_attributes: dict | None | _Unset = _UNSET, lfs_enabled: bool | None | _Unset = _UNSET, visibility: Literal["private", "internal", "public"] | None | _Unset = _UNSET, public_builds: bool | None | _Unset = _UNSET, public_jobs: bool | None | _Unset = _UNSET, request_access_enabled: bool | None | _Unset = _UNSET, only_allow_merge_if_pipeline_succeeds: bool | None | _Unset = _UNSET, allow_merge_on_skipped_pipeline: bool | None | _Unset = _UNSET, only_allow_merge_if_all_discussions_are_resolved: bool | None | _Unset = _UNSET, tag_list: list[str] | None | _Unset = _UNSET, topics: list[str] | None | _Unset = _UNSET, printing_merge_request_link_enabled: bool | None | _Unset = _UNSET, merge_method: Literal["ff", "rebase_merge", "merge"] | None | _Unset = _UNSET, suggestion_commit_message: str | None | _Unset = _UNSET, merge_commit_template: str | None | _Unset = _UNSET, squash_commit_template: str | None | _Unset = _UNSET, issue_branch_template: str | None | _Unset = _UNSET, auto_devops_enabled: bool | None | _Unset = _UNSET, auto_devops_deploy_strategy: Literal["continuous", "manual", "timed_incremental"] | None | _Unset = _UNSET, autoclose_referenced_issues: bool | None | _Unset = _UNSET, repository_storage: str | None | _Unset = _UNSET, squash_option: Literal["never", "always", "default_on", "default_off"] | None | _Unset = _UNSET, mr_default_target_self: bool | None | _Unset = _UNSET, only_allow_merge_if_all_status_checks_passed: bool | None | _Unset = _UNSET, approvals_before_merge: int | None | _Unset = _UNSET, mirror: bool | None | _Unset = _UNSET, mirror_trigger_builds: bool | None | _Unset = _UNSET, external_authorization_classification_label: str | None | _Unset = _UNSET, requirements_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, prevent_merge_without_jira_issue: bool | None | _Unset = _UNSET, auto_duo_code_review_enabled: bool | None | _Unset = _UNSET, duo_remote_flows_enabled: bool | None | _Unset = _UNSET, duo_sast_fp_detection_enabled: bool | None | _Unset = _UNSET, duo_secret_detection_fp_enabled: bool | None | _Unset = _UNSET, duo_sast_vr_workflow_enabled: bool | None | _Unset = _UNSET, spp_repository_pipeline_access: bool | None | _Unset = _UNSET, merge_request_title_regex: str | None | _Unset = _UNSET, merge_request_title_regex_description: str | None | _Unset = _UNSET, ci_default_git_depth: int | None | _Unset = _UNSET, keep_latest_artifact: bool | None | _Unset = _UNSET, ci_forward_deployment_enabled: bool | None | _Unset = _UNSET, ci_forward_deployment_rollback_allowed: bool | None | _Unset = _UNSET, ci_allow_fork_pipelines_to_run_in_parent_project: bool | None | _Unset = _UNSET, ci_separated_caches: bool | None | _Unset = _UNSET, restrict_user_defined_variables: bool | None | _Unset = _UNSET, ci_pipeline_variables_minimum_override_role: Literal["no_one_allowed", "developer", "maintainer", "owner"] | None | _Unset = _UNSET, ci_push_repository_for_job_token_allowed: bool | None | _Unset = _UNSET, ci_id_token_sub_claim_components: list[str] | None | _Unset = _UNSET, ci_delete_pipelines_in_seconds: int | None | _Unset = _UNSET, max_artifacts_size: int | None | _Unset = _UNSET, protect_merge_request_pipelines: bool | None | _Unset = _UNSET, ci_display_pipeline_variables: bool | None | _Unset = _UNSET, allow_pipeline_trigger_approve_deployment: bool | None | _Unset = _UNSET, mirror_user_id: int | None | _Unset = _UNSET, only_mirror_protected_branches: bool | None | _Unset = _UNSET, mirror_branch_regex: str | None | _Unset = _UNSET, mirror_overwrites_diverged_branches: bool | None | _Unset = _UNSET, import_url: str | None | _Unset = _UNSET, fallback_approvals_required: int | None | _Unset = _UNSET, issues_template: str | None | _Unset = _UNSET, merge_requests_template: str | None | _Unset = _UNSET, merge_pipelines_enabled: bool | None | _Unset = _UNSET, merge_trains_enabled: bool | None | _Unset = _UNSET, merge_trains_skip_train_allowed: bool | None | _Unset = _UNSET, ci_restrict_pipeline_cancellation_role: str | None | _Unset = _UNSET, web_based_commit_signing_enabled: bool | None | _Unset = _UNSET, security_policy_pipeline_must_succeed: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Projects.uploadAvatar (PUT projects/${projectId}). Body fields: avatar, name, default_branch, path, description, build_git_strategy, build_timeout, auto_cancel_pending_pipelines, ci_config_path, service_desk_enabled, issues_enabled, merge_requests_enabled, wiki_enabled, jobs_enabled, snippets_enabled, issues_access_level, repository_access_level, merge_requests_access_level, forking_access_level, wiki_access_level, builds_access_level, snippets_access_level, package_registry_access_level, pages_access_level, analytics_access_level, container_registry_access_level, security_and_compliance_access_level, releases_access_level, environments_access_level, feature_flags_access_level, infrastructure_access_level, monitor_access_level, model_experiments_access_level, model_registry_access_level, emails_disabled, emails_enabled, show_default_award_emojis, show_diff_preview_in_email, warn_about_potentially_unwanted_characters, enforce_auth_checks_on_uploads, shared_runners_enabled, group_runners_enabled, resource_group_default_process_mode, resolve_outdated_diff_discussions, remove_source_branch_after_merge, packages_enabled, container_registry_enabled, container_expiration_policy_attributes, lfs_enabled, visibility, public_builds, public_jobs, request_access_enabled, only_allow_merge_if_pipeline_succeeds, allow_merge_on_skipped_pipeline, only_allow_merge_if_all_discussions_are_resolved, tag_list, topics, printing_merge_request_link_enabled, merge_method, suggestion_commit_message, merge_commit_template, squash_commit_template, issue_branch_template, auto_devops_enabled, auto_devops_deploy_strategy, autoclose_referenced_issues, repository_storage, squash_option, mr_default_target_self, only_allow_merge_if_all_status_checks_passed, approvals_before_merge, mirror, mirror_trigger_builds, external_authorization_classification_label, requirements_access_level, prevent_merge_without_jira_issue, auto_duo_code_review_enabled, duo_remote_flows_enabled, duo_sast_fp_detection_enabled, duo_secret_detection_fp_enabled, duo_sast_vr_workflow_enabled, spp_repository_pipeline_access, merge_request_title_regex, merge_request_title_regex_description, ci_default_git_depth, keep_latest_artifact, ci_forward_deployment_enabled, ci_forward_deployment_rollback_allowed, ci_allow_fork_pipelines_to_run_in_parent_project, ci_separated_caches, restrict_user_defined_variables, ci_pipeline_variables_minimum_override_role, ci_push_repository_for_job_token_allowed, ci_id_token_sub_claim_components, ci_delete_pipelines_in_seconds, max_artifacts_size, protect_merge_request_pipelines, ci_display_pipeline_variables, allow_pipeline_trigger_approve_deployment, mirror_user_id, only_mirror_protected_branches, mirror_branch_regex, mirror_overwrites_diverged_branches, import_url, fallback_approvals_required, issues_template, merge_requests_template, merge_pipelines_enabled, merge_trains_enabled, merge_trains_skip_train_allowed, ci_restrict_pipeline_cancellation_role, web_based_commit_signing_enabled, security_policy_pipeline_must_succeed, sudo."""
     payload: dict = {}
+    if avatar is None:
+        raise ValueError("Projects.uploadAvatar requires non-null body field: avatar")
     payload["avatar"] = avatar
     if name is not _UNSET:
         payload["name"] = name
@@ -11752,6 +12170,8 @@ def projects_upload_avatar(project_id: str | int, avatar: dict, name: str | None
 def projects_upload_for_reference(project_id: str | int, file: dict, sudo: str | int | _Unset = _UNSET):
     """Projects.uploadForReference (POST projects/${projectId}/uploads). Body fields: file, sudo."""
     payload: dict = {}
+    if file is None:
+        raise ValueError("Projects.uploadForReference requires non-null body field: file")
     payload["file"] = file
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -11783,6 +12203,8 @@ def project_snippet_award_emojis_all(project_id: str | int, resource_iid: str | 
 def project_snippet_award_emojis_award(project_id: str | int, resource_iid: str | int, name: str, sudo: str | int | _Unset = _UNSET):
     """ProjectSnippetAwardEmojis.award (POST projects/${projectId}/snippets/${resourceIId}/award_emoji). Body fields: name, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("ProjectSnippetAwardEmojis.award requires non-null body field: name")
     payload["name"] = name
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -11810,6 +12232,8 @@ def project_snippet_award_emojis_show(project_id: str | int, resource_iid: str |
 def project_snippet_discussions_add_note(project_id: str | int, snippet_id: str | int, discussion_id: str | int, body: str, created_at: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectSnippetDiscussions.addNote (POST projects/${projectId}/snippets/${snippetId}/discussions/${discussionId}/notes). Body fields: body, created_at, sudo."""
     payload: dict = {}
+    if body is None:
+        raise ValueError("ProjectSnippetDiscussions.addNote requires non-null body field: body")
     payload["body"] = body
     if created_at is not _UNSET:
         payload["created_at"] = created_at
@@ -11841,6 +12265,8 @@ def project_snippet_discussions_all(project_id: str | int, snippet_id: str | int
 def project_snippet_discussions_create(project_id: str | int, snippet_id: str | int, body: str, created_at: str | None | _Unset = _UNSET, position: dict | _Unset = _UNSET, commit_id: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectSnippetDiscussions.create (POST projects/${projectId}/snippets/${snippetId}/discussions). Body fields: body, created_at, position, commit_id, sudo."""
     payload: dict = {}
+    if body is None:
+        raise ValueError("ProjectSnippetDiscussions.create requires non-null body field: body")
     payload["body"] = body
     if created_at is not _UNSET:
         payload["created_at"] = created_at
@@ -11908,6 +12334,8 @@ def project_snippet_notes_all(project_id: str | int, snippet_id: str | int, orde
 def project_snippet_notes_create(project_id: str | int, snippet_id: str | int, body: str, confidential: bool | None | _Unset = _UNSET, internal: bool | None | _Unset = _UNSET, created_at: str | None | _Unset = _UNSET, merge_request_diff_head_sha: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectSnippetNotes.create (POST projects/${projectId}/snippets/${snippetId}/notes). Body fields: body, confidential, internal, created_at, merge_request_diff_head_sha, sudo."""
     payload: dict = {}
+    if body is None:
+        raise ValueError("ProjectSnippetNotes.create requires non-null body field: body")
     payload["body"] = body
     if confidential is not _UNSET:
         payload["confidential"] = confidential
@@ -11975,6 +12403,8 @@ def project_snippets_all(project_id: str | int, page: int | None | _Unset = _UNS
 def project_snippets_create(project_id: str | int, title: str, description: str | None | _Unset = _UNSET, visibility: Literal["private", "internal", "public"] | _Unset = _UNSET, files: list[dict] | None | _Unset = _UNSET, content: str | None | _Unset = _UNSET, file_name: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectSnippets.create (POST projects/${projectId}/snippets). Body fields: title, description, visibility, files, content, file_name, sudo."""
     payload: dict = {}
+    if title is None:
+        raise ValueError("ProjectSnippets.create requires non-null body field: title")
     payload["title"] = title
     if description is not _UNSET:
         payload["description"] = description
@@ -12178,7 +12608,11 @@ def project_variables_all(project_id: str | int, page: int | None | _Unset = _UN
 def project_variables_create(project_id: str | int, key: str, value: str, protected: bool | None | _Unset = _UNSET, masked: bool | None | _Unset = _UNSET, masked_and_hidden: bool | None | _Unset = _UNSET, raw: bool | None | _Unset = _UNSET, variable_type: Literal["env_var", "file"] | None | _Unset = _UNSET, environment_scope: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectVariables.create (POST projects/${projectId}/variables). Body fields: key, value, protected, masked, masked_and_hidden, raw, variable_type, environment_scope, description, sudo."""
     payload: dict = {}
+    if key is None:
+        raise ValueError("ProjectVariables.create requires non-null body field: key")
     payload["key"] = key
+    if value is None:
+        raise ValueError("ProjectVariables.create requires non-null body field: value")
     payload["value"] = value
     if protected is not _UNSET:
         payload["protected"] = protected
@@ -12202,6 +12636,8 @@ def project_variables_create(project_id: str | int, key: str, value: str, protec
 def project_variables_edit(project_id: str | int, key: str | int, value: str, protected: bool | None | _Unset = _UNSET, masked: bool | None | _Unset = _UNSET, environment_scope: str | None | _Unset = _UNSET, raw: bool | None | _Unset = _UNSET, variable_type: Literal["env_var", "file"] | None | _Unset = _UNSET, filter: dict | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectVariables.edit (PUT projects/${projectId}/variables/${key}). Body fields: value, protected, masked, environment_scope, raw, variable_type, filter, description, sudo."""
     payload: dict = {}
+    if value is None:
+        raise ValueError("ProjectVariables.edit requires non-null body field: value")
     payload["value"] = value
     if protected is not _UNSET:
         payload["protected"] = protected
@@ -12223,7 +12659,7 @@ def project_variables_edit(project_id: str | int, key: str | int, value: str, pr
 
 
 def project_variables_remove(project_id: str | int, key: str | int, filter: dict | None | _Unset = _UNSET, filter_environment_scope: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """ProjectVariables.remove (DELETE projects/${projectId}/variables/${key}). Body fields: filter, filter[environment_scope], sudo."""
+    """ProjectVariables.remove (DELETE projects/${projectId}/variables/${key}). Body fields: filter, filter_environment_scope -> filter[environment_scope], sudo."""
     payload: dict = {}
     if filter is not _UNSET:
         payload["filter"] = filter
@@ -12235,7 +12671,7 @@ def project_variables_remove(project_id: str | int, key: str | int, filter: dict
 
 
 def project_variables_show(project_id: str | int, key: str | int, filter: dict | None | _Unset = _UNSET, filter_environment_scope: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """ProjectVariables.show (GET projects/${projectId}/variables/${key}). Body fields: filter, filter[environment_scope], sudo."""
+    """ProjectVariables.show (GET projects/${projectId}/variables/${key}). Body fields: filter, filter_environment_scope -> filter[environment_scope], sudo."""
     payload: dict = {}
     if filter is not _UNSET:
         payload["filter"] = filter
@@ -12271,6 +12707,8 @@ def project_vulnerabilities_all(project_id: str | int, page: int | None | _Unset
 def project_vulnerabilities_create(project_id: str | int, finding_id: int, sudo: str | int | _Unset = _UNSET):
     """ProjectVulnerabilities.create (POST projects/${projectId}/vulnerabilities). Body fields: finding_id, sudo."""
     payload: dict = {}
+    if finding_id is None:
+        raise ValueError("ProjectVulnerabilities.create requires non-null body field: finding_id")
     payload["finding_id"] = finding_id
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -12304,7 +12742,11 @@ def project_wikis_all(project_id: str | int, with_content: bool | None | _Unset 
 def project_wikis_create(project_id: str | int, content: str, title: str, front_matter: dict | None | _Unset = _UNSET, format: Literal["markdown", "rdoc", "asciidoc", "org"] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectWikis.create (POST projects/${projectId}/wikis). Body fields: content, title, front_matter, format, sudo."""
     payload: dict = {}
+    if content is None:
+        raise ValueError("ProjectWikis.create requires non-null body field: content")
     payload["content"] = content
+    if title is None:
+        raise ValueError("ProjectWikis.create requires non-null body field: title")
     payload["title"] = title
     if front_matter is not _UNSET:
         payload["front_matter"] = front_matter
@@ -12354,6 +12796,8 @@ def project_wikis_show(project_id: str | int, slug: str | int, version: str | No
 def project_wikis_upload_attachment(project_id: str | int, file: dict, branch: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectWikis.uploadAttachment (POST projects/${projectId}/wikis/attachments). Body fields: file, branch, sudo."""
     payload: dict = {}
+    if file is None:
+        raise ValueError("ProjectWikis.uploadAttachment requires non-null body field: file")
     payload["file"] = file
     if branch is not _UNSET:
         payload["branch"] = branch
@@ -12386,12 +12830,12 @@ def protected_branches_all(project_id: str | int, page: int | None | _Unset = _U
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/protected_branches", params=payload))
 
 
-def protected_branches_create(project_id: str | int, branch_name: str, name: str | None | _Unset = _UNSET, push_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, merge_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, allow_force_push: bool | None | _Unset = _UNSET, unprotect_access_level: Literal[30, 40, 60] | None | _Unset = _UNSET, allowed_to_push: list[dict] | None | _Unset = _UNSET, allowed_to_merge: list[dict] | None | _Unset = _UNSET, allowed_to_unprotect: list[dict] | None | _Unset = _UNSET, code_owner_approval_required: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """ProtectedBranches.create (POST projects/${projectId}/protected_branches). Body fields: branch_name, name, push_access_level, merge_access_level, allow_force_push, unprotect_access_level, allowed_to_push, allowed_to_merge, allowed_to_unprotect, code_owner_approval_required, sudo."""
+def protected_branches_create(project_id: str | int, name: str, push_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, merge_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, allow_force_push: bool | None | _Unset = _UNSET, unprotect_access_level: Literal[30, 40, 60] | None | _Unset = _UNSET, allowed_to_push: list[dict] | None | _Unset = _UNSET, allowed_to_merge: list[dict] | None | _Unset = _UNSET, allowed_to_unprotect: list[dict] | None | _Unset = _UNSET, code_owner_approval_required: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """ProtectedBranches.create (POST projects/${projectId}/protected_branches). Body fields: name, push_access_level, merge_access_level, allow_force_push, unprotect_access_level, allowed_to_push, allowed_to_merge, allowed_to_unprotect, code_owner_approval_required, sudo."""
     payload: dict = {}
-    payload["branch_name"] = branch_name
-    if name is not _UNSET:
-        payload["name"] = name
+    if name is None:
+        raise ValueError("ProtectedBranches.create requires non-null body field: name")
+    payload["name"] = name
     if push_access_level is not _UNSET:
         payload["push_access_level"] = push_access_level
     if merge_access_level is not _UNSET:
@@ -12433,9 +12877,9 @@ def protected_branches_edit(project_id: str | int, branch_name: str | int, allow
     return _ok(_get_client().request("PATCH", f"/projects/{_enc(project_id)}/protected_branches/{_enc(branch_name)}", json=payload))
 
 
-def protected_branches_protect(project_id: str | int, branch_name: str, name: str | None | _Unset = _UNSET, push_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, merge_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, allow_force_push: bool | None | _Unset = _UNSET, unprotect_access_level: Literal[30, 40, 60] | None | _Unset = _UNSET, allowed_to_push: list[dict] | None | _Unset = _UNSET, allowed_to_merge: list[dict] | None | _Unset = _UNSET, allowed_to_unprotect: list[dict] | None | _Unset = _UNSET, code_owner_approval_required: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def protected_branches_protect(project_id: str | int, name: str, push_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, merge_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, allow_force_push: bool | None | _Unset = _UNSET, unprotect_access_level: Literal[30, 40, 60] | None | _Unset = _UNSET, allowed_to_push: list[dict] | None | _Unset = _UNSET, allowed_to_merge: list[dict] | None | _Unset = _UNSET, allowed_to_unprotect: list[dict] | None | _Unset = _UNSET, code_owner_approval_required: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProtectedBranches.protect (alias for ProtectedBranches.create)."""
-    return protected_branches_create(project_id=project_id, branch_name=branch_name, name=name, push_access_level=push_access_level, merge_access_level=merge_access_level, allow_force_push=allow_force_push, unprotect_access_level=unprotect_access_level, allowed_to_push=allowed_to_push, allowed_to_merge=allowed_to_merge, allowed_to_unprotect=allowed_to_unprotect, code_owner_approval_required=code_owner_approval_required, sudo=sudo)
+    return protected_branches_create(project_id=project_id, name=name, push_access_level=push_access_level, merge_access_level=merge_access_level, allow_force_push=allow_force_push, unprotect_access_level=unprotect_access_level, allowed_to_push=allowed_to_push, allowed_to_merge=allowed_to_merge, allowed_to_unprotect=allowed_to_unprotect, code_owner_approval_required=code_owner_approval_required, sudo=sudo)
 
 
 def protected_branches_remove(project_id: str | int, branch_name: str | int, sudo: str | int | _Unset = _UNSET):
@@ -12481,12 +12925,12 @@ def protected_tags_all(project_id: str | int, page: int | None | _Unset = _UNSET
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/protected_tags", params=payload))
 
 
-def protected_tags_create(project_id: str | int, tag_name: str, name: str | None | _Unset = _UNSET, create_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, allowed_to_create: list[dict] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """ProtectedTags.create (POST projects/${projectId}/protected_tags). Body fields: tag_name, name, create_access_level, allowed_to_create, sudo."""
+def protected_tags_create(project_id: str | int, name: str, create_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, allowed_to_create: list[dict] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """ProtectedTags.create (POST projects/${projectId}/protected_tags). Body fields: name, create_access_level, allowed_to_create, sudo."""
     payload: dict = {}
-    payload["tag_name"] = tag_name
-    if name is not _UNSET:
-        payload["name"] = name
+    if name is None:
+        raise ValueError("ProtectedTags.create requires non-null body field: name")
+    payload["name"] = name
     if create_access_level is not _UNSET:
         payload["create_access_level"] = create_access_level
     if allowed_to_create is not _UNSET:
@@ -12496,9 +12940,9 @@ def protected_tags_create(project_id: str | int, tag_name: str, name: str | None
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/protected_tags", json=payload))
 
 
-def protected_tags_protect(project_id: str | int, tag_name: str, name: str | None | _Unset = _UNSET, create_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, allowed_to_create: list[dict] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def protected_tags_protect(project_id: str | int, name: str, create_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, allowed_to_create: list[dict] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProtectedTags.protect (alias for ProtectedTags.create)."""
-    return protected_tags_create(project_id=project_id, tag_name=tag_name, name=name, create_access_level=create_access_level, allowed_to_create=allowed_to_create, sudo=sudo)
+    return protected_tags_create(project_id=project_id, name=name, create_access_level=create_access_level, allowed_to_create=allowed_to_create, sudo=sudo)
 
 
 def protected_tags_remove(project_id: str | int, tag_name: str | int, sudo: str | int | _Unset = _UNSET):
@@ -12547,6 +12991,8 @@ def py_pi_show_package_descriptor(package_name: str, project_id: str | int | _Un
 def py_pi_upload_package_file(project_id: str | int, package_file: dict):
     """PyPI.uploadPackageFile (PUT projects/${projectId}/packages/pypi). Body fields: package_file."""
     payload: dict = {}
+    if package_file is None:
+        raise ValueError("PyPI.uploadPackageFile requires non-null body field: package_file")
     payload["package_file"] = package_file
     return _ok(_get_client().request("PUT", f"/projects/{_enc(project_id)}/packages/pypi", json=payload))
 
@@ -12576,7 +13022,11 @@ def release_links_all(project_id: str | int, tag_name: str | int, page: int | No
 def release_links_create(project_id: str | int, tag_name: str | int, name: str, url: str, direct_asset_path: str | None | _Unset = _UNSET, filepath: str | None | _Unset = _UNSET, link_type: Literal["other", "runbook", "image", "package"] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET, file_path: str | _Unset = _UNSET):
     """ReleaseLinks.create (POST projects/${projectId}/releases/${tagName}/assets/links). Body fields: name, url, direct_asset_path, filepath, link_type, sudo, file_path."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("ReleaseLinks.create requires non-null body field: name")
     payload["name"] = name
+    if url is None:
+        raise ValueError("ReleaseLinks.create requires non-null body field: url")
     payload["url"] = url
     if direct_asset_path is not _UNSET:
         payload["direct_asset_path"] = direct_asset_path
@@ -12676,9 +13126,13 @@ def repositories_all_repository_trees(project_id: str | int, ref: str | None | _
 
 
 def repositories_compare(project_id: str | int, from_: str, to: str, from_project_id: int | None | _Unset = _UNSET, straight: bool | None | _Unset = _UNSET, unidiff: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Repositories.compare (GET projects/${projectId}/repository/compare). Body fields: from, to, from_project_id, straight, unidiff, sudo."""
+    """Repositories.compare (GET projects/${projectId}/repository/compare). Body fields: from_ -> from, to, from_project_id, straight, unidiff, sudo."""
     payload: dict = {}
+    if from_ is None:
+        raise ValueError("Repositories.compare requires non-null query parameter: from_ -> from")
     payload["from"] = from_
+    if to is None:
+        raise ValueError("Repositories.compare requires non-null query parameter: to")
     payload["to"] = to
     if from_project_id is not _UNSET:
         payload["from_project_id"] = from_project_id
@@ -12692,8 +13146,10 @@ def repositories_compare(project_id: str | int, from_: str, to: str, from_projec
 
 
 def repositories_edit_changelog(project_id: str | int, version: str, from_: str | None | _Unset = _UNSET, to: str | None | _Unset = _UNSET, date: str | None | _Unset = _UNSET, trailer: str | None | _Unset = _UNSET, config_file: str | None | _Unset = _UNSET, config_file_ref: str | None | _Unset = _UNSET, branch: str | None | _Unset = _UNSET, file: str | None | _Unset = _UNSET, message: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Repositories.editChangelog (POST projects/${projectId}/repository/changelog). Body fields: version, from, to, date, trailer, config_file, config_file_ref, branch, file, message, sudo."""
+    """Repositories.editChangelog (POST projects/${projectId}/repository/changelog). Body fields: version, from_ -> from, to, date, trailer, config_file, config_file_ref, branch, file, message, sudo."""
     payload: dict = {}
+    if version is None:
+        raise ValueError("Repositories.editChangelog requires non-null body field: version")
     payload["version"] = version
     if from_ is not _UNSET:
         payload["from"] = from_
@@ -12721,6 +13177,8 @@ def repositories_edit_changelog(project_id: str | int, version: str, from_: str 
 def repositories_merge_base(project_id: str | int, refs: list[str], sudo: str | int | _Unset = _UNSET):
     """Repositories.mergeBase (GET projects/${projectId}/repository/merge_base). Body fields: refs, sudo."""
     payload: dict = {}
+    if refs is None:
+        raise ValueError("Repositories.mergeBase requires non-null query parameter: refs")
     payload["refs"] = refs
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -12758,8 +13216,10 @@ def repositories_show_blob_raw(project_id: str | int, sha: str | int, sudo: str 
 
 
 def repositories_show_changelog(project_id: str | int, version: str, from_: str | None | _Unset = _UNSET, to: str | None | _Unset = _UNSET, date: str | None | _Unset = _UNSET, trailer: str | None | _Unset = _UNSET, config_file: str | None | _Unset = _UNSET, config_file_ref: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Repositories.showChangelog (GET projects/${projectId}/repository/changelog). Body fields: version, from, to, date, trailer, config_file, config_file_ref, sudo."""
+    """Repositories.showChangelog (GET projects/${projectId}/repository/changelog). Body fields: version, from_ -> from, to, date, trailer, config_file, config_file_ref, sudo."""
     payload: dict = {}
+    if version is None:
+        raise ValueError("Repositories.showChangelog requires non-null query parameter: version")
     payload["version"] = version
     if from_ is not _UNSET:
         payload["from"] = from_
@@ -12781,10 +13241,16 @@ def repositories_show_changelog(project_id: str | int, version: str, from_: str 
 # ── RepositoryFiles ───────────────────────────────────────────────────────
 
 def repository_files_all_file_blames(project_id: str | int, file_path: str | int, ref: str, range_start: int, range_end: int, range: dict | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """RepositoryFiles.allFileBlames (GET projects/${projectId}/repository/files/${filePath}/blame). Body fields: ref, range[start], range[end], range, sudo."""
+    """RepositoryFiles.allFileBlames (GET projects/${projectId}/repository/files/${filePath}/blame). Body fields: ref, range_start -> range[start], range_end -> range[end], range, sudo."""
     payload: dict = {}
+    if ref is None:
+        raise ValueError("RepositoryFiles.allFileBlames requires non-null query parameter: ref")
     payload["ref"] = ref
+    if range_start is None:
+        raise ValueError("RepositoryFiles.allFileBlames requires non-null query parameter: range_start -> range[start]")
     payload["range[start]"] = range_start
+    if range_end is None:
+        raise ValueError("RepositoryFiles.allFileBlames requires non-null query parameter: range_end -> range[end]")
     payload["range[end]"] = range_end
     if range is not _UNSET:
         payload["range"] = range
@@ -12796,8 +13262,14 @@ def repository_files_all_file_blames(project_id: str | int, file_path: str | int
 def repository_files_create(project_id: str | int, file_path: str | int, branch: str, content: str, commit_message: str, file: str | None | _Unset = _UNSET, author_email: str | _Unset = _UNSET, author_name: str | _Unset = _UNSET, encoding: str | _Unset = _UNSET, execute_filemode: bool | _Unset = _UNSET, start_branch: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """RepositoryFiles.create (POST projects/${projectId}/repository/files/${filePath}). Body fields: branch, content, commit_message, file, author_email, author_name, encoding, execute_filemode, start_branch, sudo."""
     payload: dict = {}
+    if branch is None:
+        raise ValueError("RepositoryFiles.create requires non-null body field: branch")
     payload["branch"] = branch
+    if content is None:
+        raise ValueError("RepositoryFiles.create requires non-null body field: content")
     payload["content"] = content
+    if commit_message is None:
+        raise ValueError("RepositoryFiles.create requires non-null body field: commit_message")
     payload["commit_message"] = commit_message
     if file is not _UNSET:
         payload["file"] = file
@@ -12819,8 +13291,14 @@ def repository_files_create(project_id: str | int, file_path: str | int, branch:
 def repository_files_edit(project_id: str | int, file_path: str | int, branch: str, content: str, commit_message: str, file: str | None | _Unset = _UNSET, author_email: str | _Unset = _UNSET, author_name: str | _Unset = _UNSET, encoding: str | _Unset = _UNSET, execute_filemode: bool | _Unset = _UNSET, start_branch: str | _Unset = _UNSET, last_commit_id: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """RepositoryFiles.edit (PUT projects/${projectId}/repository/files/${filePath}). Body fields: branch, content, commit_message, file, author_email, author_name, encoding, execute_filemode, start_branch, last_commit_id, sudo."""
     payload: dict = {}
+    if branch is None:
+        raise ValueError("RepositoryFiles.edit requires non-null body field: branch")
     payload["branch"] = branch
+    if content is None:
+        raise ValueError("RepositoryFiles.edit requires non-null body field: content")
     payload["content"] = content
+    if commit_message is None:
+        raise ValueError("RepositoryFiles.edit requires non-null body field: commit_message")
     payload["commit_message"] = commit_message
     if file is not _UNSET:
         payload["file"] = file
@@ -12844,7 +13322,11 @@ def repository_files_edit(project_id: str | int, file_path: str | int, branch: s
 def repository_files_remove(project_id: str | int, file_path: str | int, branch: str, commit_message: str, start_branch: str | None | _Unset = _UNSET, author_email: str | None | _Unset = _UNSET, author_name: str | None | _Unset = _UNSET, last_commit_id: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """RepositoryFiles.remove (DELETE projects/${projectId}/repository/files/${filePath}). Body fields: branch, commit_message, start_branch, author_email, author_name, last_commit_id, sudo."""
     payload: dict = {}
+    if branch is None:
+        raise ValueError("RepositoryFiles.remove requires non-null query parameter: branch")
     payload["branch"] = branch
+    if commit_message is None:
+        raise ValueError("RepositoryFiles.remove requires non-null query parameter: commit_message")
     payload["commit_message"] = commit_message
     if start_branch is not _UNSET:
         payload["start_branch"] = start_branch
@@ -12862,6 +13344,8 @@ def repository_files_remove(project_id: str | int, file_path: str | int, branch:
 def repository_files_show(project_id: str | int, file_path: str | int, ref: str, sudo: str | int | _Unset = _UNSET):
     """RepositoryFiles.show (GET projects/${projectId}/repository/files/${filePath}). Body fields: ref, sudo."""
     payload: dict = {}
+    if ref is None:
+        raise ValueError("RepositoryFiles.show requires non-null query parameter: ref")
     payload["ref"] = ref
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -12871,6 +13355,8 @@ def repository_files_show(project_id: str | int, file_path: str | int, ref: str,
 def repository_files_show_raw(project_id: str | int, file_path: str | int, ref: str, lfs: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """RepositoryFiles.showRaw (GET projects/${projectId}/repository/files/${filePath}/raw). Body fields: ref, lfs, sudo."""
     payload: dict = {}
+    if ref is None:
+        raise ValueError("RepositoryFiles.showRaw requires non-null query parameter: ref")
     payload["ref"] = ref
     if lfs is not _UNSET:
         payload["lfs"] = lfs
@@ -12884,7 +13370,11 @@ def repository_files_show_raw(project_id: str | int, file_path: str | int, ref: 
 def repository_submodules_edit(project_id: str | int, submodule: str | int, branch: str, commit_sha: str, commit_message: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """RepositorySubmodules.edit (PUT projects/${projectId}/repository/submodules/${submodule}). Body fields: branch, commit_sha, commit_message, sudo."""
     payload: dict = {}
+    if branch is None:
+        raise ValueError("RepositorySubmodules.edit requires non-null body field: branch")
     payload["branch"] = branch
+    if commit_sha is None:
+        raise ValueError("RepositorySubmodules.edit requires non-null body field: commit_sha")
     payload["commit_sha"] = commit_sha
     if commit_message is not _UNSET:
         payload["commit_message"] = commit_message
@@ -12911,6 +13401,8 @@ def ruby_gems_download_gem_file(project_id: str | int, file_name: str | int):
 def ruby_gems_upload_gem_file(project_id: str | int, package_file: dict, file: str | None | _Unset = _UNSET):
     """RubyGems.uploadGemFile (POST projects/${projectId}/packages/rubygems/api/v1/gems). Body fields: package_file, file."""
     payload: dict = {}
+    if package_file is None:
+        raise ValueError("RubyGems.uploadGemFile requires non-null body field: package_file")
     payload["package_file"] = package_file
     if file is not _UNSET:
         payload["file"] = file
@@ -12986,6 +13478,8 @@ def runners_all_jobs(runner_id: str | int, system_id: str | None | _Unset = _UNS
 def runners_create(token: str, description: str | None | _Unset = _UNSET, maintainer_note: str | None | _Unset = _UNSET, maintenance_note: str | None | _Unset = _UNSET, info: dict | None | _Unset = _UNSET, active: bool | None | _Unset = _UNSET, paused: bool | None | _Unset = _UNSET, locked: bool | None | _Unset = _UNSET, access_level: Literal["not_protected", "ref_protected"] | None | _Unset = _UNSET, run_untagged: bool | None | _Unset = _UNSET, tag_list: list[str] | None | _Unset = _UNSET, maximum_timeout: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Runners.create (POST runners). Body fields: token, description, maintainer_note, maintenance_note, info, active, paused, locked, access_level, run_untagged, tag_list, maximum_timeout, sudo."""
     payload: dict = {}
+    if token is None:
+        raise ValueError("Runners.create requires non-null body field: token")
     payload["token"] = token
     if description is not _UNSET:
         payload["description"] = description
@@ -13051,6 +13545,8 @@ def runners_edit(runner_id: str | int, description: str | None | _Unset = _UNSET
 def runners_enable(project_id: str | int, runner_id: int, sudo: str | int | _Unset = _UNSET):
     """Runners.enable (POST projects/${projectId}/runners). Body fields: runner_id, sudo."""
     payload: dict = {}
+    if runner_id is None:
+        raise ValueError("Runners.enable requires non-null body field: runner_id")
     payload["runner_id"] = runner_id
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -13100,11 +13596,12 @@ def runners_show(runner_id: str | int, include_projects: bool | None | _Unset = 
     return _ok(_get_client().request("GET", f"/runners/{_enc(runner_id)}", params=payload))
 
 
-def runners_verify(token: str | None | _Unset = _UNSET, system_id: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def runners_verify(token: str, system_id: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Runners.verify (POST runners/verify). Body fields: token, system_id, sudo."""
     payload: dict = {}
-    if token is not _UNSET:
-        payload["token"] = token
+    if token is None:
+        raise ValueError("Runners.verify requires non-null body field: token")
+    payload["token"] = token
     if system_id is not _UNSET:
         payload["system_id"] = system_id
     if sudo is not _UNSET:
@@ -13114,10 +13611,14 @@ def runners_verify(token: str | None | _Unset = _UNSET, system_id: str | None | 
 
 # ── Search ────────────────────────────────────────────────────────────────
 
-def search_all(scope: Literal["users", "notes", "blobs", "commits", "wiki_blobs", "snippet_titles", "milestones", "merge_requests", "issues", "projects"], search: str, project_id: str | int | _Unset = _UNSET, group_id: str | int | _Unset = _UNSET, state: Literal["all", "opened", "closed", "merged"] | None | _Unset = _UNSET, confidential: bool | None | _Unset = _UNSET, type: list[str] | None | _Unset = _UNSET, include_archived: bool | None | _Unset = _UNSET, fields: list[str] | None | _Unset = _UNSET, exclude_forks: bool | None | _Unset = _UNSET, num_context_lines: int | None | _Unset = _UNSET, regex: bool | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, order_by: Literal["created_at"] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET):
+def search_all(scope: Literal["wiki_blobs", "blobs", "commits", "notes", "projects", "issues", "work_items", "merge_requests", "milestones", "snippet_titles", "users"], search: str, project_id: str | int | _Unset = _UNSET, group_id: str | int | _Unset = _UNSET, state: Literal["all", "opened", "closed", "merged"] | None | _Unset = _UNSET, confidential: bool | None | _Unset = _UNSET, type: list[str] | None | _Unset = _UNSET, include_archived: bool | None | _Unset = _UNSET, fields: list[str] | None | _Unset = _UNSET, exclude_forks: bool | None | _Unset = _UNSET, num_context_lines: int | None | _Unset = _UNSET, regex: bool | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, order_by: Literal["created_at"] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET):
     """Search.all (GET; selector-driven path: if project_id: projects/${projectId}/search; if group_id: groups/${groupId}/search; else: search)."""
     payload: dict = {}
+    if scope is None:
+        raise ValueError("Search.all requires non-null query parameter: scope")
     payload["scope"] = scope
+    if search is None:
+        raise ValueError("Search.all requires non-null query parameter: search")
     payload["search"] = search
     if state is not _UNSET:
         payload["state"] = state
@@ -13221,7 +13722,11 @@ def secure_files_all(project_id: str | int, page: int | None | _Unset = _UNSET, 
 def secure_files_create(project_id: str | int, name: str, file: dict, sudo: str | int | _Unset = _UNSET):
     """SecureFiles.create (POST projects/${projectId}/secure_files). Body fields: name, file, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("SecureFiles.create requires non-null body field: name")
     payload["name"] = name
+    if file is None:
+        raise ValueError("SecureFiles.create requires non-null body field: file")
     payload["file"] = file
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -13375,6 +13880,8 @@ def snippets_all(created_after: str | None | _Unset = _UNSET, created_before: st
 def snippets_create(title: str, description: str | None | _Unset = _UNSET, visibility: Literal["private", "internal", "public"] | None | _Unset = _UNSET, files: list[dict] | None | _Unset = _UNSET, content: str | None | _Unset = _UNSET, file_name: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Snippets.create (POST snippets). Body fields: title, description, visibility, files, content, file_name, sudo."""
     payload: dict = {}
+    if title is None:
+        raise ValueError("Snippets.create requires non-null body field: title")
     payload["title"] = title
     if description is not _UNSET:
         payload["description"] = description
@@ -13463,12 +13970,12 @@ def suggestions_edit(suggestion_id: str | int, commit_message: str | None | _Uns
     return _ok(_get_client().request("PUT", f"/suggestions/{_enc(suggestion_id)}/apply", json=payload))
 
 
-def suggestions_edit_batch(suggestion_ids: list[int], ids: list[int] | None | _Unset = _UNSET, commit_message: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Suggestions.editBatch (PUT suggestions/batch_apply). Body fields: suggestion_ids, ids, commit_message, sudo."""
+def suggestions_edit_batch(ids: list[int], commit_message: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """Suggestions.editBatch (PUT suggestions/batch_apply). Body fields: ids, commit_message, sudo."""
     payload: dict = {}
-    payload["suggestion_ids"] = suggestion_ids
-    if ids is not _UNSET:
-        payload["ids"] = ids
+    if ids is None:
+        raise ValueError("Suggestions.editBatch requires non-null body field: ids")
+    payload["ids"] = ids
     if commit_message is not _UNSET:
         payload["commit_message"] = commit_message
     if sudo is not _UNSET:
@@ -13498,6 +14005,8 @@ def system_hooks_all(page: int | None | _Unset = _UNSET, per_page: int | None | 
 def system_hooks_create(url: str, name: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, token: str | None | _Unset = _UNSET, push_events: bool | None | _Unset = _UNSET, tag_push_events: bool | None | _Unset = _UNSET, merge_requests_events: bool | None | _Unset = _UNSET, repository_update_events: bool | None | _Unset = _UNSET, enable_ssl_verification: bool | None | _Unset = _UNSET, push_events_branch_filter: str | None | _Unset = _UNSET, branch_filter_strategy: Literal["wildcard", "regex", "all_branches"] | None | _Unset = _UNSET, url_variables: list[dict] | None | _Unset = _UNSET, custom_headers: list[dict] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """SystemHooks.create (POST hooks). Body fields: url, name, description, token, push_events, tag_push_events, merge_requests_events, repository_update_events, enable_ssl_verification, push_events_branch_filter, branch_filter_strategy, url_variables, custom_headers, sudo."""
     payload: dict = {}
+    if url is None:
+        raise ValueError("SystemHooks.create requires non-null body field: url")
     payload["url"] = url
     if name is not _UNSET:
         payload["name"] = name
@@ -13581,7 +14090,11 @@ def tags_all(project_id: str | int, sort: Literal["asc", "desc"] | None | _Unset
 def tags_create(project_id: str | int, tag_name: str, ref: str, message: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Tags.create (POST projects/${projectId}/repository/tags). Body fields: tag_name, ref, message, sudo."""
     payload: dict = {}
+    if tag_name is None:
+        raise ValueError("Tags.create requires non-null body field: tag_name")
     payload["tag_name"] = tag_name
+    if ref is None:
+        raise ValueError("Tags.create requires non-null body field: ref")
     payload["ref"] = ref
     if message is not _UNSET:
         payload["message"] = message
@@ -13686,12 +14199,15 @@ def topics_all(search: str | None | _Unset = _UNSET, without_projects: bool | No
     return _ok(_get_client().request("GET", f"/topics", params=payload))
 
 
-def topics_create(name: str, title: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, avatar: str | None | _Unset = _UNSET, organization_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def topics_create(name: str, title: str, description: str | None | _Unset = _UNSET, avatar: str | None | _Unset = _UNSET, organization_id: int | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Topics.create (POST topics). Body fields: name, title, description, avatar, organization_id, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("Topics.create requires non-null body field: name")
     payload["name"] = name
-    if title is not _UNSET:
-        payload["title"] = title
+    if title is None:
+        raise ValueError("Topics.create requires non-null body field: title")
+    payload["title"] = title
     if description is not _UNSET:
         payload["description"] = description
     if avatar is not _UNSET:
@@ -13722,7 +14238,11 @@ def topics_edit(topic_id: str | int, name: str | None | _Unset = _UNSET, title: 
 def topics_merge(source_topic_id: int, target_topic_id: int, sudo: str | int | _Unset = _UNSET):
     """Topics.merge (POST topics/merge). Body fields: source_topic_id, target_topic_id, sudo."""
     payload: dict = {}
+    if source_topic_id is None:
+        raise ValueError("Topics.merge requires non-null body field: source_topic_id")
     payload["source_topic_id"] = source_topic_id
+    if target_topic_id is None:
+        raise ValueError("Topics.merge requires non-null body field: target_topic_id")
     payload["target_topic_id"] = target_topic_id
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -13778,6 +14298,8 @@ def user_custom_attributes_remove(user_id: str | int, custom_attribute_id: str |
 def user_custom_attributes_set(user_id: str | int, custom_attribute_id: str | int, value: str, sudo: str | int | _Unset = _UNSET):
     """UserCustomAttributes.set (PUT users/${userId}/custom_attributes/${customAttributeId}). Body fields: value, sudo."""
     payload: dict = {}
+    if value is None:
+        raise ValueError("UserCustomAttributes.set requires non-null body field: value")
     payload["value"] = value
     if sudo is not _UNSET:
         payload["sudo"] = sudo
@@ -13829,7 +14351,11 @@ def user_impersonation_tokens_all(user_id: str | int, page: int | None | _Unset 
 def user_impersonation_tokens_create(user_id: str | int, name: str, scopes: list[Literal["read_repository", "read_registry", "write_registry", "api", "read_api", "read_user", "create_runner", "write_repository", "sudo", "admin_mode"]], description: str | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """UserImpersonationTokens.create (POST users/${userId}/impersonation_tokens). Body fields: name, scopes, description, expires_at, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("UserImpersonationTokens.create requires non-null body field: name")
     payload["name"] = name
+    if scopes is None:
+        raise ValueError("UserImpersonationTokens.create requires non-null body field: scopes")
     payload["scopes"] = scopes
     if description is not _UNSET:
         payload["description"] = description
@@ -13942,7 +14468,7 @@ def users_all(username: str | None | _Unset = _UNSET, extern_uid: str | None | _
 
 
 def users_all_activities(from_: str | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, order_by: str | _Unset = _UNSET, sort: Literal["asc", "desc"] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Users.allActivities (GET user/activities). Body fields: from, page, per_page, pagination, max_pages, order_by, sort, sudo."""
+    """Users.allActivities (GET user/activities). Body fields: from_ -> from, page, per_page, pagination, max_pages, order_by, sort, sudo."""
     payload: dict = {}
     if from_ is not _UNSET:
         payload["from"] = from_
@@ -13963,7 +14489,7 @@ def users_all_activities(from_: str | None | _Unset = _UNSET, page: int | None |
     return _ok(_get_client().request("GET", f"/user/activities", params=payload))
 
 
-def users_all_contributed_projects(user_id: str | int, order_by: Literal["id", "name", "path", "created_at", "updated_at", "last_activity_at", "similarity", "star_count", "storage_size", "repository_size", "wiki_size", "packages_size"] | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, simple: bool | None | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, archived: bool | _Unset = _UNSET, id_after: int | _Unset = _UNSET, id_before: int | _Unset = _UNSET, membership: bool | _Unset = _UNSET, min_access_level: Literal[0, 5, 10, 20, 30, 40, 50] | _Unset = _UNSET, owned: bool | _Unset = _UNSET, search: str | _Unset = _UNSET, starred: bool | _Unset = _UNSET, statistics: bool | _Unset = _UNSET, visibility: Literal["private", "public", "internal"] | _Unset = _UNSET, with_custom_attributes: bool | _Unset = _UNSET, with_issues_enabled: bool | _Unset = _UNSET, with_merge_requests_enabled: bool | _Unset = _UNSET, with_programming_language: str | _Unset = _UNSET, updated_before: str | _Unset = _UNSET, updated_after: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def users_all_contributed_projects(user_id: str | int, order_by: Literal["id", "name", "path", "created_at", "updated_at", "last_activity_at", "similarity", "star_count", "storage_size", "repository_size", "wiki_size", "packages_size"] | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, simple: bool | None | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, archived: bool | _Unset = _UNSET, id_after: int | _Unset = _UNSET, id_before: int | _Unset = _UNSET, membership: bool | _Unset = _UNSET, min_access_level: Literal[0, 5, 10, 20, 30, 40, 50, 15] | _Unset = _UNSET, owned: bool | _Unset = _UNSET, search: str | _Unset = _UNSET, starred: bool | _Unset = _UNSET, statistics: bool | _Unset = _UNSET, visibility: Literal["private", "public", "internal"] | _Unset = _UNSET, with_custom_attributes: bool | _Unset = _UNSET, with_issues_enabled: bool | _Unset = _UNSET, with_merge_requests_enabled: bool | _Unset = _UNSET, with_programming_language: str | _Unset = _UNSET, updated_before: str | _Unset = _UNSET, updated_after: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Users.allContributedProjects (GET users/${userId}/contributed_projects). Body fields: order_by, sort, page, per_page, simple, pagination, max_pages, archived, id_after, id_before, membership, min_access_level, owned, search, starred, statistics, visibility, with_custom_attributes, with_issues_enabled, with_merge_requests_enabled, with_programming_language, updated_before, updated_after, sudo."""
     payload: dict = {}
     if order_by is not _UNSET:
@@ -14295,11 +14821,18 @@ def users_block(user_id: str | int, sudo: str | int | _Unset = _UNSET):
     return _ok(_get_client().request("POST", f"/users/{_enc(user_id)}/block", json=payload))
 
 
-def users_create(email: str | None | _Unset = _UNSET, password: str | None | _Unset = _UNSET, reset_password: bool | None | _Unset = _UNSET, skip_confirmation: bool | None | _Unset = _UNSET, force_random_password: bool | None | _Unset = _UNSET, name: str | None | _Unset = _UNSET, username: str | None | _Unset = _UNSET, linkedin: str | None | _Unset = _UNSET, twitter: str | None | _Unset = _UNSET, discord: str | None | _Unset = _UNSET, website_url: str | None | _Unset = _UNSET, github: str | None | _Unset = _UNSET, organization: str | None | _Unset = _UNSET, projects_limit: int | None | _Unset = _UNSET, extern_uid: str | None | _Unset = _UNSET, provider: str | None | _Unset = _UNSET, bio: str | None | _Unset = _UNSET, location: str | None | _Unset = _UNSET, pronouns: str | None | _Unset = _UNSET, public_email: str | None | _Unset = _UNSET, commit_email: str | None | _Unset = _UNSET, admin: bool | None | _Unset = _UNSET, can_create_group: bool | None | _Unset = _UNSET, external: bool | None | _Unset = _UNSET, avatar: str | None | _Unset = _UNSET, theme_id: int | None | _Unset = _UNSET, color_scheme_id: int | None | _Unset = _UNSET, private_profile: bool | None | _Unset = _UNSET, note: str | None | _Unset = _UNSET, view_diffs_file_by_file: bool | None | _Unset = _UNSET, policy_advanced_editor: bool | None | _Unset = _UNSET, shared_runners_minutes_limit: int | None | _Unset = _UNSET, extra_shared_runners_minutes_limit: int | None | _Unset = _UNSET, group_id_for_saml: int | None | _Unset = _UNSET, auditor: bool | None | _Unset = _UNSET, skype: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Users.create (POST users). Body fields: email, password, reset_password, skip_confirmation, force_random_password, name, username, linkedin, twitter, discord, website_url, github, organization, projects_limit, extern_uid, provider, bio, location, pronouns, public_email, commit_email, admin, can_create_group, external, avatar, theme_id, color_scheme_id, private_profile, note, view_diffs_file_by_file, policy_advanced_editor, shared_runners_minutes_limit, extra_shared_runners_minutes_limit, group_id_for_saml, auditor, skype, sudo."""
+def users_create(email: str, name: str, username: str, password: str | None | _Unset = _UNSET, reset_password: bool | None | _Unset = _UNSET, skip_confirmation: bool | None | _Unset = _UNSET, force_random_password: bool | None | _Unset = _UNSET, linkedin: str | None | _Unset = _UNSET, twitter: str | None | _Unset = _UNSET, discord: str | None | _Unset = _UNSET, website_url: str | None | _Unset = _UNSET, github: str | None | _Unset = _UNSET, organization: str | None | _Unset = _UNSET, projects_limit: int | None | _Unset = _UNSET, extern_uid: str | None | _Unset = _UNSET, provider: str | None | _Unset = _UNSET, bio: str | None | _Unset = _UNSET, location: str | None | _Unset = _UNSET, pronouns: str | None | _Unset = _UNSET, public_email: str | None | _Unset = _UNSET, commit_email: str | None | _Unset = _UNSET, admin: bool | None | _Unset = _UNSET, can_create_group: bool | None | _Unset = _UNSET, external: bool | None | _Unset = _UNSET, avatar: str | None | _Unset = _UNSET, theme_id: int | None | _Unset = _UNSET, color_scheme_id: int | None | _Unset = _UNSET, private_profile: bool | None | _Unset = _UNSET, note: str | None | _Unset = _UNSET, view_diffs_file_by_file: bool | None | _Unset = _UNSET, policy_advanced_editor: bool | None | _Unset = _UNSET, shared_runners_minutes_limit: int | None | _Unset = _UNSET, extra_shared_runners_minutes_limit: int | None | _Unset = _UNSET, group_id_for_saml: int | None | _Unset = _UNSET, auditor: bool | None | _Unset = _UNSET, skype: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """Users.create (POST users). Body fields: email, name, username, password, reset_password, skip_confirmation, force_random_password, linkedin, twitter, discord, website_url, github, organization, projects_limit, extern_uid, provider, bio, location, pronouns, public_email, commit_email, admin, can_create_group, external, avatar, theme_id, color_scheme_id, private_profile, note, view_diffs_file_by_file, policy_advanced_editor, shared_runners_minutes_limit, extra_shared_runners_minutes_limit, group_id_for_saml, auditor, skype, sudo."""
     payload: dict = {}
-    if email is not _UNSET:
-        payload["email"] = email
+    if email is None:
+        raise ValueError("Users.create requires non-null body field: email")
+    payload["email"] = email
+    if name is None:
+        raise ValueError("Users.create requires non-null body field: name")
+    payload["name"] = name
+    if username is None:
+        raise ValueError("Users.create requires non-null body field: username")
+    payload["username"] = username
     if password is not _UNSET:
         payload["password"] = password
     if reset_password is not _UNSET:
@@ -14308,10 +14841,6 @@ def users_create(email: str | None | _Unset = _UNSET, password: str | None | _Un
         payload["skip_confirmation"] = skip_confirmation
     if force_random_password is not _UNSET:
         payload["force_random_password"] = force_random_password
-    if name is not _UNSET:
-        payload["name"] = name
-    if username is not _UNSET:
-        payload["username"] = username
     if linkedin is not _UNSET:
         payload["linkedin"] = linkedin
     if twitter is not _UNSET:
@@ -14378,6 +14907,8 @@ def users_create(email: str | None | _Unset = _UNSET, password: str | None | _Un
 def users_create_ci_runner(runner_type: Literal["instance_type", "group_type", "project_type"], group_id: int | None | _Unset = _UNSET, project_id: int | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, maintenance_note: str | None | _Unset = _UNSET, paused: bool | None | _Unset = _UNSET, locked: bool | None | _Unset = _UNSET, access_level: Literal["not_protected", "ref_protected"] | None | _Unset = _UNSET, run_untagged: bool | None | _Unset = _UNSET, tag_list: list[str] | None | _Unset = _UNSET, maximum_timeout: int | None | _Unset = _UNSET, token_expires_at: str | None | _Unset = _UNSET, token_rotation_deadline: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Users.createCIRunner (POST user/runners). Body fields: runner_type, group_id, project_id, description, maintenance_note, paused, locked, access_level, run_untagged, tag_list, maximum_timeout, token_expires_at, token_rotation_deadline, sudo."""
     payload: dict = {}
+    if runner_type is None:
+        raise ValueError("Users.createCIRunner requires non-null body field: runner_type")
     payload["runner_type"] = runner_type
     if group_id is not _UNSET:
         payload["group_id"] = group_id
@@ -14411,7 +14942,11 @@ def users_create_ci_runner(runner_type: Literal["instance_type", "group_type", "
 def users_create_personal_access_token(user_id: str | int, name: str, scopes: list[str], description: str | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Users.createPersonalAccessToken (POST users/${userId}/personal_access_tokens). Body fields: name, scopes, description, expires_at, sudo."""
     payload: dict = {}
+    if name is None:
+        raise ValueError("Users.createPersonalAccessToken requires non-null body field: name")
     payload["name"] = name
+    if scopes is None:
+        raise ValueError("Users.createPersonalAccessToken requires non-null body field: scopes")
     payload["scopes"] = scopes
     if description is not _UNSET:
         payload["description"] = description
@@ -14523,7 +15058,11 @@ def users_edit(user_id: str | int, email: str | None | _Unset = _UNSET, password
 def users_edit_current_user_preferences(view_diffs_file_by_file: bool, show_whitespace_in_diffs: bool, pass_user_identities_to_ci_jwt: bool | None | _Unset = _UNSET, policy_advanced_editor: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Users.editCurrentUserPreferences (PUT user/preferences). Body fields: view_diffs_file_by_file, show_whitespace_in_diffs, pass_user_identities_to_ci_jwt, policy_advanced_editor, sudo."""
     payload: dict = {}
+    if view_diffs_file_by_file is None:
+        raise ValueError("Users.editCurrentUserPreferences requires non-null body field: view_diffs_file_by_file")
     payload["view_diffs_file_by_file"] = view_diffs_file_by_file
+    if show_whitespace_in_diffs is None:
+        raise ValueError("Users.editCurrentUserPreferences requires non-null body field: show_whitespace_in_diffs")
     payload["show_whitespace_in_diffs"] = show_whitespace_in_diffs
     if pass_user_identities_to_ci_jwt is not _UNSET:
         payload["pass_user_identities_to_ci_jwt"] = pass_user_identities_to_ci_jwt
@@ -14667,6 +15206,8 @@ def users_unfollow(user_id: str | int, sudo: str | int | _Unset = _UNSET):
 def user_starred_metrics_dashboard_create(project_id: str | int, dashboard_path: str, sudo: str | int | _Unset = _UNSET):
     """UserStarredMetricsDashboard.create (GET projects/${projectId}/metrics/user_starred_dashboards). Body fields: dashboard_path, sudo."""
     payload: dict = {}
+    if dashboard_path is None:
+        raise ValueError("UserStarredMetricsDashboard.create requires non-null request parameter: dashboard_path")
     payload["dashboard_path"] = dashboard_path
     if sudo is not _UNSET:
         payload["sudo"] = sudo
