@@ -14,6 +14,7 @@ import {
   CONCRETE_DEFAULT_OVERRIDES,
   CONDITIONAL_BRANCH_FIELD_JUDGMENTS,
   DOCUMENTED_SPEC_GAPS,
+  PUBLIC_UPLOAD_OVERRIDE_PROOFS,
   GITBEAKER_SOURCE_WIRE_NAME_JUDGMENTS,
   bodyFieldJudgmentKey,
   bodyFieldOverride,
@@ -23,6 +24,7 @@ import {
   type ConditionalBranchFieldJudgment,
   type ConcreteDefaultOverride,
   type GitbeakerSourceWireNameJudgment,
+  type PublicUploadOverrideProof,
 } from "./requiredBodyJudgments.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -32,6 +34,10 @@ const TOOLS_PATH = join(__dirname, "../src/gitlab_mcp/tools.py");
 const GITBEAKER_IMPLEMENTATION_PATH = join(
   __dirname,
   "node_modules/@gitbeaker/core/dist/index.js",
+);
+const GITBEAKER_TYPES_PATH = join(
+  __dirname,
+  "node_modules/@gitbeaker/core/dist/index.d.ts",
 );
 const PY_KEYWORDS: Record<string, true> = {
   False: true, None: true, True: true, and: true, as: true, assert: true,
@@ -192,7 +198,7 @@ function parameterDeclaration(signature: string, name: string): string | null {
   const end = nextParam?.index === undefined
     ? signature.length
     : nameStart + name.length + nextParam.index;
-  return signature.slice(nameStart, end).trim();
+  return signature.slice(nameStart, end).trim().replace(/,$/, "");
 }
 
 function generatedFunctions(source: string): { operations: GeneratedOperation[]; aliases: GeneratedAlias[] } {
@@ -292,6 +298,130 @@ function concreteDefaultProblem(
   return null;
 }
 
+function publicUploadOverrideProblem(
+  toolsSource: string,
+  proof: PublicUploadOverrideProof,
+  openApiOperation: RawOpenApiOperation,
+): string | null {
+  const source = toolsFunctionSource(toolsSource, proof.functionName);
+  if (!source) return "public override function no longer exists";
+
+  const decorator = new RegExp(
+    `@_op\\(gitlab_write\\)\\s*\\ndef ${escapeRegex(proof.functionName)}\\(`,
+  );
+  if (!decorator.test(toolsSource)) return "public override is no longer registered in gitlab_write";
+
+  const headerEnd = source.indexOf("):\n");
+  if (headerEnd === -1) return "public override header cannot be parsed";
+  const signature = source.slice(source.indexOf("(") + 1, headerEnd);
+  if (signature.includes("**")) return "public override no longer has a closed signature";
+
+  const encodedPath = proof.rawPath
+    .replace(/^\/api\/v4/, "")
+    .replace("{id}", "{_enc(project_id)}")
+    .replace("{issue_iid}", "{_enc(issue_iid)}")
+    .replace("{package_name}", "{_enc(package_name)}")
+    .replace("{name}", "{_enc(name)}");
+  const encodedWirePath = encodedPath + (proof.wirePathSuffix ?? "");
+  if (!source.includes(`f"${encodedWirePath}"`)) {
+    return "does not preserve the encoded OpenAPI path and exact wire suffix";
+  }
+
+  const filePath = parameterDeclaration(signature, "file_path");
+  if (!/^file_path\s*:\s*str$/.test(filePath ?? "")) {
+    return "does not expose a required file_path: str contract";
+  }
+  if (
+    !/\bp\s*=\s*_Path\(file_path\)\.expanduser\(\)/.test(source) ||
+    !/\bif not p\.exists\(\):/.test(source) ||
+    !/\bif not p\.is_file\(\):/.test(source)
+  ) {
+    return "does not guard file_path as an existing regular file";
+  }
+
+  const legacyParameters: Record<string, readonly string[]> = {
+    "Issues.uploadMetricImage": ["metric_image", "file"],
+    "NPM.uploadPackageFile": ["versions", "metadata", "file"],
+    "NuGet.uploadPackageFile": ["package_file", "package"],
+    "NuGet.uploadSymbolPackage": ["package_file", "package"],
+    "ProjectTerraformState.createVersion": ["file"],
+    "RubyGems.uploadGemFile": ["package_file", "file"],
+  };
+  const legacy = legacyParameters[proof.operation] ?? [];
+  if (legacy.some((name) => parameterDeclaration(signature, name))) {
+    return "still exposes an inline-binary or synthetic file parameter";
+  }
+
+  if (proof.serializer === "multipart-file-path") {
+    const multipartPart = new RegExp(
+      `\\bfiles\\s*=\\s*\\{\\s*["']${escapeRegex(proof.property)}["']\\s*:\\s*\\(`,
+    );
+    if (!multipartPart.test(source) || !/\bp\.read_bytes\(\)/.test(source)) {
+      return `does not construct multipart ${proof.property} bytes from file_path`;
+    }
+
+    const dataArguments = source.match(/\bdata\s*=/g) ?? [];
+    if (dataArguments.length > 0) {
+      if (
+        dataArguments.length !== 1 ||
+        !/\bdata\s*=\s*form\b/.test(source) ||
+        !/\bform\s*:\s*dict\[str,\s*str\]\s*=\s*\{\}/.test(source) ||
+        /\bform\s*\[\s*(?!["'])/.test(source) ||
+        /\bform\.(?:update|setdefault)\s*\(/.test(source)
+      ) {
+        return "does not limit multipart auxiliary fields to proven wire names";
+      }
+
+      const provenAuxiliaryFields = new Set(
+        openApiOperation.bodyFields
+          .map((field) => field.name)
+          .filter((field) => field !== proof.property),
+      );
+      const auxiliaryFields = [...source.matchAll(
+        /\bform\s*\[\s*["']([^"']+)["']\s*\]\s*=/g,
+      )].map((match) => match[1]);
+      const unprovenAuxiliaryFields = auxiliaryFields.filter(
+        (field) => !provenAuxiliaryFields.has(field),
+      );
+      if (unprovenAuxiliaryFields.length > 0) {
+        return `serializes unproven multipart auxiliary field(s): ${unprovenAuxiliaryFields.join(", ")}`;
+      }
+    }
+  } else {
+    const contentType = proof.serializer === "raw-json-file-path"
+      ? "application/json"
+      : "application/octet-stream";
+    const contentArguments = source.match(/\bcontent\s*=/g) ?? [];
+    const contentTypeHeader = new RegExp(
+      `\\bheaders\\s*=\\s*\\{[^\\n}]*["']Content-Type["']\\s*:\\s*["']${escapeRegex(contentType)}["']`,
+    );
+    const directContentTypeHeader = new RegExp(
+      `\\._request\\(\\s*"${escapeRegex(proof.verb)}"\\s*,\\s*f"${escapeRegex(encodedWirePath)}"[\\s\\S]*?\\bcontent\\s*=\\s*p\\.read_bytes\\(\\)[\\s\\S]*?\\bheaders\\s*=\\s*\\{[^\\n}]*["']Content-Type["']\\s*:\\s*["']${escapeRegex(contentType)}["']`,
+    );
+    const namedContentTypeHeader = new RegExp(
+      `\\._request\\(\\s*"${escapeRegex(proof.verb)}"\\s*,\\s*f"${escapeRegex(encodedWirePath)}"[\\s\\S]*?\\bcontent\\s*=\\s*p\\.read_bytes\\(\\)[\\s\\S]*?\\bheaders\\s*=\\s*headers\\b`,
+    );
+    if (
+      contentArguments.length !== 1 ||
+      (!directContentTypeHeader.test(source) &&
+        (!contentTypeHeader.test(source) || !namedContentTypeHeader.test(source)))
+    ) {
+      return `does not send raw file_path bytes with Content-Type ${contentType}`;
+    }
+    if (/\bfiles\s*=/.test(source) || /\bjson\s*=/.test(source)) {
+      return "uses multipart or JSON reserialization instead of the raw request body";
+    }
+  }
+
+  const request = new RegExp(
+    `\\._request\\(\\s*"${escapeRegex(proof.verb)}"\\s*,\\s*f"${escapeRegex(encodedWirePath)}"`,
+  );
+  const response = /return _ok\(None if r\.status_code == 204 or not r\.content else r\.json\(\)\)/;
+  return request.test(source) && response.test(source)
+    ? null
+    : "does not preserve the exact HTTP verb, path, and response handling";
+}
+
 function namingOverrideProblem(
   op: GeneratedOperation,
   fieldName: string,
@@ -352,6 +482,315 @@ function gitbeakerSourceWireNameProblem(
   return sourceMapping.test(methodBody)
     ? null
     : `source no longer maps ${judgment.sourceVariable} to ${judgment.sourceWireName}`;
+}
+
+function gitbeakerTypeClassSource(source: string, klass: string): string | null {
+  const start = source.indexOf(`declare class ${klass}<`);
+  if (start === -1) return null;
+  const end = source.indexOf("\n}", start);
+  return end === -1 ? null : source.slice(start, end + 2);
+}
+
+function gitbeakerTypeAliasSource(source: string, alias: string): string | null {
+  const start = source.indexOf(`type ${alias} = {`);
+  if (start === -1) return null;
+  const end = source.indexOf("\n};", start);
+  return end === -1 ? null : source.slice(start, end + 3);
+}
+
+function gitbeakerTypeMethodDeclaration(
+  classSource: string,
+  method: string,
+): string | null {
+  const head = new RegExp(
+    `^    ${escapeRegex(method)}(?:<[^\\n]*>)?\\(`,
+    "m",
+  ).exec(classSource);
+  if (!head || head.index === undefined) return null;
+
+  const open = classSource.indexOf("(", head.index);
+  let cursor = open + 1;
+  let depth = 1;
+  while (cursor < classSource.length && depth > 0) {
+    if (classSource[cursor] === "(") depth++;
+    else if (classSource[cursor] === ")") depth--;
+    cursor++;
+  }
+  return depth === 0 ? classSource.slice(head.index, cursor) : null;
+}
+
+function gitbeakerImplementationMethodSource(
+  source: string,
+  operation: string,
+): string | null {
+  const [klass, method] = operation.split(".");
+  const classStart = source.indexOf(
+    `var ${klass} = class extends requesterUtils.BaseResource {`,
+  );
+  if (classStart === -1) return null;
+  const classEnd = source.indexOf("\n};", classStart);
+  if (classEnd === -1) return null;
+
+  const classSource = source.slice(classStart, classEnd);
+  const methodHead = new RegExp(
+    `^  ${escapeRegex(method)}\\(([^)]*)\\)\\s*\\{`,
+    "m",
+  ).exec(classSource);
+  if (!methodHead || methodHead.index === undefined) return null;
+
+  const bodyStart = methodHead.index + methodHead[0].lastIndexOf("{");
+  let cursor = bodyStart + 1;
+  let depth = 1;
+  while (cursor < classSource.length && depth > 0) {
+    if (classSource[cursor] === "{") depth++;
+    else if (classSource[cursor] === "}") depth--;
+    cursor++;
+  }
+  return depth === 0 ? classSource.slice(methodHead.index, cursor) : null;
+}
+
+function documentedSpecGapRationaleProblem(
+  openApiOperation: RawOpenApiOperation,
+  implementationSource: string,
+  typesSource: string,
+  gap: { operation: string; property: string },
+): string | null {
+  const typeClass = gitbeakerTypeClassSource(
+    typesSource,
+    gap.operation.split(".")[0],
+  );
+  const typeMethod = typeClass
+    ? gitbeakerTypeMethodDeclaration(typeClass, gap.operation.split(".")[1])
+    : null;
+  const implementationMethod = gitbeakerImplementationMethodSource(
+    implementationSource,
+    gap.operation,
+  );
+  const key = `${gap.operation} ${gap.property}`;
+
+  if (
+    key === "RepositoryFiles.create file" ||
+    key === "RepositoryFiles.edit file"
+  ) {
+    if (
+      !typeMethod ||
+      !/\bbranch\s*:\s*string\b/.test(typeMethod) ||
+      !/\bcontent\s*:\s*string\b/.test(typeMethod) ||
+      !/\bcommitMessage\s*:\s*string\b/.test(typeMethod) ||
+      /\bfile\s*:/.test(typeMethod)
+    ) {
+      return "GitBeaker no longer exposes the branch/content/commitMessage file JSON contract";
+    }
+    if (
+      !implementationMethod ||
+      !/\bbranch\s*,\s*\bcontent\s*,\s*\bcommitMessage\s*,\s*\.\.\.options/.test(
+        implementationMethod,
+      ) ||
+      /\bfile\s*:/.test(implementationMethod)
+    ) {
+      return "GitBeaker no longer constructs the branch/content/commitMessage file JSON contract";
+    }
+  }
+
+  if (key === "Issues.uploadMetricImage file") {
+    if (
+      !typeMethod ||
+      !/\bmetricImage\s*:\s*\{[\s\S]*?\bcontent\s*:\s*Blob;[\s\S]*?\bfilename\s*:\s*string;/.test(
+        typeMethod,
+      )
+    ) {
+      return "GitBeaker no longer exposes the metricImage content/filename contract";
+    }
+    if (
+      !implementationMethod ||
+      !/\bisForm\s*:\s*true/.test(implementationMethod) ||
+      !/\bfile\s*:\s*\[\s*metricImage\.content\s*,\s*metricImage\.filename\s*\]/.test(
+        implementationMethod,
+      )
+    ) {
+      return "GitBeaker no longer constructs the metric-image multipart contract";
+    }
+  }
+
+  if (
+    key === "NuGet.uploadPackageFile package" ||
+    key === "NuGet.uploadSymbolPackage package"
+  ) {
+    if (
+      !typeMethod ||
+      !/\bpackageFile\s*:\s*\{[\s\S]*?\bcontent\s*:\s*Blob;[\s\S]*?\bfilename\s*:\s*string;/.test(
+        typeMethod,
+      )
+    ) {
+      return "GitBeaker no longer exposes the NuGet packageFile content/filename contract";
+    }
+    if (
+      !implementationMethod ||
+      !/\bisForm\s*:\s*true/.test(implementationMethod) ||
+      !/\bpackageName\b/.test(implementationMethod) ||
+      !/\bpackageVersion\b/.test(implementationMethod) ||
+      !/\bfile\s*:\s*\[\s*packageFile\.content\s*,\s*packageFile\.filename\s*\]/.test(
+        implementationMethod,
+      )
+    ) {
+      return "GitBeaker no longer constructs the NuGet multipart package contract";
+    }
+  }
+
+  if (key === "ProjectTerraformState.createVersion file") {
+    if (!typeMethod || /\bfile\s*:/.test(typeMethod)) {
+      return "GitBeaker no longer exposes the no-file Terraform state type contract";
+    }
+    if (
+      !implementationMethod ||
+      !/RequestHelper\.post\(\)/.test(implementationMethod) ||
+      !/\bcreateVersion\(projectId,\s*name,\s*options\)/.test(implementationMethod) ||
+      /\bfile\s*:/.test(implementationMethod)
+    ) {
+      return "GitBeaker no longer forwards the untyped Terraform state options contract";
+    }
+  }
+
+  if (key === "RubyGems.uploadGemFile file") {
+    if (
+      !typeMethod ||
+      !/\bpackageFile\s*:\s*\{[\s\S]*?\bcontent\s*:\s*Blob;[\s\S]*?\bfilename\s*:\s*string;/.test(
+        typeMethod,
+      )
+    ) {
+      return "GitBeaker no longer exposes the RubyGems packageFile content/filename contract";
+    }
+    if (
+      !implementationMethod ||
+      !/\bisForm\s*:\s*true/.test(implementationMethod) ||
+      !/\bfile\s*:\s*\[\s*packageFile\.content\s*,\s*packageFile\.filename\s*\]/.test(
+        implementationMethod,
+      )
+    ) {
+      return "GitBeaker no longer constructs the RubyGems multipart package contract";
+    }
+  }
+
+  if (key === "Commits.create file") {
+    if (!typeMethod || /\bfile\s*:/.test(typeMethod)) {
+      return "GitBeaker no longer exposes the no-file commit type contract";
+    }
+    if (
+      !implementationMethod ||
+      !/\bbranch\b/.test(implementationMethod) ||
+      !/\bcommitMessage\s*:\s*message\b/.test(implementationMethod) ||
+      !/\bactions\b/.test(implementationMethod) ||
+      /\bfile\s*:/.test(implementationMethod)
+    ) {
+      return "GitBeaker no longer constructs the branch/commitMessage/actions JSON contract";
+    }
+  }
+
+  if (
+    key === "Commits.createComment line" ||
+    key === "Commits.createComment line_type"
+  ) {
+    if (
+      !typeMethod ||
+      !/\bpath\s*\?:/.test(typeMethod) ||
+      !/\bline\s*\?:/.test(typeMethod) ||
+      !/\blineType\s*\?:/.test(typeMethod)
+    ) {
+      return "GitBeaker no longer exposes optional inline-comment selectors";
+    }
+    if (!implementationMethod || !/\.\.\.options\b/.test(implementationMethod)) {
+      return "GitBeaker no longer forwards optional inline-comment selectors";
+    }
+  }
+
+  if (key === "NPM.uploadPackageFile file") {
+    if (!typeMethod || /\bfile\s*:/.test(typeMethod)) {
+      return "GitBeaker no longer exposes the metadata-only NPM publish type contract";
+    }
+    if (
+      !implementationMethod ||
+      !/\bversions\b/.test(implementationMethod) ||
+      !/\.\.\.metadata\b/.test(implementationMethod) ||
+      /\bfile\s*:/.test(implementationMethod)
+    ) {
+      return "GitBeaker no longer constructs the metadata-only NPM publish contract";
+    }
+  }
+
+  if (key === "ProjectImportExports.importRemoteS3 url") {
+    const sourceParameters = [
+      "accessKeyId",
+      "bucketName",
+      "fileKey",
+      "path",
+      "region",
+      "secretAccessKey",
+    ];
+    if (
+      !typeMethod ||
+      sourceParameters.some((name) => !new RegExp(`\\b${name}\\s*:`).test(typeMethod)) ||
+      /\burl\s*:/.test(typeMethod)
+    ) {
+      return "GitBeaker no longer exposes the S3-only import positional contract";
+    }
+    if (
+      !implementationMethod ||
+      sourceParameters.some((name) => !new RegExp(`\\b${name}\\b`).test(implementationMethod)) ||
+      /\burl\s*:/.test(implementationMethod)
+    ) {
+      return "GitBeaker no longer constructs the S3-only import contract";
+    }
+  }
+
+  if (
+    key === "ProjectSnippets.create file_name" ||
+    key === "Snippets.create file_name"
+  ) {
+    const snippetOptions = gitbeakerTypeAliasSource(typesSource, "CreateSnippetOptions");
+    if (!openApiOperation.bodyFields.some((field) => field.name === "files")) {
+      return "OpenAPI no longer admits the files alternative";
+    }
+    if (
+      !typeMethod ||
+      !/\boptions\s*\?:\s*CreateSnippetOptions\b/.test(typeMethod) ||
+      !snippetOptions ||
+      !/\bfiles\s*\?:/.test(snippetOptions) ||
+      !/\bfilePath\s*:/.test(snippetOptions) ||
+      !/\bcontent\s*:/.test(snippetOptions)
+    ) {
+      return "GitBeaker no longer exposes the files alternative";
+    }
+    if (!implementationMethod || !/\.\.\.options\b/.test(implementationMethod)) {
+      return "GitBeaker no longer forwards the files alternative";
+    }
+  }
+
+  if (
+    key === "Users.createCIRunner group_id" ||
+    key === "Users.createCIRunner project_id"
+  ) {
+    const runnerOptions = gitbeakerTypeAliasSource(typesSource, "CreateUserCIRunnerOptions");
+    if (!openApiOperation.bodyFields.some(
+      (field) => field.name === "runner_type" && field.required,
+    )) {
+      return "OpenAPI no longer identifies runner_type as the required scope selector";
+    }
+    if (
+      !typeMethod ||
+      !/\brunnerType\s*:\s*'instance_type'\s*\|\s*'group_type'\s*\|\s*'project_type'/.test(typeMethod) ||
+      !/\boptions\s*\?:\s*CreateUserCIRunnerOptions\b/.test(typeMethod) ||
+      !runnerOptions ||
+      !/\bgroupId\s*\?:/.test(runnerOptions) ||
+      !/\bprojectId\s*\?:/.test(runnerOptions)
+    ) {
+      return "GitBeaker no longer exposes optional runner scopes selected by runner_type";
+    }
+    if (!implementationMethod || !/\.\.\.options\b/.test(implementationMethod)) {
+      return "GitBeaker no longer forwards optional runner scopes";
+    }
+  }
+
+  return null;
 }
 
 function conditionalBranchFieldProblem(
@@ -463,6 +902,7 @@ const gitbeakerImplementationSource = readFileSync(
   GITBEAKER_IMPLEMENTATION_PATH,
   "utf-8",
 );
+const gitbeakerTypesSource = readFileSync(GITBEAKER_TYPES_PATH, "utf-8");
 const canonical = new Set(generated.operations.map((op) => op.operation));
 for (const alias of generated.aliases) {
   if (!canonical.has(alias.target)) {
@@ -476,6 +916,7 @@ const appliedBodyOverrides = new Set<string>();
 const appliedConcreteDefaults = new Set<string>();
 const appliedConditionalBranchFields = new Set<string>();
 const appliedGitbeakerSourceWireNameJudgments = new Set<string>();
+const appliedPublicUploadOverrideProofs = new Set<string>();
 let joinedOperations = 0;
 for (const operation of generated.operations) {
   for (const path of operation.paths) {
@@ -517,6 +958,17 @@ for (const operation of generated.operations) {
       );
       if (gap) {
         appliedSpecGaps.add(bodyFieldJudgmentKey(gap));
+        const problem = documentedSpecGapRationaleProblem(
+          openApiOperation,
+          gitbeakerImplementationSource,
+          gitbeakerTypesSource,
+          gap,
+        );
+        if (problem) {
+          failures.add(
+            `${operation.operation}: documented spec gap ${field.name} ${problem} (${operation.verb} ${openApiOperation.rawPath})`,
+          );
+        }
         continue;
       }
 
@@ -557,7 +1009,40 @@ for (const operation of generated.operations) {
   }
 }
 
-// OpenAPI does not declare import_url for pull mirrors, so verify the exact GitBeaker mapping independently.
+// A documented source/spec divergence is not enough for an exposed upload:
+// each public replacement must retain its exact closed signature and wire shape.
+for (const proof of PUBLIC_UPLOAD_OVERRIDE_PROOFS) {
+  const operation = generated.operations.find(
+    (candidate) =>
+      candidate.operation === proof.operation &&
+      candidate.verb === proof.verb,
+  );
+  if (!operation) continue;
+  const path = operation.paths.find(
+    (candidate) =>
+      conformancePath(candidate) === conformancePath(proof.rawPath),
+  );
+  if (!path) continue;
+  const openApiOperation = rawOpenApi.get(
+    conformanceKey(operation.verb, path.split("?", 1)[0]),
+  );
+  if (!openApiOperation?.bodyFields.some(
+    (field) => field.name === proof.property && field.required,
+  )) {
+    continue;
+  }
+
+  appliedPublicUploadOverrideProofs.add(bodyFieldJudgmentKey(proof));
+  const problem = publicUploadOverrideProblem(toolsSource, proof, openApiOperation);
+  if (problem) {
+    failures.add(
+      `${proof.operation}: public upload override ${proof.functionName} ${problem} (${proof.verb} ${proof.rawPath})`,
+    );
+  }
+}
+
+// Stale-check exact GitBeaker positional-to-wire mappings and ensure the generated
+// wrapper exposes the judgment's canonical caller/wire contract.
 for (const judgment of GITBEAKER_SOURCE_WIRE_NAME_JUDGMENTS) {
   const operation = generated.operations.find(
     (candidate) =>
@@ -587,7 +1072,7 @@ for (const judgment of GITBEAKER_SOURCE_WIRE_NAME_JUDGMENTS) {
   const generatedProblem = namingOverrideProblem(
     operation,
     judgment.wireName,
-    judgment.sourceParameter,
+    judgment.callerName ?? judgment.sourceParameter,
   );
   if (generatedProblem) {
     failures.add(
@@ -641,6 +1126,17 @@ if (staleSpecGaps.length > 0) {
   throw new Error(
     `Stale required-body spec gaps:\n${staleSpecGaps
       .map((gap) => `  ${gap.operation}: ${gap.verb} ${gap.rawPath} ${gap.property} - ${gap.rationale}`)
+      .join("\n")}`,
+  );
+}
+
+const stalePublicUploadOverrideProofs = PUBLIC_UPLOAD_OVERRIDE_PROOFS.filter(
+  (proof) => !appliedPublicUploadOverrideProofs.has(bodyFieldJudgmentKey(proof)),
+);
+if (stalePublicUploadOverrideProofs.length > 0) {
+  throw new Error(
+    `Stale public upload override proofs:\n${stalePublicUploadOverrideProofs
+      .map((proof) => `  ${proof.operation}: ${proof.verb} ${proof.rawPath} ${proof.functionName}`)
       .join("\n")}`,
   );
 }

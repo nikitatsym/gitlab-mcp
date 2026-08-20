@@ -226,6 +226,65 @@ class TestStrictRejectionOnTypedGeneratedOp:
         assert "assignee_id" not in body
 
 
+# ── Canonical search wire contracts ────────────────────────────────────────
+
+
+class TestCanonicalSearchWireContracts:
+    @pytest.mark.parametrize(
+        ("operation", "function_name", "path", "obsolete_field"),
+        [
+            ("GroupsSearch", "groups_search", "/api/v4/groups", "name_or_path"),
+            ("ProjectsSearch", "projects_search", "/api/v4/projects", "project_name"),
+        ],
+    )
+    def test_search_accepts_canonical_wire_key_and_rejects_obsolete_alias(
+        self, operation, function_name, path, obsolete_field
+    ):
+        """Search calls expose and send only the GitLab `search` query field."""
+        seen: list[tuple[str, dict[str, str]]] = []
+        needle = f"{operation}-needle"
+
+        def handler(req):
+            seen.append((req.url.path, dict(req.url.params)))
+            return httpx.Response(200, json=[])
+
+        _seed_and_register("gitlab", handler)
+        from gitlab_mcp import _generated, server
+
+        fn = getattr(_generated, function_name)
+
+        try:
+            result = server._dispatch(operation, "gitlab_read", {"search": needle})
+        except ValueError as error:
+            pytest.fail(
+                f"{operation} ({path}) missing canonical search contract: "
+                f"caller-facing `search` must be accepted and serialized as wire "
+                f"`search`; {error}"
+            )
+        assert result == []
+        assert seen == [(path, {"search": needle})]
+        schema = fn._mcp_params_model.model_json_schema()
+        properties = schema["properties"]
+        assert "search" in properties, (
+            f"{operation} ({path}) must advertise the canonical `search` field"
+        )
+        assert "search" in schema.get("required", []), (
+            f"{operation} ({path}) must require the canonical `search` field"
+        )
+        assert obsolete_field not in properties, (
+            f"{operation} ({path}) must not advertise obsolete `{obsolete_field}`"
+        )
+
+        help_text = server._format_help_full({operation: fn}, "gitlab_read", "")
+        assert f"{operation}(search: str" in help_text
+        assert obsolete_field not in help_text
+
+        with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+            server._dispatch(
+                operation, "gitlab_read", {obsolete_field: needle}
+            )
+
+
 # ── Codegen overload/selector regressions ─────────────────────────────────
 
 

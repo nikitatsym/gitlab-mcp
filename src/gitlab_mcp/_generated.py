@@ -1579,7 +1579,7 @@ def broadcast_messages_all(page: int | None | _Unset = _UNSET, per_page: int | N
     return _ok(_get_client().request("GET", f"/broadcast_messages", params=payload))
 
 
-def broadcast_messages_create(message: str, starts_at: str | None | _Unset = _UNSET, ends_at: str | None | _Unset = _UNSET, color: str | None | _Unset = _UNSET, font: str | None | _Unset = _UNSET, target_access_levels: list[Literal[0, 5, 10, 15, 20, 30, 40, 50]] | None | _Unset = _UNSET, target_path: str | None | _Unset = _UNSET, broadcast_type: Literal["banner", "notification"] | None | _Unset = _UNSET, dismissable: bool | None | _Unset = _UNSET, theme: Literal["indigo", "light-indigo", "blue", "light-blue", "green", "light-green", "red", "light-red", "dark", "light"] | None | _Unset = _UNSET, active: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def broadcast_messages_create(message: str, starts_at: str | None | _Unset = _UNSET, ends_at: str | None | _Unset = _UNSET, color: str | None | _Unset = _UNSET, font: str | None | _Unset = _UNSET, target_access_levels: list[Literal[10, 15, 20, 30, 40, 50]] | None | _Unset = _UNSET, target_path: str | None | _Unset = _UNSET, broadcast_type: Literal["banner", "notification"] | None | _Unset = _UNSET, dismissable: bool | None | _Unset = _UNSET, theme: Literal["indigo", "light-indigo", "blue", "light-blue", "green", "light-green", "red", "light-red", "dark", "light"] | None | _Unset = _UNSET, active: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """BroadcastMessages.create (POST broadcast_messages). Body fields: message, starts_at, ends_at, color, font, target_access_levels, target_path, broadcast_type, dismissable, theme, active, sudo."""
     payload: dict = {}
     if message is None:
@@ -1610,7 +1610,7 @@ def broadcast_messages_create(message: str, starts_at: str | None | _Unset = _UN
     return _ok(_get_client().request("POST", f"/broadcast_messages", json=payload))
 
 
-def broadcast_messages_edit(broadcast_message_id: str | int, message: str | None | _Unset = _UNSET, starts_at: str | None | _Unset = _UNSET, ends_at: str | None | _Unset = _UNSET, color: str | None | _Unset = _UNSET, font: str | None | _Unset = _UNSET, target_access_levels: list[Literal[0, 5, 10, 15, 20, 30, 40, 50]] | None | _Unset = _UNSET, target_path: str | None | _Unset = _UNSET, broadcast_type: Literal["banner", "notification"] | None | _Unset = _UNSET, dismissable: bool | None | _Unset = _UNSET, theme: Literal["indigo", "light-indigo", "blue", "light-blue", "green", "light-green", "red", "light-red", "dark", "light"] | None | _Unset = _UNSET, active: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def broadcast_messages_edit(broadcast_message_id: str | int, message: str | None | _Unset = _UNSET, starts_at: str | None | _Unset = _UNSET, ends_at: str | None | _Unset = _UNSET, color: str | None | _Unset = _UNSET, font: str | None | _Unset = _UNSET, target_access_levels: list[Literal[10, 15, 20, 30, 40, 50]] | None | _Unset = _UNSET, target_path: str | None | _Unset = _UNSET, broadcast_type: Literal["banner", "notification"] | None | _Unset = _UNSET, dismissable: bool | None | _Unset = _UNSET, theme: Literal["indigo", "light-indigo", "blue", "light-blue", "green", "light-green", "red", "light-red", "dark", "light"] | None | _Unset = _UNSET, active: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """BroadcastMessages.edit (PUT broadcast_messages/${broadcastMessageId}). Body fields: message, starts_at, ends_at, color, font, target_access_levels, target_path, broadcast_type, dismissable, theme, active, sudo."""
     payload: dict = {}
     if message is not _UNSET:
@@ -2976,7 +2976,7 @@ def go_proxy_show_version_metadata(project_id: str | int, module_name: str | int
 # ── GroupAccessRequests ───────────────────────────────────────────────────
 
 def group_access_requests_all(group_id: str | int, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, order_by: str | _Unset = _UNSET, sort: Literal["asc", "desc"] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """GroupAccessRequests.all (GET projects/${groupId}/access_requests). Body fields: page, per_page, pagination, max_pages, order_by, sort, sudo."""
+    """GroupAccessRequests.all (GET groups/${groupId}/access_requests). Body fields: page, per_page, pagination, max_pages, order_by, sort, sudo."""
     payload: dict = {}
     if page is not _UNSET:
         payload["page"] = page
@@ -2992,33 +2992,33 @@ def group_access_requests_all(group_id: str | int, page: int | None | _Unset = _
         payload["sort"] = sort
     if sudo is not _UNSET:
         payload["sudo"] = sudo
-    return _ok(_get_client().request("GET", f"/projects/{_enc(group_id)}/access_requests", params=payload))
+    return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/access_requests", params=payload))
 
 
 def group_access_requests_approve(group_id: str | int, user_id: str | int, access_level: Literal[0, 5, 10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """GroupAccessRequests.approve (PUT projects/${groupId}/access_requests/${userId}/approve). Body fields: access_level, sudo."""
+    """GroupAccessRequests.approve (PUT groups/${groupId}/access_requests/${userId}/approve). Body fields: access_level, sudo."""
     payload: dict = {}
     if access_level is not _UNSET:
         payload["access_level"] = access_level
     if sudo is not _UNSET:
         payload["sudo"] = sudo
-    return _ok(_get_client().request("PUT", f"/projects/{_enc(group_id)}/access_requests/{_enc(user_id)}/approve", json=payload))
+    return _ok(_get_client().request("PUT", f"/groups/{_enc(group_id)}/access_requests/{_enc(user_id)}/approve", json=payload))
 
 
 def group_access_requests_deny(group_id: str | int, user_id: str | int, sudo: str | int | _Unset = _UNSET):
-    """GroupAccessRequests.deny (DELETE projects/${groupId}/access_requests/${userId}). Body fields: sudo."""
+    """GroupAccessRequests.deny (DELETE groups/${groupId}/access_requests/${userId}). Body fields: sudo."""
     payload: dict = {}
     if sudo is not _UNSET:
         payload["sudo"] = sudo
-    return _ok(_get_client().request("DELETE", f"/projects/{_enc(group_id)}/access_requests/{_enc(user_id)}", params=payload))
+    return _ok(_get_client().request("DELETE", f"/groups/{_enc(group_id)}/access_requests/{_enc(user_id)}", params=payload))
 
 
 def group_access_requests_request(group_id: str | int, sudo: str | int | _Unset = _UNSET):
-    """GroupAccessRequests.request (POST projects/${groupId}/access_requests). Body fields: sudo."""
+    """GroupAccessRequests.request (POST groups/${groupId}/access_requests). Body fields: sudo."""
     payload: dict = {}
     if sudo is not _UNSET:
         payload["sudo"] = sudo
-    return _ok(_get_client().request("POST", f"/projects/{_enc(group_id)}/access_requests", json=payload))
+    return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/access_requests", json=payload))
 
 
 # ── GroupAccessTokens ─────────────────────────────────────────────────────
@@ -3543,7 +3543,7 @@ def group_import_exports_schedule_export(group_id: str | int, sudo: str | int | 
 
 # ── GroupInvitations ──────────────────────────────────────────────────────
 
-def group_invitations_add(group_id: str | int, access_level: Literal[10, 15, 20, 30, 40, 50, 5, 0], email: list[str] | None | _Unset = _UNSET, user_id: list[str] | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, tasks_to_be_done: list[str] | _Unset = _UNSET, tasks_project_id: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_invitations_add(group_id: str | int, access_level: Literal[5, 10, 15, 20, 30, 40, 50], email: list[str] | None | _Unset = _UNSET, user_id: list[str] | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, tasks_to_be_done: list[str] | _Unset = _UNSET, tasks_project_id: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupInvitations.add (POST groups/${groupId}/invitations). Body fields: access_level, email, user_id, expires_at, invite_source, member_role_id, tasks_to_be_done, tasks_project_id, sudo."""
     payload: dict = {}
     if access_level is None:
@@ -4003,7 +4003,7 @@ def group_markdown_uploads_remove(group_id: str | int, upload_id_or_secret: str 
 
 # ── GroupMemberRoles ──────────────────────────────────────────────────────
 
-def group_member_roles_add(group_id: str | int, base_access_level: Literal[10, 20, 30, 40, 50, 15], access_level: Literal[0, 5, 10, 15, 20, 30, 40, 50], user_id: int | str | None | _Unset = _UNSET, username: str | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, read_code: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_member_roles_add(group_id: str | int, base_access_level: Literal[10, 15, 20, 30, 40, 50], access_level: int, user_id: int | str | None | _Unset = _UNSET, username: str | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, read_code: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupMemberRoles.add (POST groups/${groupId}/members). Body fields: base_access_level, access_level, user_id, username, expires_at, invite_source, read_code, sudo."""
     payload: dict = {}
     if base_access_level is None:
@@ -4951,12 +4951,12 @@ def groups_restore(group_id: str | int, sudo: str | int | _Unset = _UNSET):
     return _ok(_get_client().request("POST", f"/groups/{_enc(group_id)}/restore", json=payload))
 
 
-def groups_search(name_or_path: str, statistics: bool | None | _Unset = _UNSET, archived: bool | None | _Unset = _UNSET, skip_groups: list[int] | None | _Unset = _UNSET, all_available: bool | None | _Unset = _UNSET, visibility: Literal["private", "internal", "public"] | None | _Unset = _UNSET, search: str | None | _Unset = _UNSET, owned: bool | None | _Unset = _UNSET, order_by: Literal["name", "path", "id", "similarity"] | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, min_access_level: Literal[10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, top_level_only: bool | None | _Unset = _UNSET, marked_for_deletion_on: str | None | _Unset = _UNSET, active: bool | None | _Unset = _UNSET, repository_storage: str | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, with_custom_attributes: bool | None | _Unset = _UNSET, custom_attributes: dict | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Groups.search (GET groups). Body fields: name_or_path, statistics, archived, skip_groups, all_available, visibility, search, owned, order_by, sort, min_access_level, top_level_only, marked_for_deletion_on, active, repository_storage, page, per_page, with_custom_attributes, custom_attributes, sudo."""
+def groups_search(search: str, statistics: bool | None | _Unset = _UNSET, archived: bool | None | _Unset = _UNSET, skip_groups: list[int] | None | _Unset = _UNSET, all_available: bool | None | _Unset = _UNSET, visibility: Literal["private", "internal", "public"] | None | _Unset = _UNSET, owned: bool | None | _Unset = _UNSET, order_by: Literal["name", "path", "id", "similarity"] | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, min_access_level: Literal[10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, top_level_only: bool | None | _Unset = _UNSET, marked_for_deletion_on: str | None | _Unset = _UNSET, active: bool | None | _Unset = _UNSET, repository_storage: str | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, with_custom_attributes: bool | None | _Unset = _UNSET, custom_attributes: dict | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """Groups.search (GET groups). Body fields: search, statistics, archived, skip_groups, all_available, visibility, owned, order_by, sort, min_access_level, top_level_only, marked_for_deletion_on, active, repository_storage, page, per_page, with_custom_attributes, custom_attributes, sudo."""
     payload: dict = {}
-    if name_or_path is None:
-        raise ValueError("Groups.search requires non-null request parameter: name_or_path")
-    payload["name_or_path"] = name_or_path
+    if search is None:
+        raise ValueError("Groups.search requires non-null query parameter: search")
+    payload["search"] = search
     if statistics is not _UNSET:
         payload["statistics"] = statistics
     if archived is not _UNSET:
@@ -4967,8 +4967,6 @@ def groups_search(name_or_path: str, statistics: bool | None | _Unset = _UNSET, 
         payload["all_available"] = all_available
     if visibility is not _UNSET:
         payload["visibility"] = visibility
-    if search is not _UNSET:
-        payload["search"] = search
     if owned is not _UNSET:
         payload["owned"] = owned
     if order_by is not _UNSET:
@@ -5124,7 +5122,7 @@ def group_saml_links_all(group_id: str | int, pagination: Any | _Unset = _UNSET,
     return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/saml_group_links", params=payload))
 
 
-def group_saml_links_create(group_id: str | int, saml_group_name: str, access_level: Literal[5, 10, 15, 20, 30, 40, 50, 0], member_role_id: int | None | _Unset = _UNSET, provider: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def group_saml_links_create(group_id: str | int, saml_group_name: str, access_level: Literal[5, 10, 15, 20, 30, 40, 50], member_role_id: int | None | _Unset = _UNSET, provider: str | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """GroupSAMLLinks.create (POST groups/${groupId}/saml_group_links). Body fields: saml_group_name, access_level, member_role_id, provider, sudo."""
     payload: dict = {}
     if saml_group_name is None:
@@ -5881,13 +5879,15 @@ def issue_milestone_events_show(project_id: str | int, issue_iid: str | int, mil
 
 # ── IssueNoteAwardEmojis ──────────────────────────────────────────────────
 
-def issue_note_award_emojis_all(project_id: str | int, resource_iid: str | int, note_id: str | int, pagination: Any | _Unset = _UNSET, per_page: str | int | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, order_by: str | _Unset = _UNSET, sort: Literal["asc", "desc"] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET, page: str | int | _Unset = _UNSET):
-    """IssueNoteAwardEmojis.all (GET issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+def issue_note_award_emojis_all(project_id: str | int, resource_iid: str | int, note_id: str | int, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, order_by: str | _Unset = _UNSET, sort: Literal["asc", "desc"] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """IssueNoteAwardEmojis.all (GET projects/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji). Body fields: page, per_page, pagination, max_pages, order_by, sort, sudo."""
     payload: dict = {}
-    if pagination is not _UNSET:
-        payload["pagination"] = pagination
+    if page is not _UNSET:
+        payload["page"] = page
     if per_page is not _UNSET:
         payload["per_page"] = per_page
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
     if max_pages is not _UNSET:
         payload["max_pages"] = max_pages
     if order_by is not _UNSET:
@@ -5896,36 +5896,34 @@ def issue_note_award_emojis_all(project_id: str | int, resource_iid: str | int, 
         payload["sort"] = sort
     if sudo is not _UNSET:
         payload["sudo"] = sudo
-    if page is not _UNSET:
-        payload["page"] = page
-    return _ok(_get_client().request("GET", f"/issues/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", params=payload))
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", params=payload))
 
 
 def issue_note_award_emojis_award(project_id: str | int, resource_iid: str | int, note_id: str | int, name: str, sudo: str | int | _Unset = _UNSET):
-    """IssueNoteAwardEmojis.award (POST issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji). Body fields: name, sudo."""
+    """IssueNoteAwardEmojis.award (POST projects/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji). Body fields: name, sudo."""
     payload: dict = {}
     if name is None:
         raise ValueError("IssueNoteAwardEmojis.award requires non-null body field: name")
     payload["name"] = name
     if sudo is not _UNSET:
         payload["sudo"] = sudo
-    return _ok(_get_client().request("POST", f"/issues/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", json=payload))
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", json=payload))
 
 
 def issue_note_award_emojis_remove(project_id: str | int, resource_iid: str | int, note_id: str | int, award_id: str | int, sudo: str | int | _Unset = _UNSET):
-    """IssueNoteAwardEmojis.remove (DELETE issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji/${awardId}). Body fields: sudo."""
+    """IssueNoteAwardEmojis.remove (DELETE projects/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji/${awardId}). Body fields: sudo."""
     payload: dict = {}
     if sudo is not _UNSET:
         payload["sudo"] = sudo
-    return _ok(_get_client().request("DELETE", f"/issues/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=payload))
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
 def issue_note_award_emojis_show(project_id: str | int, resource_iid: str | int, note_id: str | int, award_id: str | int, sudo: str | int | _Unset = _UNSET):
-    """IssueNoteAwardEmojis.show (GET issues/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji/${awardId}). Body fields: sudo."""
+    """IssueNoteAwardEmojis.show (GET projects/${projectId}/issues/${resourceIId}/notes/${noteId}/award_emoji/${awardId}). Body fields: sudo."""
     payload: dict = {}
     if sudo is not _UNSET:
         payload["sudo"] = sudo
-    return _ok(_get_client().request("GET", f"/issues/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=payload))
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
 # ── IssueNotes ────────────────────────────────────────────────────────────
@@ -7372,13 +7370,15 @@ def merge_request_milestone_events_show(project_id: str | int, merge_request_iid
 
 # ── MergeRequestNoteAwardEmojis ───────────────────────────────────────────
 
-def merge_request_note_award_emojis_all(project_id: str | int, resource_iid: str | int, note_id: str | int, pagination: Any | _Unset = _UNSET, per_page: str | int | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, order_by: str | _Unset = _UNSET, sort: Literal["asc", "desc"] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET, page: str | int | _Unset = _UNSET):
-    """MergeRequestNoteAwardEmojis.all (GET merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji). Body fields: pagination, per_page, max_pages, order_by, sort, sudo, page."""
+def merge_request_note_award_emojis_all(project_id: str | int, resource_iid: str | int, note_id: str | int, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, order_by: str | _Unset = _UNSET, sort: Literal["asc", "desc"] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """MergeRequestNoteAwardEmojis.all (GET projects/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji). Body fields: page, per_page, pagination, max_pages, order_by, sort, sudo."""
     payload: dict = {}
-    if pagination is not _UNSET:
-        payload["pagination"] = pagination
+    if page is not _UNSET:
+        payload["page"] = page
     if per_page is not _UNSET:
         payload["per_page"] = per_page
+    if pagination is not _UNSET:
+        payload["pagination"] = pagination
     if max_pages is not _UNSET:
         payload["max_pages"] = max_pages
     if order_by is not _UNSET:
@@ -7387,36 +7387,34 @@ def merge_request_note_award_emojis_all(project_id: str | int, resource_iid: str
         payload["sort"] = sort
     if sudo is not _UNSET:
         payload["sudo"] = sudo
-    if page is not _UNSET:
-        payload["page"] = page
-    return _ok(_get_client().request("GET", f"/merge_requests/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", params=payload))
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", params=payload))
 
 
 def merge_request_note_award_emojis_award(project_id: str | int, resource_iid: str | int, note_id: str | int, name: str, sudo: str | int | _Unset = _UNSET):
-    """MergeRequestNoteAwardEmojis.award (POST merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji). Body fields: name, sudo."""
+    """MergeRequestNoteAwardEmojis.award (POST projects/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji). Body fields: name, sudo."""
     payload: dict = {}
     if name is None:
         raise ValueError("MergeRequestNoteAwardEmojis.award requires non-null body field: name")
     payload["name"] = name
     if sudo is not _UNSET:
         payload["sudo"] = sudo
-    return _ok(_get_client().request("POST", f"/merge_requests/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", json=payload))
+    return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji", json=payload))
 
 
 def merge_request_note_award_emojis_remove(project_id: str | int, resource_iid: str | int, note_id: str | int, award_id: str | int, sudo: str | int | _Unset = _UNSET):
-    """MergeRequestNoteAwardEmojis.remove (DELETE merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji/${awardId}). Body fields: sudo."""
+    """MergeRequestNoteAwardEmojis.remove (DELETE projects/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji/${awardId}). Body fields: sudo."""
     payload: dict = {}
     if sudo is not _UNSET:
         payload["sudo"] = sudo
-    return _ok(_get_client().request("DELETE", f"/merge_requests/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=payload))
+    return _ok(_get_client().request("DELETE", f"/projects/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
 def merge_request_note_award_emojis_show(project_id: str | int, resource_iid: str | int, note_id: str | int, award_id: str | int, sudo: str | int | _Unset = _UNSET):
-    """MergeRequestNoteAwardEmojis.show (GET merge_requests/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji/${awardId}). Body fields: sudo."""
+    """MergeRequestNoteAwardEmojis.show (GET projects/${projectId}/merge_requests/${resourceIId}/notes/${noteId}/award_emoji/${awardId}). Body fields: sudo."""
     payload: dict = {}
     if sudo is not _UNSET:
         payload["sudo"] = sudo
-    return _ok(_get_client().request("GET", f"/merge_requests/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=payload))
+    return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests/{_enc(resource_iid)}/notes/{_enc(note_id)}/award_emoji/{_enc(award_id)}", params=payload))
 
 
 # ── MergeRequestNotes ─────────────────────────────────────────────────────
@@ -9698,7 +9696,7 @@ def project_import_exports_show_import_status(project_id: str | int, sudo: str |
 
 # ── ProjectInvitations ────────────────────────────────────────────────────
 
-def project_invitations_add(project_id: str | int, access_level: Literal[10, 15, 20, 30, 40, 50, 5, 0], email: list[str] | None | _Unset = _UNSET, user_id: list[str] | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, tasks_to_be_done: list[str] | _Unset = _UNSET, tasks_project_id: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def project_invitations_add(project_id: str | int, access_level: Literal[5, 10, 15, 20, 30, 40, 50], email: list[str] | None | _Unset = _UNSET, user_id: list[str] | None | _Unset = _UNSET, expires_at: str | None | _Unset = _UNSET, invite_source: str | None | _Unset = _UNSET, member_role_id: int | None | _Unset = _UNSET, tasks_to_be_done: list[str] | _Unset = _UNSET, tasks_project_id: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProjectInvitations.add (POST projects/${projectId}/invitations). Body fields: access_level, email, user_id, expires_at, invite_source, member_role_id, tasks_to_be_done, tasks_project_id, sudo."""
     payload: dict = {}
     if access_level is None:
@@ -10852,7 +10850,7 @@ def projects_all_groups(project_id: str | int, search: str | None | _Unset = _UN
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/groups", params=payload))
 
 
-def projects_all_invited_groups(project_id: str | int, relation: list[str] | None | _Unset = _UNSET, search: str | None | _Unset = _UNSET, min_access_level: Literal[10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, with_custom_attributes: bool | None | _Unset = _UNSET, custom_attributes: dict | None | _Unset = _UNSET, shared_min_access_level: Literal[0, 5, 10, 20, 30, 40, 50, 15] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def projects_all_invited_groups(project_id: str | int, relation: list[str] | None | _Unset = _UNSET, search: str | None | _Unset = _UNSET, min_access_level: Literal[10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, with_custom_attributes: bool | None | _Unset = _UNSET, custom_attributes: dict | None | _Unset = _UNSET, shared_min_access_level: Literal[0, 5, 10, 15, 20, 30, 40, 50] | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Projects.allInvitedGroups (GET projects/${projectId}/invited_groups). Body fields: relation, search, min_access_level, page, per_page, with_custom_attributes, custom_attributes, shared_min_access_level, sudo."""
     payload: dict = {}
     if relation is not _UNSET:
@@ -11756,12 +11754,12 @@ def projects_restore(project_id: str | int, sudo: str | int | _Unset = _UNSET):
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/restore", json=payload))
 
 
-def projects_search(project_name: str, order_by: Literal["id", "name", "path", "created_at", "updated_at", "last_activity_at", "similarity", "star_count", "storage_size", "repository_size", "wiki_size", "packages_size"] | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, archived: bool | None | _Unset = _UNSET, visibility: Literal["private", "internal", "public"] | None | _Unset = _UNSET, search: str | None | _Unset = _UNSET, search_namespaces: bool | None | _Unset = _UNSET, owned: bool | None | _Unset = _UNSET, starred: bool | None | _Unset = _UNSET, imported: bool | None | _Unset = _UNSET, membership: bool | None | _Unset = _UNSET, with_issues_enabled: bool | None | _Unset = _UNSET, with_merge_requests_enabled: bool | None | _Unset = _UNSET, with_programming_language: str | None | _Unset = _UNSET, min_access_level: Literal[10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, id_after: int | None | _Unset = _UNSET, id_before: int | None | _Unset = _UNSET, last_activity_after: str | None | _Unset = _UNSET, last_activity_before: str | None | _Unset = _UNSET, repository_storage: str | None | _Unset = _UNSET, topic: list[str] | None | _Unset = _UNSET, topic_id: int | None | _Unset = _UNSET, updated_before: str | None | _Unset = _UNSET, updated_after: str | None | _Unset = _UNSET, include_pending_delete: bool | None | _Unset = _UNSET, marked_for_deletion_on: str | None | _Unset = _UNSET, active: bool | None | _Unset = _UNSET, wiki_checksum_failed: bool | None | _Unset = _UNSET, repository_checksum_failed: bool | None | _Unset = _UNSET, include_hidden: bool | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, simple: bool | None | _Unset = _UNSET, statistics: bool | None | _Unset = _UNSET, with_custom_attributes: bool | None | _Unset = _UNSET, custom_attributes: dict | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Projects.search (GET projects). Body fields: project_name, order_by, sort, archived, visibility, search, search_namespaces, owned, starred, imported, membership, with_issues_enabled, with_merge_requests_enabled, with_programming_language, min_access_level, id_after, id_before, last_activity_after, last_activity_before, repository_storage, topic, topic_id, updated_before, updated_after, include_pending_delete, marked_for_deletion_on, active, wiki_checksum_failed, repository_checksum_failed, include_hidden, page, per_page, simple, statistics, with_custom_attributes, custom_attributes, sudo."""
+def projects_search(search: str, order_by: Literal["id", "name", "path", "created_at", "updated_at", "last_activity_at", "similarity", "star_count", "storage_size", "repository_size", "wiki_size", "packages_size"] | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, archived: bool | None | _Unset = _UNSET, visibility: Literal["private", "internal", "public"] | None | _Unset = _UNSET, search_namespaces: bool | None | _Unset = _UNSET, owned: bool | None | _Unset = _UNSET, starred: bool | None | _Unset = _UNSET, imported: bool | None | _Unset = _UNSET, membership: bool | None | _Unset = _UNSET, with_issues_enabled: bool | None | _Unset = _UNSET, with_merge_requests_enabled: bool | None | _Unset = _UNSET, with_programming_language: str | None | _Unset = _UNSET, min_access_level: Literal[10, 15, 20, 30, 40, 50] | None | _Unset = _UNSET, id_after: int | None | _Unset = _UNSET, id_before: int | None | _Unset = _UNSET, last_activity_after: str | None | _Unset = _UNSET, last_activity_before: str | None | _Unset = _UNSET, repository_storage: str | None | _Unset = _UNSET, topic: list[str] | None | _Unset = _UNSET, topic_id: int | None | _Unset = _UNSET, updated_before: str | None | _Unset = _UNSET, updated_after: str | None | _Unset = _UNSET, include_pending_delete: bool | None | _Unset = _UNSET, marked_for_deletion_on: str | None | _Unset = _UNSET, active: bool | None | _Unset = _UNSET, wiki_checksum_failed: bool | None | _Unset = _UNSET, repository_checksum_failed: bool | None | _Unset = _UNSET, include_hidden: bool | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, simple: bool | None | _Unset = _UNSET, statistics: bool | None | _Unset = _UNSET, with_custom_attributes: bool | None | _Unset = _UNSET, custom_attributes: dict | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """Projects.search (GET projects). Body fields: search, order_by, sort, archived, visibility, search_namespaces, owned, starred, imported, membership, with_issues_enabled, with_merge_requests_enabled, with_programming_language, min_access_level, id_after, id_before, last_activity_after, last_activity_before, repository_storage, topic, topic_id, updated_before, updated_after, include_pending_delete, marked_for_deletion_on, active, wiki_checksum_failed, repository_checksum_failed, include_hidden, page, per_page, simple, statistics, with_custom_attributes, custom_attributes, sudo."""
     payload: dict = {}
-    if project_name is None:
-        raise ValueError("Projects.search requires non-null request parameter: project_name")
-    payload["project_name"] = project_name
+    if search is None:
+        raise ValueError("Projects.search requires non-null query parameter: search")
+    payload["search"] = search
     if order_by is not _UNSET:
         payload["order_by"] = order_by
     if sort is not _UNSET:
@@ -11770,8 +11768,6 @@ def projects_search(project_name: str, order_by: Literal["id", "name", "path", "
         payload["archived"] = archived
     if visibility is not _UNSET:
         payload["visibility"] = visibility
-    if search is not _UNSET:
-        payload["search"] = search
     if search_namespaces is not _UNSET:
         payload["search_namespaces"] = search_namespaces
     if owned is not _UNSET:
@@ -12830,7 +12826,7 @@ def protected_branches_all(project_id: str | int, page: int | None | _Unset = _U
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/protected_branches", params=payload))
 
 
-def protected_branches_create(project_id: str | int, name: str, push_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, merge_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, allow_force_push: bool | None | _Unset = _UNSET, unprotect_access_level: Literal[30, 40, 60] | None | _Unset = _UNSET, allowed_to_push: list[dict] | None | _Unset = _UNSET, allowed_to_merge: list[dict] | None | _Unset = _UNSET, allowed_to_unprotect: list[dict] | None | _Unset = _UNSET, code_owner_approval_required: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def protected_branches_create(project_id: str | int, name: str, push_access_level: Literal[0, 30, 40, 60] | None | _Unset = _UNSET, merge_access_level: Literal[0, 30, 40, 60] | None | _Unset = _UNSET, allow_force_push: bool | None | _Unset = _UNSET, unprotect_access_level: Literal[30, 40, 60] | None | _Unset = _UNSET, allowed_to_push: list[dict] | None | _Unset = _UNSET, allowed_to_merge: list[dict] | None | _Unset = _UNSET, allowed_to_unprotect: list[dict] | None | _Unset = _UNSET, code_owner_approval_required: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProtectedBranches.create (POST projects/${projectId}/protected_branches). Body fields: name, push_access_level, merge_access_level, allow_force_push, unprotect_access_level, allowed_to_push, allowed_to_merge, allowed_to_unprotect, code_owner_approval_required, sudo."""
     payload: dict = {}
     if name is None:
@@ -12877,7 +12873,7 @@ def protected_branches_edit(project_id: str | int, branch_name: str | int, allow
     return _ok(_get_client().request("PATCH", f"/projects/{_enc(project_id)}/protected_branches/{_enc(branch_name)}", json=payload))
 
 
-def protected_branches_protect(project_id: str | int, name: str, push_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, merge_access_level: Literal[30, 40, 60, 0] | None | _Unset = _UNSET, allow_force_push: bool | None | _Unset = _UNSET, unprotect_access_level: Literal[30, 40, 60] | None | _Unset = _UNSET, allowed_to_push: list[dict] | None | _Unset = _UNSET, allowed_to_merge: list[dict] | None | _Unset = _UNSET, allowed_to_unprotect: list[dict] | None | _Unset = _UNSET, code_owner_approval_required: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def protected_branches_protect(project_id: str | int, name: str, push_access_level: Literal[0, 30, 40, 60] | None | _Unset = _UNSET, merge_access_level: Literal[0, 30, 40, 60] | None | _Unset = _UNSET, allow_force_push: bool | None | _Unset = _UNSET, unprotect_access_level: Literal[30, 40, 60] | None | _Unset = _UNSET, allowed_to_push: list[dict] | None | _Unset = _UNSET, allowed_to_merge: list[dict] | None | _Unset = _UNSET, allowed_to_unprotect: list[dict] | None | _Unset = _UNSET, code_owner_approval_required: bool | None | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """ProtectedBranches.protect (alias for ProtectedBranches.create)."""
     return protected_branches_create(project_id=project_id, name=name, push_access_level=push_access_level, merge_access_level=merge_access_level, allow_force_push=allow_force_push, unprotect_access_level=unprotect_access_level, allowed_to_push=allowed_to_push, allowed_to_merge=allowed_to_merge, allowed_to_unprotect=allowed_to_unprotect, code_owner_approval_required=code_owner_approval_required, sudo=sudo)
 
@@ -14489,7 +14485,7 @@ def users_all_activities(from_: str | None | _Unset = _UNSET, page: int | None |
     return _ok(_get_client().request("GET", f"/user/activities", params=payload))
 
 
-def users_all_contributed_projects(user_id: str | int, order_by: Literal["id", "name", "path", "created_at", "updated_at", "last_activity_at", "similarity", "star_count", "storage_size", "repository_size", "wiki_size", "packages_size"] | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, simple: bool | None | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, archived: bool | _Unset = _UNSET, id_after: int | _Unset = _UNSET, id_before: int | _Unset = _UNSET, membership: bool | _Unset = _UNSET, min_access_level: Literal[0, 5, 10, 20, 30, 40, 50, 15] | _Unset = _UNSET, owned: bool | _Unset = _UNSET, search: str | _Unset = _UNSET, starred: bool | _Unset = _UNSET, statistics: bool | _Unset = _UNSET, visibility: Literal["private", "public", "internal"] | _Unset = _UNSET, with_custom_attributes: bool | _Unset = _UNSET, with_issues_enabled: bool | _Unset = _UNSET, with_merge_requests_enabled: bool | _Unset = _UNSET, with_programming_language: str | _Unset = _UNSET, updated_before: str | _Unset = _UNSET, updated_after: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+def users_all_contributed_projects(user_id: str | int, order_by: Literal["id", "name", "path", "created_at", "updated_at", "last_activity_at", "similarity", "star_count", "storage_size", "repository_size", "wiki_size", "packages_size"] | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, simple: bool | None | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, archived: bool | _Unset = _UNSET, id_after: int | _Unset = _UNSET, id_before: int | _Unset = _UNSET, membership: bool | _Unset = _UNSET, min_access_level: Literal[0, 5, 10, 15, 20, 30, 40, 50] | _Unset = _UNSET, owned: bool | _Unset = _UNSET, search: str | _Unset = _UNSET, starred: bool | _Unset = _UNSET, statistics: bool | _Unset = _UNSET, visibility: Literal["private", "public", "internal"] | _Unset = _UNSET, with_custom_attributes: bool | _Unset = _UNSET, with_issues_enabled: bool | _Unset = _UNSET, with_merge_requests_enabled: bool | _Unset = _UNSET, with_programming_language: str | _Unset = _UNSET, updated_before: str | _Unset = _UNSET, updated_after: str | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
     """Users.allContributedProjects (GET users/${userId}/contributed_projects). Body fields: order_by, sort, page, per_page, simple, pagination, max_pages, archived, id_after, id_before, membership, min_access_level, owned, search, starred, statistics, visibility, with_custom_attributes, with_issues_enabled, with_merge_requests_enabled, with_programming_language, updated_before, updated_after, sudo."""
     payload: dict = {}
     if order_by is not _UNSET:
