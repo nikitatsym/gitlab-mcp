@@ -1039,14 +1039,14 @@ def projects_fork(project_id: str | int, **options):
     return _generated.projects_fork(project_id=project_id, **options)
 
 
-# ── File upload overrides (multipart/form-data) ────────────────────────────
+# ── File upload overrides ───────────────────────────────────────────────────
 #
-# MCP tools communicate via JSON — no binary file transfer. For endpoints
-# that require multipart upload (avatars, attachments), we accept a LOCAL
-# FILE PATH from the agent, read it server-side, and upload via httpx's
-# `files=` parameter. This works when the MCP server runs on the same
-# machine as the files (Claude Code, local dev). For remote MCP setups
-# (Claude Desktop), use curl or the GitLab web UI.
+# MCP tools communicate via JSON - no binary file transfer. These overrides
+# accept a LOCAL FILE PATH, read it server-side, then select the transport
+# required by the exact endpoint: multipart `files=` for multipart routes or
+# raw `content=` bytes for Workhorse RequestBody routes. This works when the
+# MCP server runs on the same machine as the files (Claude Code, local dev).
+# For remote MCP setups (Claude Desktop), use curl or the GitLab web UI.
 
 @_op(gitlab_write)
 def projects_upload_avatar(project_id: str | int, file_path: str):
@@ -1078,6 +1078,152 @@ def groups_upload_avatar(group_id: str | int, file_path: str):
     if r.status_code == 204 or not r.content:
         return {"status": "ok"}
     return r.json()
+
+
+@_op(gitlab_write)
+def issues_upload_metric_image(
+    project_id: str | int,
+    issue_iid: str | int,
+    file_path: str,
+    url: str | None | _Unset = _UNSET,
+    url_text: str | None | _Unset = _UNSET,
+    sudo: str | int | _Unset = _UNSET,
+):
+    """Issues.uploadMetricImage (POST projects/${projectId}/issues/${issueIId}/metric_images).
+
+    Upload a metric image from a local file path as multipart form data.
+    """
+    p = _Path(file_path).expanduser()
+    if not p.exists():
+        raise ValueError(f"File not found: {file_path}")
+    if not p.is_file():
+        raise ValueError(f"Not a file: {file_path}")
+    form: dict[str, str] = {}
+    if url is not _UNSET and url is not None:
+        form["url"] = typing.cast(str, url)
+    if url_text is not _UNSET and url_text is not None:
+        form["url_text"] = typing.cast(str, url_text)
+    r = get_client()._request(
+        "POST",
+        f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/metric_images",
+        data=form,
+        files={"file": (p.name, p.read_bytes(), "application/octet-stream")},
+        headers={"sudo": str(sudo)} if sudo is not _UNSET else None,
+    )
+    return _ok(None if r.status_code == 204 or not r.content else r.json())
+
+
+@_op(gitlab_write)
+def nu_get_upload_package_file(project_id: str | int, file_path: str):
+    """NuGet.uploadPackageFile (PUT projects/${projectId}/packages/nuget).
+
+    Upload a NuGet package from a local file path as multipart form data.
+    """
+    p = _Path(file_path).expanduser()
+    if not p.exists():
+        raise ValueError(f"File not found: {file_path}")
+    if not p.is_file():
+        raise ValueError(f"Not a file: {file_path}")
+    r = get_client()._request(
+        "PUT",
+        f"/projects/{_enc(project_id)}/packages/nuget/",
+        files={"package": (p.name, p.read_bytes(), "application/octet-stream")},
+    )
+    return _ok(None if r.status_code == 204 or not r.content else r.json())
+
+
+@_op(gitlab_write)
+def nu_get_upload_symbol_package(project_id: str | int, file_path: str):
+    """NuGet.uploadSymbolPackage (PUT projects/${projectId}/packages/nuget/symbolpackage).
+
+    Upload a NuGet symbol package from a local file path as multipart form data.
+    """
+    p = _Path(file_path).expanduser()
+    if not p.exists():
+        raise ValueError(f"File not found: {file_path}")
+    if not p.is_file():
+        raise ValueError(f"Not a file: {file_path}")
+    r = get_client()._request(
+        "PUT",
+        f"/projects/{_enc(project_id)}/packages/nuget/symbolpackage",
+        files={"package": (p.name, p.read_bytes(), "application/octet-stream")},
+    )
+    return _ok(None if r.status_code == 204 or not r.content else r.json())
+
+
+@_op(gitlab_write)
+def project_terraform_state_create_version(
+    project_id: str | int,
+    name: str | int,
+    file_path: str,
+    sudo: str | int | _Unset = _UNSET,
+):
+    """ProjectTerraformState.createVersion (POST projects/${projectId}/terraform/state/${name}).
+
+    Upload Terraform state JSON from a local file path as a raw
+    application/json request body.
+    """
+    p = _Path(file_path).expanduser()
+    if not p.exists():
+        raise ValueError(f"File not found: {file_path}")
+    if not p.is_file():
+        raise ValueError(f"Not a file: {file_path}")
+    headers = {"Content-Type": "application/json"}
+    if sudo is not _UNSET:
+        headers["sudo"] = str(sudo)
+    r = get_client()._request(
+        "POST",
+        f"/projects/{_enc(project_id)}/terraform/state/{_enc(name)}",
+        content=p.read_bytes(),
+        headers=headers,
+    )
+    return _ok(None if r.status_code == 204 or not r.content else r.json())
+
+
+@_op(gitlab_write)
+def ruby_gems_upload_gem_file(project_id: str | int, file_path: str):
+    """RubyGems.uploadGemFile (POST projects/${projectId}/packages/rubygems/api/v1/gems).
+
+    Upload a RubyGem from a local file path as a raw application/octet-stream
+    request body.
+    """
+    p = _Path(file_path).expanduser()
+    if not p.exists():
+        raise ValueError(f"File not found: {file_path}")
+    if not p.is_file():
+        raise ValueError(f"Not a file: {file_path}")
+    r = get_client()._request(
+        "POST",
+        f"/projects/{_enc(project_id)}/packages/rubygems/api/v1/gems",
+        content=p.read_bytes(),
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    return _ok(None if r.status_code == 204 or not r.content else r.json())
+
+
+@_op(gitlab_write)
+def npm_upload_package_file(
+    project_id: str | int,
+    package_name: str,
+    file_path: str,
+):
+    """NPM.uploadPackageFile (PUT projects/${projectId}/packages/npm/${packageName}).
+
+    Upload an NPM packument JSON document (including base64 _attachments) from
+    a local file path as a raw application/json request body, not a .tgz archive.
+    """
+    p = _Path(file_path).expanduser()
+    if not p.exists():
+        raise ValueError(f"File not found: {file_path}")
+    if not p.is_file():
+        raise ValueError(f"Not a file: {file_path}")
+    r = get_client()._request(
+        "PUT",
+        f"/projects/{_enc(project_id)}/packages/npm/{_enc(package_name)}",
+        content=p.read_bytes(),
+        headers={"Content-Type": "application/json"},
+    )
+    return _ok(None if r.status_code == 204 or not r.content else r.json())
 
 
 # ── Visibility guards (default: private only) ─────────────────────────────

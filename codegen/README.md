@@ -130,8 +130,10 @@ python dev.py check
 ```
 
 `generate.ts --check` verifies that committed generated files equal codegen
-input. `required_body_conformance.ts` is an independent gate: it parses the
-vendored OpenAPI document directly, joins it to generated wrappers without the
+input and stale-checks every `accessLevelJudgments.ts` operation, verb, raw
+path, and wire field against the generated surface.
+`required_body_conformance.ts` is an independent gate: it parses the vendored
+OpenAPI document directly, joins it to generated wrappers without the
 generator's resolver, and verifies each required body field is exposed,
 non-omittable, null-accurate, guarded, and serialized.
 
@@ -140,19 +142,34 @@ non-omittable, null-accurate, guarded, and serialized.
 - `BODY_FIELD_OVERRIDES` correct a required field or map a Gitbeaker positional
   to the canonical OpenAPI wire key.
 - `GITBEAKER_SOURCE_WIRE_NAME_JUDGMENTS` record an exact pinned implementation
-  mapping when OpenAPI does not declare that operation's body wire key.
-- `DOCUMENTED_SPEC_GAPS` record a required spec field that the pinned
-  Gitbeaker JSON contract cannot represent.
+  mapping from a declared positional to its canonical caller and wire names.
+- `DOCUMENTED_SPEC_GAPS` retain an exact required OpenAPI field that the
+  generated JSON wrapper cannot represent; they do not assert a public tool is
+  usable by themselves.
 - `CONCRETE_DEFAULT_OVERRIDES` record a handwritten wrapper that always sends
   one concrete value.
+- `PUBLIC_UPLOAD_OVERRIDE_PROOFS` pair each exposed replacement upload surface
+  with its exact gap and stale-check its closed `file_path` signature plus the
+  evidence-selected serializer in `tools.py`: `multipart-file-path`,
+  `raw-json-file-path`, or `raw-binary-file-path`. Multipart parts derive from
+  `property`; raw proofs require verbatim `content=p.read_bytes()`, the exact
+  `Content-Type`, and no `files=` or `json=`.
+  A Workhorse-only path suffix must use `wirePathSuffix` together with its
+  mandatory rationale; the OpenAPI `rawPath` remains the gap-pairing key.
 - `allowNull` permits a required field to accept `None` only with specific
   evidence.
 - `CONDITIONAL_BRANCH_FIELD_JUDGMENTS` add an audited optional field to one
   selector-driven path; they do not claim exhaustive optional coverage.
 
+`accessLevelJudgments.ts` selects an exact domain per OpenAPI operation, verb,
+raw path, and wire field. It preserves array-valued access-level fields and
+restores Planner (15) only for the named GitBeaker gaps; it never broadens
+unrelated fields by name.
+
 Every judgment is keyed by operation, verb, raw path, and property or source
-parameter. The conformance gate stale-checks each list, so a judgment must be
-removed or updated when its source evidence no longer applies.
+parameter. The conformance gate stale-checks each list and validates
+rationale-specific pinned-source evidence, so a judgment cannot outlive its
+source condition or hide a broken public upload override.
 
 ## What the parser handles
 

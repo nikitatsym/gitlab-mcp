@@ -8,10 +8,11 @@
  * cover the exact pinned implementation mappings absent from OpenAPI. allowNull
  * is permitted only where evidence proves a required field can be null.
  * DOCUMENTED_SPEC_GAPS identify a spec-required field the pinned Gitbeaker JSON
- * contract cannot represent. CONCRETE_DEFAULT_OVERRIDES identify a hand-written
- * wrapper that always supplies a documented concrete default.
- * CONDITIONAL_BRANCH_FIELD_JUDGMENTS identify an optional field that belongs
- * only to one selector path.
+ * contract cannot represent. PUBLIC_UPLOAD_OVERRIDE_PROOFS verify every exposed
+ * replacement upload remains usable despite its exact retained spec gap.
+ * CONCRETE_DEFAULT_OVERRIDES identify a hand-written wrapper that always supplies
+ * a documented concrete default. CONDITIONAL_BRANCH_FIELD_JUDGMENTS identify an
+ * optional field that belongs only to one selector path.
  *
  * Every entry must be exact by operation, verb, raw path, and property or source
  * parameter and have direct source evidence. Entries that document a semantic
@@ -32,8 +33,8 @@ export interface BodyFieldOverride {
 }
 
 /**
- * Exact GitBeaker implementation mapping for a positional whose wire key is
- * absent from the corresponding OpenAPI request body schema.
+ * Exact GitBeaker implementation mapping from a declared positional to its
+ * canonical Python caller and HTTP wire names.
  */
 export interface GitbeakerSourceWireNameJudgment {
   operation: string;
@@ -41,6 +42,8 @@ export interface GitbeakerSourceWireNameJudgment {
   rawPath: string;
   /** Canonical positional declared in GitBeaker's TypeScript surface. */
   sourceParameter: string;
+  /** Canonical Python parameter name; defaults to sourceParameter. */
+  callerName?: string;
   /** Canonical snake_case HTTP key emitted by this generator. */
   wireName: string;
   /** Property spelling in the pinned GitBeaker implementation literal. */
@@ -74,6 +77,31 @@ export interface DocumentedSpecGap {
   rawPath: string;
   property: string;
   rationale: string;
+}
+
+/**
+ * A caller-facing override that restores a usable upload contract where the
+ * generated JSON wrapper cannot represent the exact OpenAPI-required field.
+ */
+export type PublicUploadSerializer =
+  | "multipart-file-path"
+  | "raw-json-file-path"
+  | "raw-binary-file-path";
+
+export interface PublicUploadOverrideProof {
+  operation: string;
+  verb: string;
+  rawPath: string;
+  /** The corresponding required OpenAPI field retained in DOCUMENTED_SPEC_GAPS. */
+  property: string;
+  /** Public Python override that must remain registered under this operation. */
+  functionName: string;
+  /** Exact suffix retained in the wire path beyond the OpenAPI path. */
+  wirePathSuffix?: string;
+  /** Direct source rationale required whenever wirePathSuffix is present. */
+  rationale?: string;
+  /** Exact caller-facing serialization contract. */
+  serializer: PublicUploadSerializer;
 }
 
 export const BODY_FIELD_OVERRIDES: readonly BodyFieldOverride[] = [
@@ -163,8 +191,29 @@ export const GITBEAKER_SOURCE_WIRE_NAME_JUDGMENTS: readonly GitbeakerSourceWireN
     sourceVariable: "url12",
     rationale: "Pinned core/dist/index.js maps the declared url positional as importUrl: url12 while OpenAPI does not declare import_url.",
   },
+  {
+    operation: "Groups.search",
+    verb: "GET",
+    rawPath: "/api/v4/groups",
+    sourceParameter: "nameOrPath",
+    callerName: "search",
+    wireName: "search",
+    sourceWireName: "search",
+    sourceVariable: "nameOrPath",
+    rationale: "Pinned core/dist/index.js maps the declared nameOrPath positional as search: nameOrPath; the global groups endpoint exposes this required input under the canonical search caller and wire name.",
+  },
+  {
+    operation: "Projects.search",
+    verb: "GET",
+    rawPath: "/api/v4/projects",
+    sourceParameter: "projectName",
+    callerName: "search",
+    wireName: "search",
+    sourceWireName: "search",
+    sourceVariable: "projectName",
+    rationale: "Pinned core/dist/index.js maps the declared projectName positional as search: projectName; the global projects endpoint exposes this required input under the canonical search caller and wire name.",
+  },
 ];
-
 export const DOCUMENTED_SPEC_GAPS: readonly DocumentedSpecGap[] = [
   {
     operation: "RepositoryFiles.create",
@@ -213,7 +262,7 @@ export const DOCUMENTED_SPEC_GAPS: readonly DocumentedSpecGap[] = [
     verb: "PUT",
     rawPath: "/api/v4/projects/{id}/packages/npm/{package_name}",
     property: "file",
-    rationale: "Gitbeaker publishes NPM metadata by spreading the required metadata object and versions; this operation has no standalone JSON file property.",
+    rationale: "OpenAPI renders the Workhorse file as multipart, while pinned GitBeaker publishes JSON by spreading versions and metadata; the public override sends a local packument JSON document as a raw application/json request body.",
   },
   {
     operation: "NuGet.uploadPackageFile",
@@ -248,14 +297,14 @@ export const DOCUMENTED_SPEC_GAPS: readonly DocumentedSpecGap[] = [
     verb: "POST",
     rawPath: "/api/v4/projects/{id}/terraform/state/{name}",
     property: "file",
-    rationale: "The OpenAPI operation is multipart/form-data, whereas Gitbeaker forwards an untyped options object; the JSON wrapper cannot represent the required upload file.",
+    rationale: "OpenAPI renders the Workhorse raw state upload as multipart, whereas GitBeaker forwards an untyped options object; the public override sends a local Terraform state JSON document verbatim as application/json.",
   },
   {
     operation: "RubyGems.uploadGemFile",
     verb: "POST",
     rawPath: "/api/v4/projects/{id}/packages/rubygems/api/v1/gems",
     property: "file",
-    rationale: "Gitbeaker requires packageFile.content and packageFile.filename, then sends multipart file under file; the JSON wrapper cannot represent that file contract.",
+    rationale: "GitBeaker requires packageFile.content and packageFile.filename, then sends multipart file under file; this Workhorse RequestBody route instead accepts the local gem as raw application/octet-stream bytes, which the JSON wrapper cannot represent.",
   },
   {
     operation: "Snippets.create",
@@ -277,6 +326,64 @@ export const DOCUMENTED_SPEC_GAPS: readonly DocumentedSpecGap[] = [
     rawPath: "/api/v4/user/runners",
     property: "project_id",
     rationale: "The required list unconditionally includes project_id despite nullable group_id/project_id fields and runner_type selecting the scope; it cannot require both scopes together.",
+  },
+];
+
+/**
+ * Exact user-facing upload contracts restoring operations that the generated
+ * JSON surface cannot faithfully expose. Every proof must pair with a current,
+ * exact DOCUMENTED_SPEC_GAPS entry and is source-checked by conformance.
+ */
+export const PUBLIC_UPLOAD_OVERRIDE_PROOFS: readonly PublicUploadOverrideProof[] = [
+  {
+    operation: "Issues.uploadMetricImage",
+    verb: "POST",
+    rawPath: "/api/v4/projects/{id}/issues/{issue_iid}/metric_images",
+    property: "file",
+    functionName: "issues_upload_metric_image",
+    serializer: "multipart-file-path",
+  },
+  {
+    operation: "NPM.uploadPackageFile",
+    verb: "PUT",
+    rawPath: "/api/v4/projects/{id}/packages/npm/{package_name}",
+    property: "file",
+    functionName: "npm_upload_package_file",
+    serializer: "raw-json-file-path",
+  },
+  {
+    operation: "NuGet.uploadPackageFile",
+    verb: "PUT",
+    rawPath: "/api/v4/projects/{id}/packages/nuget",
+    property: "package",
+    functionName: "nu_get_upload_package_file",
+    wirePathSuffix: "/",
+    rationale: "GitLab routes the trailing-slash NuGet v3 publish path through Workhorse mimeMultipartUploader; the slashless path is the plain API proxy.",
+    serializer: "multipart-file-path",
+  },
+  {
+    operation: "NuGet.uploadSymbolPackage",
+    verb: "PUT",
+    rawPath: "/api/v4/projects/{id}/packages/nuget/symbolpackage",
+    property: "package",
+    functionName: "nu_get_upload_symbol_package",
+    serializer: "multipart-file-path",
+  },
+  {
+    operation: "ProjectTerraformState.createVersion",
+    verb: "POST",
+    rawPath: "/api/v4/projects/{id}/terraform/state/{name}",
+    property: "file",
+    functionName: "project_terraform_state_create_version",
+    serializer: "raw-json-file-path",
+  },
+  {
+    operation: "RubyGems.uploadGemFile",
+    verb: "POST",
+    rawPath: "/api/v4/projects/{id}/packages/rubygems/api/v1/gems",
+    property: "file",
+    functionName: "ruby_gems_upload_gem_file",
+    serializer: "raw-binary-file-path",
   },
 ];
 
@@ -345,7 +452,8 @@ function indexJudgments<
     | BodyFieldOverride
     | ConditionalBranchFieldJudgment
     | DocumentedSpecGap
-    | ConcreteDefaultOverride,
+    | ConcreteDefaultOverride
+    | PublicUploadOverrideProof,
 >(
   judgments: readonly T[],
   kind: string,
@@ -372,6 +480,10 @@ const documentedGapsByKey = indexJudgments(
   DOCUMENTED_SPEC_GAPS,
   "documented required-body spec gap",
 );
+const publicUploadOverrideProofsByKey = indexJudgments(
+  PUBLIC_UPLOAD_OVERRIDE_PROOFS,
+  "public upload override proof",
+);
 const concreteDefaultOverridesByKey = indexJudgments(
   CONCRETE_DEFAULT_OVERRIDES,
   "concrete-default override",
@@ -392,6 +504,23 @@ for (const key of Object.keys(bodyFieldOverridesByKey)) {
 for (const key of Object.keys(conditionalBranchFieldsByKey)) {
   if (bodyFieldOverridesByKey[key] || documentedGapsByKey[key]) {
     throw new Error(`Conditional branch field judgment overlaps another body judgment: ${key}`);
+  }
+}
+for (const key of Object.keys(publicUploadOverrideProofsByKey)) {
+  if (!documentedGapsByKey[key]) {
+    throw new Error(`Public upload override has no matching documented spec gap: ${key}`);
+  }
+}
+for (const proof of PUBLIC_UPLOAD_OVERRIDE_PROOFS) {
+  const hasWirePathSuffix = proof.wirePathSuffix !== undefined;
+  const hasRationale = proof.rationale !== undefined;
+  if (
+    hasWirePathSuffix !== hasRationale ||
+    (hasWirePathSuffix && (!proof.wirePathSuffix || !proof.rationale))
+  ) {
+    throw new Error(
+      `Public upload wire path suffix and rationale must be paired: ${proof.operation}`,
+    );
   }
 }
 
@@ -449,7 +578,8 @@ export function bodyFieldJudgmentKey(
     | BodyFieldOverride
     | ConditionalBranchFieldJudgment
     | DocumentedSpecGap
-    | ConcreteDefaultOverride,
+    | ConcreteDefaultOverride
+    | PublicUploadOverrideProof,
 ): string {
   return judgmentKey(
     judgment.operation,

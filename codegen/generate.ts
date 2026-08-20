@@ -56,6 +56,12 @@ import {
   bodyFieldOverride,
   gitbeakerSourceWireNameJudgment,
 } from "./requiredBodyJudgments.ts";
+import {
+  accessLevelJudgment,
+  accessLevelJudgmentKey,
+  accessLevelPythonType,
+  assertAllAccessLevelJudgmentsApplied,
+} from "./accessLevelJudgments.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const IMPL_PATH = join(
@@ -690,13 +696,19 @@ function expandResourceSubclasses(): number {
   methods.length = 0;
   methods.push(...nonBaseMethods);
 
-  // Pre-scan: which Resource* base classes hardcode prefixUrl in their own
-  // constructor (so subclass super() args don't set the prefix)?
+  // Match a single Resource* class body before looking for a hardcoded prefix.
+  // An unbounded scan can borrow a later resource's prefix (notably "projects")
+  // for ResourceAccessRequests, turning GroupAccessRequests into project calls.
   const basePrefixRe =
-    /var (Resource\w+) = class[\s\S]*?constructor\([^)]*\)\s*\{\s*super\(\s*\{\s*prefixUrl:\s*["']([^"']+)["']/g;
+    /var (Resource\w+) = class extends requesterUtils\.BaseResource \{([\s\S]*?)^\};/gm;
   let bpm: RegExpExecArray | null;
   while ((bpm = basePrefixRe.exec(IMPL)) !== null) {
-    baseConstructorPrefix.set(bpm[1], bpm[2]);
+    const constructorPrefix = bpm[2].match(
+      /constructor\([^)]*\)\s*\{\s*super\(\s*\{\s*prefixUrl:\s*["']([^"']+)/,
+    );
+    if (constructorPrefix) {
+      baseConstructorPrefix.set(bpm[1], constructorPrefix[1]);
+    }
   }
 
   // Second pass: find concrete subclasses `var X = class extends ResourceY { … super(args) }`.
@@ -938,8 +950,8 @@ function buildTypeSurface(pm: ParsedMethod, opPascal: string): MethodTypeInfo | 
   let fromOpenApi = false;
   let fromTs = false;
 
+  const operation = `${pm.klass}.${pm.name}`;
   if (oa) {
-    const operation = `${pm.klass}.${pm.name}`;
     for (const p of oa.params) {
       if (p.location === "path") continue;
       const override = p.location === "body"
@@ -951,7 +963,13 @@ function buildTypeSurface(pm: ParsedMethod, opPascal: string): MethodTypeInfo | 
       seen.set(p.name, {
         name: p.name,
         pyName: override?.pyName ?? p.pyName,
-        pyType: normalizeAccessLevelType(p.name, p.pyType),
+        pyType: normalizeAccessLevelType(
+          operation,
+          oa.verb,
+          oa.rawPath,
+          p.name,
+          p.pyType,
+        ),
         optional: !required,
         nullable: p.nullable,
       });
@@ -964,7 +982,13 @@ function buildTypeSurface(pm: ParsedMethod, opPascal: string): MethodTypeInfo | 
       if (seen.has(p.name)) continue;
       seen.set(p.name, {
         ...p,
-        pyType: normalizeAccessLevelType(p.name, p.pyType),
+        pyType: normalizeAccessLevelType(
+          operation,
+          oa?.verb,
+          oa?.rawPath,
+          p.name,
+          p.pyType,
+        ),
       });
       fromTs = true;
     }
@@ -1033,44 +1057,23 @@ function bodyFieldLabel({ pyName, wireName }: BodyParam): string {
   return pyName === wireName ? wireName : `${pyName} -> ${wireName}`;
 }
 
-const GITLAB_ACCESS_LEVEL_VALUES = [
-  "0", "5", "10", "15", "20", "30", "40", "50",
-] as const;
-const GITLAB_PLANNER_ACCESS_LEVEL = GITLAB_ACCESS_LEVEL_VALUES[3];
-const GITLAB_ACCESS_LEVEL_TYPE = `Literal[${GITLAB_ACCESS_LEVEL_VALUES.join(", ")}]`;
-const GITLAB_ACCESS_LEVEL_FIELDS: Record<string, true> = {
-  access_level: true,
-  base_access_level: true,
-  min_access_level: true,
-  shared_min_access_level: true,
-  target_access_levels: true,
-};
+const appliedAccessLevelJudgmentKeys = new Set<string>();
 
-function normalizedAccessLevelLiteral(values: string, prefix: string, suffix: string): string {
-  const members = values.split(", ").filter(Boolean);
-  if (!members.every((member) => /^\d+$/.test(member))) {
-    return `${prefix}${values}${suffix}`;
-  }
-  if (!members.includes(GITLAB_PLANNER_ACCESS_LEVEL)) {
-    members.push(GITLAB_PLANNER_ACCESS_LEVEL);
-  }
-  return `${prefix}${members.join(", ")}${suffix}`;
-}
+function normalizeAccessLevelType(
+  operation: string,
+  verb: string | undefined,
+  rawPath: string | undefined,
+  field: string,
+  pyType: string,
+): string {
+  if (!verb || !rawPath) return pyType;
+  const judgment = accessLevelJudgment(operation, verb, rawPath, field);
+  if (!judgment) return pyType;
 
-function normalizeAccessLevelType(name: string, pyType: string): string {
-  if (!GITLAB_ACCESS_LEVEL_FIELDS[name]) return pyType;
-
-  return pyType
-    .split(" | ")
-    .map((part) => {
-      if (part === "int") return GITLAB_ACCESS_LEVEL_TYPE;
-      if (part === "list[int]") return `list[${GITLAB_ACCESS_LEVEL_TYPE}]`;
-      const literal = /^(Literal\[|list\[Literal\[)(.*)(\]\]?)$/.exec(part);
-      return literal
-        ? normalizedAccessLevelLiteral(literal[2], literal[1], literal[3])
-        : part;
-    })
-    .join(" | ");
+  appliedAccessLevelJudgmentKeys.add(
+    accessLevelJudgmentKey(operation, verb, rawPath, field),
+  );
+  return accessLevelPythonType(judgment, pyType);
 }
 
 function literalScalarType(literal: RegExpExecArray): string | null {
@@ -1157,12 +1160,18 @@ function mergePythonTypes(openApiType: string | undefined, gitbeakerType: string
 }
 
 function requiredBodyType(
+  operation: string,
+  verb: string | undefined,
+  rawPath: string | undefined,
   openApiType: string | undefined,
   gitbeakerType: string,
   allowNull: boolean,
   wireName: string,
 ): string {
   const merged = normalizeAccessLevelType(
+    operation,
+    verb,
+    rawPath,
     wireName,
     mergePythonTypes(openApiType, gitbeakerType),
   );
@@ -1284,7 +1293,15 @@ function emitConditionalDispatch(
         requiredBody.push({
           pyName: py,
           wireName: wire,
-          pyType: requiredBodyType(property?.pyType, pa.pyType, allowNull, wire),
+          pyType: requiredBodyType(
+            `${pm.klass}.${pm.name}`,
+            openApiOperation?.verb,
+            openApiOperation?.rawPath,
+            property?.pyType,
+            pa.pyType,
+            allowNull,
+            wire,
+          ),
           nullable: allowNull,
         });
       }
@@ -1612,12 +1629,13 @@ function emitFn(pm: ParsedMethod): Emitted | null {
     );
     const property = typeInfo.options.properties.find((p) => p.name === wire);
     const sourcePyName = sourceWireNameJudgment
-      ? toSnake(sourceWireNameJudgment.sourceParameter)
+      ? toSnake(
+        sourceWireNameJudgment.callerName ??
+        sourceWireNameJudgment.sourceParameter,
+      )
       : undefined;
-    const py = property?.pyName ?? (
-      sourcePyName
-        ? (PY_KEYWORDS.has(sourcePyName) ? sourcePyName + "_" : sourcePyName)
-        : (PY_KEYWORDS.has(wire) ? wire + "_" : wire)
+    const py = sourcePyName ?? property?.pyName ?? (
+      PY_KEYWORDS.has(wire) ? wire + "_" : wire
     );
     if (SKIP_PROPS.has(py)) continue;
     if (seenPy.has(py)) continue;
@@ -1634,7 +1652,15 @@ function emitFn(pm: ParsedMethod): Emitted | null {
     requiredBody.push({
       pyName: py,
       wireName: wire,
-      pyType: requiredBodyType(property?.pyType, pa.pyType, allowNull, wire),
+      pyType: requiredBodyType(
+        `${pm.klass}.${pm.name}`,
+        openApiOperation?.verb,
+        openApiOperation?.rawPath,
+        property?.pyType,
+        pa.pyType,
+        allowNull,
+        wire,
+      ),
       nullable: allowNull,
     });
   }
@@ -1662,7 +1688,15 @@ function emitFn(pm: ParsedMethod): Emitted | null {
       requiredBody.push({
         pyName: p.pyName,
         wireName: p.name,
-        pyType: requiredBodyType(p.pyType, p.pyType, allowNull, p.name),
+        pyType: requiredBodyType(
+          `${pm.klass}.${pm.name}`,
+          openApiOperation?.verb,
+          openApiOperation?.rawPath,
+          p.pyType,
+          p.pyType,
+          allowNull,
+          p.name,
+        ),
         nullable: allowNull,
       });
     } else {
@@ -1899,6 +1933,8 @@ emitted.sort((a, b) => {
   if (a.klass !== b.klass) return a.klass.localeCompare(b.klass);
   return a.snakeName.localeCompare(b.snakeName);
 });
+
+assertAllAccessLevelJudgmentsApplied(appliedAccessLevelJudgmentKeys);
 
 // ── Build _generated.py ───────────────────────────────────────────────────
 
