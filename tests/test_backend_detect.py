@@ -5,7 +5,12 @@ from collections import OrderedDict
 import httpx
 import pytest
 
-from gitlab_mcp.backend import InstanceInfo, detect_instance, project_vcs_type
+from gitlab_mcp.backend import (
+    InstanceInfo,
+    detect_instance,
+    probe_metadata,
+    project_vcs_type,
+)
 from gitlab_mcp.client import GitLabClient, GitLabError, _reset_client
 from gitlab_mcp.config import _reset_settings
 
@@ -90,6 +95,38 @@ class TestDetectInstance:
 
         with pytest.raises(TypeError, match="Unexpected /metadata response shape"):
             detect_instance(_make_client(handler))
+
+
+class TestProbeMetadata:
+    def test_success_returns_metadata(self):
+        def handler(req):
+            if req.url.path == "/api/v4/metadata":
+                return httpx.Response(200, json={
+                    "version": "18.7.1",
+                    "revision": "c537467",
+                    "enterprise": True,
+                })
+            return httpx.Response(500)
+
+        assert probe_metadata(_make_client(handler)) == ("18.7.1", "c537467", True)
+
+    def test_http_error_degrades_to_unknown(self):
+        def handler(req):
+            return httpx.Response(401, json={"message": "401 Unauthorized"})
+
+        assert probe_metadata(_make_client(handler)) == ("unknown", "", False)
+
+    def test_network_error_degrades_to_unknown(self):
+        def handler(req):
+            raise httpx.ConnectError("connection refused")
+
+        assert probe_metadata(_make_client(handler)) == ("unknown", "", False)
+
+    def test_malformed_body_degrades_to_unknown(self):
+        def handler(req):
+            return httpx.Response(200, json=["not", "a", "dict"])
+
+        assert probe_metadata(_make_client(handler)) == ("unknown", "", False)
 
 
 class TestProjectVcsType:

@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal, cast
 from urllib.parse import quote
 
+import httpx
+
 if TYPE_CHECKING:
     from .client import GitLabClient
 
@@ -25,6 +27,33 @@ class InstanceInfo:
     url: str = ""
 
 
+def _parse_metadata(meta: object) -> tuple[str, str, bool]:
+    """(version, revision, enterprise) from a /metadata response dict."""
+    if not isinstance(meta, dict):
+        raise TypeError(f"Unexpected /metadata response shape: {type(meta).__name__}")
+    return (
+        meta.get("version", "unknown"),
+        meta.get("revision", ""),
+        bool(meta.get("enterprise", False)),
+    )
+
+
+def probe_metadata(client: GitLabClient) -> tuple[str, str, bool]:
+    """Best-effort /metadata probe for explicit-GITLAB_BACKEND startup.
+
+    An explicit backend skips detection so startup can't be broken by an
+    unreachable instance or a token without /metadata access. This probe
+    keeps that guarantee: any failure degrades to ("unknown", "", False)
+    instead of raising.
+    """
+    from .client import GitLabError
+
+    try:
+        return _parse_metadata(client.get("/metadata"))
+    except (GitLabError, httpx.HTTPError, TypeError, ValueError):
+        return "unknown", "", False
+
+
 def detect_instance(client: GitLabClient) -> InstanceInfo:
     """Probe /metadata + /projects/vcs_type_stats to determine the backend.
 
@@ -34,12 +63,7 @@ def detect_instance(client: GitLabClient) -> InstanceInfo:
     """
     from .client import GitLabError
 
-    meta = client.get("/metadata")
-    if not isinstance(meta, dict):
-        raise TypeError(f"Unexpected /metadata response shape: {type(meta).__name__}")
-    version = meta.get("version", "unknown")
-    revision = meta.get("revision", "")
-    enterprise = bool(meta.get("enterprise", False))
+    version, revision, enterprise = _parse_metadata(client.get("/metadata"))
 
     try:
         stats = client.get("/projects/vcs_type_stats")
