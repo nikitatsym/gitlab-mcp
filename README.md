@@ -49,7 +49,7 @@ talking to and registers the right tool set.
 |---|---|---|---|
 | `GITLAB_URL` | yes | — | Instance base URL (`http://` or `https://`, no trailing slash needed) |
 | `GITLAB_TOKEN` | yes | — | Any access token: PAT, project/group access token, OAuth2 bearer, or job token |
-| `GITLAB_BACKEND` | no | `auto` | `auto` / `gitlab` / `heptapod` — skips the detection probe when set explicitly |
+| `GITLAB_BACKEND` | no | `auto` | `auto` / `gitlab` / `heptapod` — fixes the backend without probing; version info is still fetched from `/metadata` best-effort (failure → `unknown`, startup unaffected) |
 | `GITLAB_TIMEOUT` | no | `30.0` | httpx request timeout in seconds |
 | `MCP_GITLAB_BRIEF_MAX` | no | `200` | Cap on slim note bodies; `0` disables truncation |
 

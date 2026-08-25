@@ -7,7 +7,8 @@ def main():
     2. Load settings, require GITLAB_URL and GITLAB_TOKEN.
     3. Construct the HTTP client (no requests yet).
     4. Populate `client.instance` via eager backend detection
-       (or from the explicit GITLAB_BACKEND override).
+       (or from the explicit GITLAB_BACKEND override, which keeps the
+       backend fixed but still probes /metadata best-effort for version).
     5. Import the server module and register tools
        (this is where the `_heptapod_only` filter runs).
     6. Run MCPServer over stdio.
@@ -37,17 +38,19 @@ def main():
 
         client.instance = detect_instance(client)
     else:
-        from .backend import InstanceInfo
+        from .backend import InstanceInfo, probe_metadata
 
         vcs_types = (
             {"git", "hg", "hg_git"}
             if settings.gitlab_backend == "heptapod"
             else {"git"}
         )
+        version, revision, enterprise = probe_metadata(client)
         client.instance = InstanceInfo(
             backend=settings.gitlab_backend,
-            version="unknown",
-            enterprise=False,
+            version=version,
+            revision=revision,
+            enterprise=enterprise,
             vcs_types_supported=vcs_types,
             url=client._base,
         )
