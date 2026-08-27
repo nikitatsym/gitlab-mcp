@@ -537,9 +537,9 @@ class TestBuildHelp:
 
 
 class TestDispatchWrongGroup:
-    """Per v2 spec: surface errors as exceptions, not `{"error": ...}` dicts."""
+    """A misrouted or unknown operation is reported as `{"error": ...}` data."""
 
-    def test_op_in_wrong_group_raises_value_error(self, monkeypatch):
+    def test_op_in_wrong_group_reports_the_owning_group(self, monkeypatch):
         from gitlab_mcp import server
 
         server._group_ops.clear()
@@ -549,20 +549,20 @@ class TestDispatchWrongGroup:
         server._all_grouped["Existing"] = "fake_read"
         server._all_grouped["OnlyHere"] = "fake_write"
         try:
-            with pytest.raises(ValueError, match="belongs to 'fake_write'"):
-                server._dispatch("OnlyHere", "fake_read", {})
+            result = server._dispatch("OnlyHere", "fake_read", {})
+            assert "belongs to 'fake_write'" in result["error"]
         finally:
             server._group_ops.clear()
             server._all_grouped.clear()
 
-    def test_unknown_op_raises_value_error(self):
+    def test_unknown_op_reports_the_name(self):
         from gitlab_mcp import server
 
         server._group_ops.clear()
         server._group_ops["fake_read"] = {"Existing": lambda: None}
         try:
-            with pytest.raises(ValueError, match="Unknown operation 'Mystery'"):
-                server._dispatch("Mystery", "fake_read", {})
+            result = server._dispatch("Mystery", "fake_read", {})
+            assert "Unknown operation 'Mystery'" in result["error"]
         finally:
             server._group_ops.clear()
 

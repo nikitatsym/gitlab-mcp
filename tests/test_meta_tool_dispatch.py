@@ -60,41 +60,41 @@ class TestOverridePreFlightGuardsViaDispatch:
         _seed_and_register("gitlab")
         from gitlab_mcp import server
 
-        with pytest.raises(ValueError, match="Public/internal projects not allowed"):
-            server._dispatch(
-                "ProjectsCreate", "gitlab_write",
-                {"name": "x", "visibility": "public"},
-            )
+        result = server._dispatch(
+            "ProjectsCreate", "gitlab_write",
+            {"name": "x", "visibility": "public"},
+        )
+        assert "Public/internal projects not allowed" in result["error"]
 
     def test_groups_create_visibility_guard(self):
         _seed_and_register("gitlab")
         from gitlab_mcp import server
 
-        with pytest.raises(ValueError, match="Public/internal"):
-            server._dispatch(
-                "GroupsCreate", "gitlab_write",
-                {"name": "x", "path": "x", "visibility": "public"},
-            )
+        result = server._dispatch(
+            "GroupsCreate", "gitlab_write",
+            {"name": "x", "path": "x", "visibility": "public"},
+        )
+        assert "Public/internal" in result["error"]
 
     def test_snippets_create_visibility_guard(self):
         _seed_and_register("gitlab")
         from gitlab_mcp import server
 
-        with pytest.raises(ValueError, match="Public/internal"):
-            server._dispatch(
-                "SnippetsCreate", "gitlab_write",
-                {"title": "x", "visibility": "public"},
-            )
+        result = server._dispatch(
+            "SnippetsCreate", "gitlab_write",
+            {"title": "x", "visibility": "public"},
+        )
+        assert "Public/internal" in result["error"]
 
     def test_projects_edit_visibility_guard(self):
         _seed_and_register("gitlab")
         from gitlab_mcp import server
 
-        with pytest.raises(ValueError, match="Public/internal"):
-            server._dispatch(
-                "ProjectsEdit", "gitlab_write",
-                {"project_id": 1, "visibility": "public"},
-            )
+        result = server._dispatch(
+            "ProjectsEdit", "gitlab_write",
+            {"project_id": 1, "visibility": "public"},
+        )
+        assert "Public/internal" in result["error"]
 
     def test_merge_requests_create_requires_git(self):
         """The MR-create override rejects hg projects with a hint about hg_create_topic_mr."""
@@ -105,16 +105,16 @@ class TestOverridePreFlightGuardsViaDispatch:
         # The override looks up the project's vcs_type. Patch the lookup to return 'hg'.
         assert client_mod._client is not None
         client_mod._client.project_vcs_type = lambda project_id: "hg"  # type: ignore[method-assign]
-        with pytest.raises(ValueError, match="Mercurial"):
-            server._dispatch(
-                "MergeRequestsCreate", "gitlab_write",
-                {
-                    "project_id": 1,
-                    "source_branch": "x",
-                    "target_branch": "y",
-                    "title": "z",
-                },
-            )
+        result = server._dispatch(
+            "MergeRequestsCreate", "gitlab_write",
+            {
+                "project_id": 1,
+                "source_branch": "x",
+                "target_branch": "y",
+                "title": "z",
+            },
+        )
+        assert "Mercurial" in result["error"]
 
     def test_projects_all_brief_default(self):
         """ProjectsAll override slims results when brief=True (the default)."""
@@ -166,11 +166,11 @@ class TestStrictRejectionOnTypedGeneratedOp:
         _seed_and_register("gitlab")
         from gitlab_mcp import server
 
-        with pytest.raises(ValueError, match="Extra inputs are not permitted"):
-            server._dispatch(
-                "BranchesShow", "gitlab_read",
-                {"project_id": 1, "branch_name": "main", "foo": "bar"},
-            )
+        result = server._dispatch(
+            "BranchesShow", "gitlab_read",
+            {"project_id": 1, "branch_name": "main", "foo": "bar"},
+        )
+        assert "Extra inputs are not permitted" in result["error"]
 
     def test_merge_requests_create_typed_args_accepted(self):
         """Typed required body fields (source_branch, target_branch, title)
@@ -253,13 +253,12 @@ class TestCanonicalSearchWireContracts:
 
         fn = getattr(_generated, function_name)
 
-        try:
-            result = server._dispatch(operation, "gitlab_read", {"search": needle})
-        except ValueError as error:
+        result = server._dispatch(operation, "gitlab_read", {"search": needle})
+        if isinstance(result, dict) and "error" in result:
             pytest.fail(
                 f"{operation} ({path}) missing canonical search contract: "
                 f"caller-facing `search` must be accepted and serialized as wire "
-                f"`search`; {error}"
+                f"`search`; {result['error']}"
             )
         assert result == []
         assert seen == [(path, {"search": needle})]
@@ -279,10 +278,10 @@ class TestCanonicalSearchWireContracts:
         assert f"{operation}(search: str" in help_text
         assert obsolete_field not in help_text
 
-        with pytest.raises(ValueError, match="Extra inputs are not permitted"):
-            server._dispatch(
-                operation, "gitlab_read", {obsolete_field: needle}
-            )
+        rejected = server._dispatch(
+            operation, "gitlab_read", {obsolete_field: needle}
+        )
+        assert "Extra inputs are not permitted" in rejected["error"]
 
 
 # ── Codegen overload/selector regressions ─────────────────────────────────
@@ -327,11 +326,11 @@ class TestCodegenSignatureRegressions:
         _seed_and_register("gitlab", lambda req: httpx.Response(200, json=[]))
         from gitlab_mcp import server
 
-        with pytest.raises(ValueError, match="Input should be"):
-            server._dispatch(
-                "SearchAll", "gitlab_read",
-                {"scope": "bogus", "search": "x"},
-            )
+        result = server._dispatch(
+            "SearchAll", "gitlab_read",
+            {"scope": "bogus", "search": "x"},
+        )
+        assert "Input should be" in result["error"]
 
     def test_deploy_keys_all_routes_by_selector(self):
         """Gitbeaker's DeployKeys.all picks between /projects/{id}/deploy_keys,
@@ -753,15 +752,15 @@ class TestConditionalDispatchPayload:
             "gitlab_write",
             {**common, "mergerequest_iid": 11},
         )
-        with pytest.raises(
-            ValueError,
-            match="approval_project_rule_id requires mergerequest_iid",
-        ):
-            server._dispatch(
-                "MergeRequestApprovalsCreateApprovalRule",
-                "gitlab_write",
-                common,
-            )
+        rejected = server._dispatch(
+            "MergeRequestApprovalsCreateApprovalRule",
+            "gitlab_write",
+            common,
+        )
+        assert (
+            "approval_project_rule_id requires mergerequest_iid"
+            in rejected["error"]
+        )
 
         assert sent == [
             (

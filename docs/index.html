@@ -226,7 +226,7 @@
       <li>The server detects Heptapod automatically by probing <code>/api/v4/projects/vcs_type_stats</code>.</li>
       <li>On Heptapod, four <code>hg_*</code> tools become available: <code>hg_get_config</code>, <code>hg_set_config</code>, <code>hg_get_raw_hgrc</code>, <code>hg_create_topic_mr</code>.</li>
       <li>Mercurial branches/topics appear in API responses as <code>branch/&lt;name&gt;</code> and <code>topic/&lt;target&gt;/&lt;name&gt;</code>. The server preserves them verbatim &mdash; pass them as-is when constructing refs.</li>
-      <li>Forks of Mercurial projects are blocked by Heptapod itself; the server raises a clean error before hitting the network.</li>
+      <li>Forks of Mercurial projects are blocked by Heptapod itself; the server returns a clean error before hitting the network.</li>
       <li>Personal forks, public projects, and merge commits work normally on Git projects hosted on Heptapod.</li>
     </ol>
   </div>

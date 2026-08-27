@@ -86,26 +86,25 @@ def _assert_public_file_path_contract(
     for obsolete_param in obsolete_params:
         assert f"{obsolete_param}: " not in help_line
         assert f"{obsolete_param}?: " not in help_line
-        with pytest.raises(ValueError) as exc_info:
-            server._dispatch(
-                operation,
-                "gitlab_write",
-                {**params, obsolete_param: "obsolete generated input"},
-            )
-        assert obsolete_param in str(exc_info.value)
+        rejected = server._dispatch(
+            operation,
+            "gitlab_write",
+            {**params, obsolete_param: "obsolete generated input"},
+        )
+        assert obsolete_param in rejected["error"]
 
-    with pytest.raises(ValueError, match="File not found"):
-        server._dispatch(
-            operation,
-            "gitlab_write",
-            {**base_params, "file_path": str(tmp_path / "missing")},
-        )
-    with pytest.raises(ValueError, match="Not a file"):
-        server._dispatch(
-            operation,
-            "gitlab_write",
-            {**base_params, "file_path": str(tmp_path)},
-        )
+    missing = server._dispatch(
+        operation,
+        "gitlab_write",
+        {**base_params, "file_path": str(tmp_path / "missing")},
+    )
+    assert "File not found" in missing["error"]
+    not_a_file = server._dispatch(
+        operation,
+        "gitlab_write",
+        {**base_params, "file_path": str(tmp_path)},
+    )
+    assert "Not a file" in not_a_file["error"]
 
 
 @pytest.mark.parametrize(

@@ -14,7 +14,9 @@ import string
 import types as _types
 import typing
 from typing import Annotated, Any, Literal
+from urllib.parse import urlsplit, urlunsplit
 
+import httpx
 from mcp.server.mcpserver import Context, MCPServer
 from pydantic import (
     BaseModel,
@@ -26,7 +28,7 @@ from pydantic import (
 )
 
 from . import tools as _tools_module
-from .client import get_client
+from .client import GitLabError, get_client
 from .registry import _UNSET, ROOT, _Unset
 
 mcp = MCPServer("gitlab")
@@ -411,30 +413,140 @@ def _format_help_full(ops: dict, group_name: str, scope_desc: str) -> str:
     return "\n".join(lines)
 
 
+_URL_RE = re.compile(r"[a-z][a-z0-9+.-]*://[^\s'\"<>]+", re.IGNORECASE)
+_RELATIVE_QUERY_RE = re.compile(r"/[^\s?,'\"<>]*\?[^ \t\r\n,'\"<>]*")
+_SECRET_VALUE_RE = re.compile(
+    r"""(?ix)
+    (["']?(?:authorization|token|api[_-]?key|client[_-]?secret|access[_-]?secret|
+    password|credential|dsn)["']?\s*[:=]\s*)
+    (?:["'][^"']*["']|[^,\s}]+)
+    """
+)
+_AUTHORIZATION_RE = re.compile(
+    r"(?i)(authorization\s*[:=]\s*)(?:bearer|basic)\s+[^\s,;]+"
+)
+
+
+def _redact_error_text(value: object) -> str:
+    """Remove credentials and query values from text returned to MCP callers."""
+    text = str(value)
+
+    def _redact_url(match: re.Match[str]) -> str:
+        try:
+            parts = urlsplit(match.group())
+            host = parts.hostname
+            if host is None:
+                return "<redacted-url>"
+            if ":" in host:
+                host = f"[{host}]"
+            try:
+                port = parts.port
+            except ValueError:
+                port = None
+            netloc = f"{host}:{port}" if port is not None else host
+            return urlunsplit((parts.scheme, netloc, parts.path, "", ""))
+        except ValueError:
+            return "<redacted-url>"
+
+    text = _URL_RE.sub(_redact_url, text)
+    text = _RELATIVE_QUERY_RE.sub(lambda match: match.group().split("?", 1)[0], text)
+    text = _AUTHORIZATION_RE.sub(r"\1<redacted>", text)
+    return _SECRET_VALUE_RE.sub(r"\1<redacted>", text)
+
+
+def _validate_help_params(
+    category: object | None, search: object | None,
+) -> tuple[str | None, str | None]:
+    """Reject malformed meta-operation input before help rendering."""
+    if category is not None and not isinstance(category, str):
+        raise ValueError("help parameter 'category' must be a string")
+    if search is not None and not isinstance(search, str):
+        raise ValueError("help parameter 'search' must be a string")
+    return category, search
+
+
+# Expected failures at the tool boundary. Deliberately Exception-only: a
+# cancellation or KeyboardInterrupt is a BaseException and must keep propagating.
+_EXPECTED_FAILURES: tuple[type[Exception], ...] = (
+    ValueError,
+    GitLabError,
+    httpx.HTTPError,
+)
+
+
+def _error_result(exc: Exception) -> dict[str, str]:
+    """Render an expected failure as a contextual, secret-safe operation result."""
+    if isinstance(exc, httpx.HTTPError):
+        request: httpx.Request | None = None
+        if isinstance(exc, (httpx.RequestError, httpx.HTTPStatusError)):
+            try:
+                request = exc.request
+            except RuntimeError:
+                pass
+        method = request.method if request is not None else "REQUEST"
+        path = request.url.path if request is not None else "<unknown path>"
+        cause = _redact_error_text(exc) or "request failed"
+        return {
+            "error": (
+                f"GitLab request failed: {method} {path}: "
+                f"{type(exc).__name__}: {cause}"
+            )
+        }
+    return {"error": _redact_error_text(exc)}
+
+
+async def _await_op(coro):
+    """Await an async op, mapping the same failures `_dispatch` maps.
+
+    An async op's body doesn't run until awaited, so `_dispatch`'s own guard
+    never sees its failures. Cancellation is a BaseException and still
+    propagates, leaving waiter cancellation semantics untouched.
+    """
+    try:
+        return await coro
+    except _EXPECTED_FAILURES as exc:
+        return _error_result(exc)
+
+
 def _dispatch(operation: str, group_name: str, params: dict, ctx: Context | None = None):
     """Dispatch an operation call to the right function.
 
-    Synchronous ops are called directly. Async ops (e.g. pipelines_wait,
-    jobs_wait) return a coroutine which is returned as-is — the meta-tool
-    `tool_fn` awaits it. Calling `_dispatch` directly from a sync caller
-    against an async op therefore yields an awaitable, not a value;
-    callers in that situation should `asyncio.run(...)` the result.
-    """
-    ops = _group_ops[group_name]
-    if operation not in ops:
-        if operation in _all_grouped:
-            correct = _all_grouped[operation]
-            raise ValueError(
-                f"{operation!r} belongs to {correct!r}, not {group_name!r}. "
-                f"Call {correct}(operation={operation!r}, ...) instead."
-            )
-        raise ValueError(
-            f"Unknown operation {operation!r} in {group_name!r}. "
-            "Use operation='help' to list available operations."
-        )
+    Bad params, an unknown operation, a GitLabError, and a transport failure
+    all come back as `{"error": ...}`; an exception crossing the MCP boundary
+    would reach the caller as a contextless tool failure instead.
 
-    fn = ops[operation]
-    return _coerce_call(fn, params, ctx)
+    Synchronous ops are called directly. Async ops (e.g. pipelines_wait,
+    jobs_wait) return a coroutine, wrapped so a failure raised at await time
+    maps identically — the meta-tool `tool_fn` awaits it. Calling `_dispatch`
+    directly from a sync caller against an async op therefore yields an
+    awaitable, not a value; callers in that situation should
+    `asyncio.run(...)` the result.
+    """
+    try:
+        if operation == "help":
+            category, search = _validate_help_params(
+                params.get("category"), params.get("search"),
+            )
+            return _build_help(group_name, category=category, search=search)
+        ops = _group_ops[group_name]
+        if operation not in ops:
+            if operation in _all_grouped:
+                correct = _all_grouped[operation]
+                raise ValueError(
+                    f"{operation!r} belongs to {correct!r}, not {group_name!r}. "
+                    f"Call {correct}(operation={operation!r}, ...) instead."
+                )
+            raise ValueError(
+                f"Unknown operation {operation!r} in {group_name!r}. "
+                "Use operation='help' to list available operations."
+            )
+
+        result = _coerce_call(ops[operation], params, ctx)
+    except _EXPECTED_FAILURES as exc:
+        return _error_result(exc)
+    if inspect.iscoroutine(result):
+        return _await_op(result)
+    return result
 
 
 # ── Registration ─────────────────────────────────────────────────────────
@@ -457,12 +569,6 @@ def _make_tool(group_name: str, group_doc: str):
         ctx: Context | None = None,
     ):
         params = params or {}
-        if operation == "help":
-            return _build_help(
-                group_name,
-                category=params.get("category"),
-                search=params.get("search"),
-            )
         result = _dispatch(operation, group_name, params, ctx)
         if inspect.iscoroutine(result):
             result = await result
