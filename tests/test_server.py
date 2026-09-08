@@ -1,10 +1,13 @@
 """Unit tests for server.py: _coerce_call validation and _register_tools filter."""
 
+import asyncio
 import inspect
-from typing import Literal
+import json
+from typing import Any, Literal, cast
 
 import httpx
 import pytest
+from mcp.types import TextContent
 
 from gitlab_mcp.backend import InstanceInfo
 from gitlab_mcp.client import GitLabClient, _reset_client
@@ -620,3 +623,27 @@ class TestGitlabVersion:
         from gitlab_mcp.tools import gitlab_version
 
         assert gitlab_version._mcp_group is ROOT
+
+
+def test_registered_tools_return_compact_json():
+    from gitlab_mcp import server
+
+    server._register_tools()
+    registered_tools = server.mcp._tool_manager.list_tools()
+    assert all(tool.fn_metadata.output_schema is None for tool in registered_tools)
+
+    result = cast(
+        Any,
+        asyncio.run(server.mcp.call_tool("gitlab_read", {"operation": "not-an-operation"})),
+    )
+    assert result.structured_content is None
+    assert len(result.content) == 1
+    content = result.content[0]
+    assert isinstance(content, TextContent)
+    assert "\n" not in content.text
+    assert json.loads(content.text) == {
+        "error": (
+            "Unknown operation 'not-an-operation' in 'gitlab_read'. "
+            "Use operation='help' to list available operations."
+        )
+    }
