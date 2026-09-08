@@ -8,6 +8,7 @@ Adapted from komodo-mcp's server.py with two extensions:
    attribute are skipped when the detected backend is not Heptapod.
 """
 
+import functools
 import inspect
 import re
 import string
@@ -17,7 +18,9 @@ from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
-from mcp.server.mcpserver import Context, MCPServer
+import pydantic_core
+from mcp.server.mcpserver import Context, Image, MCPServer
+from mcp.types import ContentBlock, TextContent
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -32,6 +35,32 @@ from .client import GitLabError, get_client
 from .registry import _UNSET, ROOT, _Unset
 
 mcp = MCPServer("gitlab")
+
+def _compact(fn):
+    """Serialize a data result as one-line JSON.
+
+    The SDK pretty-prints non-string results (`indent=2`), which costs the
+    caller ~20% more tokens for nothing; a ready TextContent passes through
+    untouched. Strings, content blocks and images keep the SDK path. Mirrors
+    fn's sync/async flavor so a sync tool stays on the SDK worker thread.
+    """
+    def to_content(result):
+        if result is None or isinstance(result, str | ContentBlock | Image):
+            return result
+        return TextContent(
+            type="text", text=pydantic_core.to_json(result, fallback=str).decode()
+        )
+
+    if inspect.iscoroutinefunction(fn):
+        @functools.wraps(fn)
+        async def async_compact(*args, **kwargs):
+            return to_content(await fn(*args, **kwargs))
+        return async_compact
+
+    @functools.wraps(fn)
+    def sync_compact(*args, **kwargs):
+        return to_content(fn(*args, **kwargs))
+    return sync_compact
 
 
 # Parameter name reserved for MCPServer's Context injection. Tools that declare
@@ -637,7 +666,7 @@ def _register_tools():
             continue
         group = fn._mcp_group
         if group is ROOT:
-            mcp.tool()(fn)
+            mcp.tool(structured_output=False)(_compact(fn))
         else:
             if group.name not in groups:
                 groups[group.name] = (group, {})
@@ -650,7 +679,7 @@ def _register_tools():
         for pascal_name in ops:
             _all_grouped[pascal_name] = group_name
 
-        mcp.tool()(_make_tool(group_name, doc))
+        mcp.tool(structured_output=False)(_compact(_make_tool(group_name, doc)))
 
     # Eager: build params models + cache type hints on each op function. Done
     # once at startup so dispatch is hint/model-free. ~100-150ms for ~800 ops.

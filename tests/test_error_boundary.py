@@ -10,10 +10,12 @@ transport, async-waiter, and programming-error edges.
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any, cast
 
 import httpx
 import pytest
+from mcp.types import TextContent
 
 from gitlab_mcp.backend import InstanceInfo
 from gitlab_mcp.client import GitLabClient, _reset_client
@@ -71,6 +73,11 @@ def _group_tool(server, name: str):
     return server.mcp._tool_manager._tools[name].fn
 
 
+def _data_result(result):
+    assert isinstance(result, TextContent)
+    return json.loads(result.text)
+
+
 def test_api_error_keeps_status_method_path_and_body():
     server = _seed_and_register(_responding(404, {"message": "404 Project Not Found"}))
 
@@ -111,8 +118,8 @@ def test_missing_required_param_is_reported():
 def test_registered_group_reports_invalid_help_input():
     server = _seed_and_register(_responding(200, {}))
 
-    result = asyncio.run(
-        _group_tool(server, "gitlab_read")(operation="help", params={"search": 1})
+    result = _data_result(
+        asyncio.run(_group_tool(server, "gitlab_read")(operation="help", params={"search": 1}))
     )
 
     assert result == {"error": "help parameter 'search' must be a string"}
