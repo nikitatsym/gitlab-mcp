@@ -12,11 +12,13 @@ runner container all surface as fixture errors so the dev sees what to fix.
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
 
 import pytest
+from mcp.types import TextContent
 
 TESTS_DIR = Path(__file__).parent
 ENV_FILE = TESTS_DIR / ".env"
@@ -78,6 +80,9 @@ class AgentSimulator:
                 f"Known sample: {sorted(self._tools.keys())[:20]}..."
             )
         result = fn(**kwargs)
+        # Registered tools hand the SDK a one-line JSON text block, not a dict.
+        if isinstance(result, TextContent):
+            result = json.loads(result.text)
         self.call_log.append({"tool": tool_name, "kwargs": kwargs, "result": result})
         return result
 
