@@ -1,5 +1,7 @@
 """Unit tests for pydantic-settings config."""
 
+import sys
+
 import pytest
 from pydantic import ValidationError
 
@@ -89,6 +91,11 @@ class TestGetSettings:
 
 
 class TestMain:
+    @pytest.fixture(autouse=True)
+    def _bare_argv(self, monkeypatch):
+        # main() parses sys.argv; pytest's own argv would abort the parse instead.
+        monkeypatch.setattr(sys, "argv", ["gitlab-mcp"])
+
     def test_main_raises_on_missing_url(self):
         from gitlab_mcp import main
         with pytest.raises(ValueError, match="GITLAB_URL and GITLAB_TOKEN must be set"):

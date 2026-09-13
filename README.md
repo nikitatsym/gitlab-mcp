@@ -43,6 +43,10 @@ The same config works against Heptapod — just point `GITLAB_URL` at your Hepta
 The server probes `/api/v4/projects/vcs_type_stats` at startup to detect which backend it's
 talking to and registers the right tool set.
 
+### HTTP
+
+`gitlab-mcp --http` serves streamable HTTP at `http://127.0.0.1:8000/mcp` (`--host`, `--port`) instead of stdio, same environment variables. No authentication: put a gateway in front.
+
 ## Configuration
 
 | Variable | Required | Default | Purpose |
