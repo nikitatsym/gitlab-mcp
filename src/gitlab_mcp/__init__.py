@@ -12,13 +12,14 @@ def main() -> None:
 
     1. Parse CLI flags with argparse.
     2. Load settings, require GITLAB_URL and GITLAB_TOKEN.
-    3. Construct the HTTP client (no requests yet).
-    4. Populate `client.instance` via eager backend detection
-       (or from the explicit GITLAB_BACKEND override, which keeps the
-       backend fixed but still probes /metadata best-effort for version).
-    5. Import the server module and register tools
-       (this is where the `_heptapod_only` filter runs).
-    6. Run MCPServer over stdio, or streamable HTTP with --http.
+    3. Construct the HTTP client and probe the backend once through
+       `client.instance` (lazy detection, or the explicit GITLAB_BACKEND
+       override, which keeps the backend fixed but still probes /metadata
+       best-effort for version).
+    4. Run MCPServer over stdio, or streamable HTTP with --http.
+
+    Tools are registered at import of `.server`, not here: a host importing
+    this package must see them without calling `main()`.
     """
     import argparse
 
@@ -57,33 +58,9 @@ def main() -> None:
 
     from .client import get_client
 
-    client = get_client()
-
-    if settings.gitlab_backend == "auto":
-        from .backend import detect_instance
-
-        client.instance = detect_instance(client)
-    else:
-        from .backend import InstanceInfo, probe_metadata
-
-        vcs_types = (
-            {"git", "hg", "hg_git"}
-            if settings.gitlab_backend == "heptapod"
-            else {"git"}
-        )
-        version, revision, enterprise = probe_metadata(client)
-        client.instance = InstanceInfo(
-            backend=settings.gitlab_backend,
-            version=version,
-            revision=revision,
-            enterprise=enterprise,
-            vcs_types_supported=vcs_types,
-            url=client._base,
-        )
-
-    from .server import _register_tools, mcp
-
-    _register_tools()
+    # Startup probe: a bad URL or token must fail here, not on the first tool
+    # call. `instance` caches, so tools reuse this result.
+    _ = get_client().instance
 
     if args.http:
         # Stateless: the gateway in front opens a session per call; nothing outlives a request.

@@ -1,4 +1,4 @@
-"""Unit tests for server.py: _coerce_call validation and _register_tools filter."""
+"""Unit tests for server.py: _coerce_call validation and the Heptapod guard."""
 
 import asyncio
 import inspect
@@ -276,7 +276,7 @@ class TestMakeTool:
         assert captured == [0, 0]
 
 
-# ── _register_tools filter ────────────────────────────────────────────────
+# ── Heptapod-only dispatch guard ──────────────────────────────────────────
 
 
 def _seed_client(backend: str) -> GitLabClient:
@@ -295,8 +295,8 @@ def _seed_client(backend: str) -> GitLabClient:
     return client
 
 
-class TestRegisterToolsFilter:
-    def test_heptapod_only_excluded_on_gitlab(self, monkeypatch):
+class TestHeptapodOnlyGuard:
+    def test_heptapod_only_rejected_on_gitlab(self, monkeypatch):
         import gitlab_mcp.client as client_mod
         client_mod._client = _seed_client("gitlab")
 
@@ -312,10 +312,13 @@ class TestRegisterToolsFilter:
         monkeypatch.setattr(tools, "hg_probe_synthetic", hg_probe_synthetic, raising=False)
 
         server._register_tools()
-        gitlab_read_ops = server._group_ops.get("gitlab_read", {})
-        assert "HgProbeSynthetic" not in gitlab_read_ops
+        # Registered on any backend: registration is process-global.
+        assert "HgProbeSynthetic" in server._group_ops.get("gitlab_read", {})
+        assert server._dispatch("HgProbeSynthetic", "gitlab_read", {}) == {
+            "error": "HgProbeSynthetic is Heptapod-only; this instance is gitlab"
+        }
 
-    def test_heptapod_only_included_on_heptapod(self, monkeypatch):
+    def test_heptapod_only_runs_on_heptapod(self, monkeypatch):
         import gitlab_mcp.client as client_mod
         client_mod._client = _seed_client("heptapod")
 
@@ -331,8 +334,7 @@ class TestRegisterToolsFilter:
         monkeypatch.setattr(tools, "hg_probe_synthetic", hg_probe_synthetic, raising=False)
 
         server._register_tools()
-        gitlab_read_ops = server._group_ops.get("gitlab_read", {})
-        assert "HgProbeSynthetic" in gitlab_read_ops
+        assert server._dispatch("HgProbeSynthetic", "gitlab_read", {}) == "hg"
 
     def test_non_heptapod_tools_always_registered(self, monkeypatch):
         import gitlab_mcp.client as client_mod
@@ -604,12 +606,12 @@ class TestGitlabVersion:
         assert svc["vcs_types"] == ["git", "hg", "hg_git"]
         assert svc["url"] == "https://gitlab.example.com"
 
-    def test_shape_without_instance(self):
-        # If called before main() sets up instance, returns empty service dict.
+    def test_shape_when_backend_undetectable(self):
+        # A failing probe must not take the version tool down with it.
         import gitlab_mcp.client as client_mod
         transport = httpx.MockTransport(lambda req: httpx.Response(404))
         client = GitLabClient(transport=transport)
-        # Don't populate client.instance
+        # Don't seed client.instance: the 404 transport breaks detection.
         client_mod._client = client
 
         from gitlab_mcp.tools import gitlab_version

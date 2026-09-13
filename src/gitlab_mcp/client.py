@@ -59,12 +59,32 @@ class GitLabClient:
             timeout=timeout if timeout is not None else s.gitlab_timeout,
             transport=transport,
         )
-        # Populated by main() via detect_instance() or explicit backend seed.
+        # The backend this client may talk to; "auto" means detect it.
+        self._backend = s.gitlab_backend
+        # Resolved on first `instance` access, or seeded by a caller.
         # InstanceInfo is TYPE_CHECKING-only: importing it here would cycle.
-        self.instance: InstanceInfo | None = None
+        self._instance: InstanceInfo | None = None
         # Per-project vcs_type FIFO cache, bounded.
         self._project_cache: OrderedDict[str, str] = OrderedDict()
         self._project_cache_max = 256
+
+    @property
+    def instance(self) -> InstanceInfo:
+        """Which backend this client talks to, probed once on first access.
+
+        Lazy, not seeded at startup: one process may host several instances,
+        so detection belongs to the client, not to a process-wide step.
+        """
+        if self._instance is None:
+            # Lazy import to avoid circular dependency.
+            from .backend import resolve_instance
+
+            self._instance = resolve_instance(self)
+        return self._instance
+
+    @instance.setter
+    def instance(self, value: InstanceInfo | None) -> None:
+        self._instance = value
 
     # ── low-level ──────────────────────────────────────────────
 
