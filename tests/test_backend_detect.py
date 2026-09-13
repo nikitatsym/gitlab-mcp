@@ -285,3 +285,13 @@ class TestClient:
             while len(client._project_cache) > client._project_cache_max:
                 client._project_cache.popitem(last=False)
         assert list(client._project_cache.keys()) == ["2", "3", "4"]
+
+    def test_check_names_the_settings_when_unset(self, monkeypatch):
+        monkeypatch.delenv("GITLAB_URL")
+        monkeypatch.delenv("GITLAB_TOKEN")
+        _reset_settings()
+        # A reachable transport: the refusal must come from the missing
+        # credential, before any request.
+        client = _make_client(lambda req: httpx.Response(200, json={"version": "18.6.0"}))
+        with pytest.raises(ValueError, match="GITLAB_URL and GITLAB_TOKEN must be set"):
+            client.check()
