@@ -86,6 +86,25 @@ class GitLabClient:
     def instance(self, value: InstanceInfo | None) -> None:
         self._instance = value
 
+    def check(self) -> dict:
+        """Probe the instance once and report it; the startup gate.
+
+        Called by `main()` before serving and by the version tool for its
+        `service` block: a missing, unreachable or rejected credential fails
+        at startup instead of on the first tool call.
+        """
+        if not self._base or not self._token:
+            raise ValueError("GITLAB_URL and GITLAB_TOKEN must be set. See README.")
+        inst = self.instance
+        return {
+            "backend": inst.backend,
+            "version": inst.version,
+            "revision": inst.revision,
+            "enterprise": inst.enterprise,
+            "vcs_types": sorted(inst.vcs_types_supported),
+            "url": inst.url,
+        }
+
     # ── low-level ──────────────────────────────────────────────
 
     def _request(self, method: str, path: str, **kwargs) -> httpx.Response:

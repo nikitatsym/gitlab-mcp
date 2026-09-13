@@ -173,21 +173,11 @@ gitlab_admin_write = Group(
 def gitlab_version():
     """Get the MCP server version and the connected instance info."""
     try:
-        inst = get_client().instance
+        service = get_client().check()
     except (GitLabError, httpx.HTTPError, TypeError, ValueError):
         # An unreachable instance or a bad token is exactly when this tool
         # gets called; still report the MCP version, with no service block.
-        inst = None
-    service: dict = {}
-    if inst is not None:
-        service = {
-            "backend": inst.backend,
-            "version": inst.version,
-            "revision": inst.revision,
-            "enterprise": inst.enterprise,
-            "vcs_types": sorted(inst.vcs_types_supported),
-            "url": inst.url,
-        }
+        service = {}
     return {
         "mcp": _pkg_version("gitlab-mcp"),
         "service": service,

@@ -5,17 +5,20 @@ import sys
 import pytest
 from pydantic import ValidationError
 
+from gitlab_mcp.client import _reset_client
 from gitlab_mcp.config import Settings, _reset_settings, get_settings
 
 
 @pytest.fixture(autouse=True)
 def _clean_settings(monkeypatch):
-    """Reset settings before and after each test, with no gitlab-related env leakage."""
+    """Reset settings and client before and after each test, with no gitlab-related env leakage."""
     for var in ("GITLAB_URL", "GITLAB_TOKEN", "GITLAB_BACKEND", "GITLAB_TIMEOUT", "MCP_GITLAB_BRIEF_MAX"):
         monkeypatch.delenv(var, raising=False)
     _reset_settings()
+    _reset_client()
     yield
     _reset_settings()
+    _reset_client()
 
 
 class TestSettings:

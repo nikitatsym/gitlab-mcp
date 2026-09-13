@@ -11,12 +11,11 @@ def main() -> None:
     Strict startup ordering — every step fail-fast:
 
     1. Parse CLI flags with argparse.
-    2. Load settings, require GITLAB_URL and GITLAB_TOKEN.
-    3. Construct the HTTP client and probe the backend once through
-       `client.instance` (lazy detection, or the explicit GITLAB_BACKEND
-       override, which keeps the backend fixed but still probes /metadata
-       best-effort for version).
-    4. Run MCPServer over stdio, or streamable HTTP with --http.
+    2. Construct the HTTP client and call `check()`: it requires GITLAB_URL
+       and GITLAB_TOKEN and probes the backend once through `client.instance`
+       (lazy detection, or the explicit GITLAB_BACKEND override, which keeps
+       the backend fixed but still probes /metadata best-effort for version).
+    3. Run MCPServer over stdio, or streamable HTTP with --http.
 
     Tools are registered at import of `.server`, not here: a host importing
     this package must see them without calling `main()`.
@@ -48,19 +47,12 @@ def main() -> None:
 
     set_allow_public(args.allow_public)
 
-    from .config import get_settings
-
-    settings = get_settings()
-    if not settings.gitlab_url or not settings.gitlab_token:
-        raise ValueError(
-            "GITLAB_URL and GITLAB_TOKEN must be set. See README."
-        )
-
     from .client import get_client
 
-    # Startup probe: a bad URL or token must fail here, not on the first tool
-    # call. `instance` caches, so tools reuse this result.
-    _ = get_client().instance
+    # Startup gate: a missing, unreachable or rejected credential must fail
+    # here, not on the first tool call. `check()` caches the probed instance,
+    # so tools reuse its result.
+    get_client().check()
 
     if args.http:
         # Stateless: the gateway in front opens a session per call; nothing outlives a request.
