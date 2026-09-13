@@ -7,7 +7,7 @@ Full REST API coverage with VCS-aware helpers — one tool surface, two backends
 
 - **800+ tools** generated from `@gitbeaker/rest` TypeScript types covering the full GitLab v4 REST API
 - **6 risk-graded groups** — `gitlab_read`, `gitlab_write`, `gitlab_execute`, `gitlab_delete`, `gitlab_admin_read`, `gitlab_admin_write`
-- **Heptapod transparent** — auto-detects backend at startup, reveals 4 hg-specific tools (`hg_get_config`, `hg_set_config`, `hg_get_raw_hgrc`, `hg_create_topic_mr`) only when running against Heptapod
+- **Heptapod transparent** — detects the backend on first use; the 4 hg-specific operations (`hg_get_config`, `hg_set_config`, `hg_get_raw_hgrc`, `hg_create_topic_mr`) are rejected with a clear error against plain GitLab
 - **Mercurial refs preserved verbatim** — `branch/<name>` and `topic/<target>/<name>` pass through unchanged; commit IDs not assumed to be git SHAs
 - **Pre-flight guards** — block `fork` on hg projects, validate hg topic naming on MR creation, detect silently-dropped fields in write responses
 - **Visibility default-deny** — public/internal projects/snippets/groups blocked unless `--allow-public` is passed
@@ -40,8 +40,8 @@ For Claude Code global config: `~/.claude.json` → `"mcpServers"`.
 Or use the interactive **[Setup Page](https://nikitatsym.github.io/gitlab-mcp/)** to generate the config.
 
 The same config works against Heptapod — just point `GITLAB_URL` at your Heptapod instance.
-The server probes `/api/v4/projects/vcs_type_stats` at startup to detect which backend it's
-talking to and registers the right tool set.
+The server probes `/api/v4/projects/vcs_type_stats` on the first request (at startup for
+stdio and `--http`) to detect which backend it's talking to.
 
 ### HTTP
 
@@ -67,7 +67,8 @@ The package can also be imported: `mcp`, `Settings`, the client class, and `clie
 
 ## Heptapod handling
 
-On a Heptapod instance, the MCP additionally registers four `hg_*` tools:
+Against a Heptapod instance, four `hg_*` operations do real work; on plain GitLab each one
+fails with `... is Heptapod-only; this instance is gitlab`:
 
 - `hg_get_config(project_id)` — read structured Mercurial settings
 - `hg_set_config(project_id, inherit, allow_bookmarks, allow_multiple_heads, auto_publish)` — write settings (note: this is a PUT, not a PATCH — unsent fields reset to defaults)

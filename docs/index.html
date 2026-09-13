@@ -176,11 +176,11 @@
 
     <label for="backend">Backend</label>
     <select id="backend">
-      <option value="auto" selected>auto &mdash; probe /api/v4/projects/vcs_type_stats at startup</option>
-      <option value="gitlab">gitlab &mdash; force GitLab, skip the probe (no hg tools registered)</option>
-      <option value="heptapod">heptapod &mdash; force Heptapod, skip the probe (hg tools always registered)</option>
+      <option value="auto" selected>auto &mdash; probe /api/v4/projects/vcs_type_stats on first use</option>
+      <option value="gitlab">gitlab &mdash; force GitLab, skip the probe (hg operations rejected)</option>
+      <option value="heptapod">heptapod &mdash; force Heptapod, skip the probe (hg operations allowed)</option>
     </select>
-    <p class="hint">Use <code>gitlab</code>/<code>heptapod</code> to skip the auto-detect probe (saves one round-trip at startup, useful when the probe is blocked by network).</p>
+    <p class="hint">Use <code>gitlab</code>/<code>heptapod</code> to skip the auto-detect probe (saves one round-trip, useful when the probe is blocked by network).</p>
 
     <div style="display:flex;gap:1rem;margin-bottom:1rem">
       <div style="flex:1">
@@ -224,7 +224,7 @@
     <h2>Heptapod Notes</h2>
     <ol>
       <li>The server detects Heptapod automatically by probing <code>/api/v4/projects/vcs_type_stats</code>.</li>
-      <li>On Heptapod, four <code>hg_*</code> tools become available: <code>hg_get_config</code>, <code>hg_set_config</code>, <code>hg_get_raw_hgrc</code>, <code>hg_create_topic_mr</code>.</li>
+      <li>Four <code>hg_*</code> operations do real work on Heptapod: <code>hg_get_config</code>, <code>hg_set_config</code>, <code>hg_get_raw_hgrc</code>, <code>hg_create_topic_mr</code>. Against plain GitLab each one is rejected as Heptapod-only.</li>
       <li>Mercurial branches/topics appear in API responses as <code>branch/&lt;name&gt;</code> and <code>topic/&lt;target&gt;/&lt;name&gt;</code>. The server preserves them verbatim &mdash; pass them as-is when constructing refs.</li>
       <li>Forks of Mercurial projects are blocked by Heptapod itself; the server returns a clean error before hitting the network.</li>
       <li>Personal forks, public projects, and merge commits work normally on Git projects hosted on Heptapod.</li>

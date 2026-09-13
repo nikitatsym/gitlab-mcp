@@ -17,7 +17,7 @@ _VALID_VCS = {"git", "hg", "hg_git"}
 
 @dataclass
 class InstanceInfo:
-    """What backend the MCP is talking to, populated once at startup by main()."""
+    """What backend the MCP is talking to, resolved once per client."""
 
     backend: Backend
     version: str
@@ -87,6 +87,30 @@ def detect_instance(client: GitLabClient) -> InstanceInfo:
         revision=revision,
         enterprise=enterprise,
         vcs_types_supported=vcs_types,
+        url=client._base,
+    )
+
+
+def resolve_instance(client: GitLabClient) -> InstanceInfo:
+    """The instance a client talks to, per its own backend setting.
+
+    "auto" runs full detection and fails fast on an unreachable instance or a
+    bad token. An explicit backend stays fixed and only probes /metadata
+    best-effort, so neither can break the client that asked for it.
+    """
+    backend = client._backend
+    if backend == "auto":
+        return detect_instance(client)
+
+    version, revision, enterprise = probe_metadata(client)
+    return InstanceInfo(
+        backend=backend,
+        version=version,
+        revision=revision,
+        enterprise=enterprise,
+        vcs_types_supported=(
+            {"git", "hg", "hg_git"} if backend == "heptapod" else {"git"}
+        ),
         url=client._base,
     )
 

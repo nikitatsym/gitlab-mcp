@@ -50,9 +50,8 @@ _load_env_file()
 class AgentSimulator:
     """Simulate an MCP agent calling tools by snake_case name.
 
-    Only exposes tools that are actually registered in `server._group_ops`
-    after `_register_tools()` has filtered out Heptapod-only tools on a
-    non-Heptapod backend.
+    Only exposes tools that are actually registered in `server._group_ops`;
+    a Heptapod-only op is registered on any backend and rejected at dispatch.
     """
 
     def __init__(self):

@@ -21,6 +21,7 @@ from pathlib import Path as _Path
 from typing import Annotated
 from urllib.parse import quote as _quote
 
+import httpx
 from pydantic import Field
 
 from . import _generated
@@ -171,7 +172,12 @@ gitlab_admin_write = Group(
 @_op(ROOT)
 def gitlab_version():
     """Get the MCP server version and the connected instance info."""
-    inst = get_client().instance
+    try:
+        inst = get_client().instance
+    except (GitLabError, httpx.HTTPError, TypeError, ValueError):
+        # An unreachable instance or a bad token is exactly when this tool
+        # gets called; still report the MCP version, with no service block.
+        inst = None
     service: dict = {}
     if inst is not None:
         service = {
@@ -758,8 +764,7 @@ def _project_is_hg(project_id) -> bool:
     any per-project network call.
     """
     client = get_client()
-    inst = client.instance
-    if inst is None or inst.backend != "heptapod":
+    if client.instance.backend != "heptapod":
         return False
     vcs = client.project_vcs_type(project_id)
     return vcs in ("hg", "hg_git")

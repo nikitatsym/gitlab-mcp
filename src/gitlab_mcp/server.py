@@ -4,8 +4,8 @@ Adapted from komodo-mcp's server.py with two extensions:
 
 1. Strict Literal validation in `_coerce_call` — invalid enum values raise
    ValueError before the function runs.
-2. `_heptapod_only` filter in `_register_tools` — functions tagged with that
-   attribute are skipped when the detected backend is not Heptapod.
+2. `_heptapod_only` guard in `_dispatch` — an op tagged with that attribute
+   is rejected unless the calling client's backend is Heptapod.
 """
 
 import functools
@@ -544,6 +544,9 @@ def _dispatch(operation: str, group_name: str, params: dict, ctx: Context | None
     all come back as `{"error": ...}`; an exception crossing the MCP boundary
     would reach the caller as a contextless tool failure instead.
 
+    A Heptapod-only op called against GitLab is rejected here, in the same
+    `{"error": ...}` shape.
+
     Synchronous ops are called directly. Async ops (e.g. pipelines_wait,
     jobs_wait) return a coroutine, wrapped so a failure raised at await time
     maps identically — the meta-tool `tool_fn` awaits it. Calling `_dispatch`
@@ -570,7 +573,17 @@ def _dispatch(operation: str, group_name: str, params: dict, ctx: Context | None
                 "Use operation='help' to list available operations."
             )
 
-        result = _coerce_call(ops[operation], params, ctx)
+        fn = ops[operation]
+        # Registration is process-global, so the backend can only be checked
+        # per call: the bound client decides whether an hg op is legal.
+        if getattr(fn, "_heptapod_only", False):
+            backend = get_client().instance.backend
+            if backend != "heptapod":
+                raise ValueError(
+                    f"{operation} is Heptapod-only; this instance is {backend}"
+                )
+
+        result = _coerce_call(fn, params, ctx)
     except _EXPECTED_FAILURES as exc:
         return _error_result(exc)
     if inspect.iscoroutine(result):
@@ -633,23 +646,13 @@ def _render_group_doc(group_name: str, doc: str, ops: dict) -> str:
         ) from exc
 
 
-def _should_include(fn) -> bool:
-    """Return False for Heptapod-only tools when the backend isn't Heptapod."""
-    if not getattr(fn, "_heptapod_only", False):
-        return True
-    inst = get_client().instance
-    if inst is None:
-        # Pre-main() import (tests, introspection). Include by default.
-        return True
-    return inst.backend == "heptapod"
-
-
 def _register_tools():
-    """Discover @_op-decorated functions, filter, and register as MCP tools.
+    """Discover @_op-decorated functions and register them as MCP tools.
 
-    Called explicitly by `main()` after `client.instance` is populated by
-    `detect_instance()`. Not auto-called at import time — that would run
-    the Heptapod filter before startup detection has finished.
+    Called at import: a host that imports the package to serve several
+    instances under one process must see the full tool surface without
+    running `main()`. Registration therefore touches no client, and the
+    Heptapod-only guard lives in `_dispatch`, per call.
     """
     # Reset module-level state to allow re-registration in tests.
     _group_ops.clear()
@@ -661,8 +664,6 @@ def _register_tools():
         if name.startswith("_"):
             continue
         if not hasattr(fn, "_mcp_group"):
-            continue
-        if not _should_include(fn):
             continue
         group = fn._mcp_group
         if group is ROOT:
@@ -739,3 +740,6 @@ def _register_wait_resource() -> None:
         return _json.dumps(handle.snapshot(), default=str)
 
     _WAIT_RESOURCE_REGISTERED = True
+
+
+_register_tools()
