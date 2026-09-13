@@ -248,20 +248,14 @@ class TestAgentWorkflow:
         agent_gitlab.call("projects_remove", project_id=TestAgentWorkflow.project_id)
 
 
-class TestHeptapodOnlyToolsAbsent:
-    """On a plain GitLab backend, hg_* tools must not be registered."""
+class TestHeptapodOnlyToolsGuarded:
+    """hg_* operations are registered everywhere; on GitLab dispatch refuses them."""
 
-    def test_no_hg_tools_in_agent(self, agent_gitlab):
-        available = set(agent_gitlab._tools.keys())
-        hg_tools = {
-            "hg_get_config",
-            "hg_get_raw_hgrc",
-            "hg_set_config",
-            "hg_create_topic_mr",
-        }
-        assert not (available & hg_tools), (
-            f"Expected no hg_* tools on gitlab backend, found: {available & hg_tools}"
-        )
+    def test_hg_op_refused_on_gitlab(self, agent_gitlab):
+        from gitlab_mcp.server import _dispatch
+
+        result = _dispatch("HgGetConfig", "gitlab_read", {"project_id": 1})
+        assert result == {"error": "HgGetConfig is Heptapod-only; this instance is gitlab"}
 
     def test_fork_guard_noop_on_gitlab(self, agent_gitlab):
         # The guard only fires on hg projects. A lookup should return fast
