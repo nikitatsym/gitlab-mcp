@@ -1,3 +1,10 @@
+from .client import GitLabClient, client_var
+from .config import Settings
+from .server import mcp
+
+__all__ = ["GitLabClient", "Settings", "client_var", "main", "mcp"]
+
+
 def main() -> None:
     """Entry point for the gitlab-mcp MCP server.
 

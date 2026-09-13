@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 import time
 from collections import OrderedDict
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 
 import httpx
 
-from .config import get_settings
+from .config import Settings, get_settings
 
 if TYPE_CHECKING:
     from .backend import InstanceInfo
@@ -46,8 +47,10 @@ class GitLabClient:
         token: str | None = None,
         timeout: float | None = None,
         transport: httpx.BaseTransport | None = None,
+        *,
+        settings: Settings | None = None,
     ):
-        s = get_settings()
+        s = settings or get_settings()
         self._base = (base_url or s.gitlab_url).rstrip("/")
         self._token = token or s.gitlab_token
         self._http = httpx.Client(
@@ -177,18 +180,23 @@ class GitLabClient:
 
 # ── module singleton accessor ─────────────────────────────────
 
+# A host serving several instances per process binds this per request.
+client_var: ContextVar[GitLabClient | None] = ContextVar("gitlab_client", default=None)
+
 _client: GitLabClient | None = None
 
 
 def get_client() -> GitLabClient:
     global _client
+    if (bound := client_var.get()) is not None:
+        return bound
     if _client is None:
         _client = GitLabClient()
     return _client
 
 
 def _reset_client() -> None:
-    """Force re-creation on next get_client(). Used by tests."""
+    """Drop the module singleton; get_client() rebuilds it. Used by tests."""
     global _client
     _client = None
 
