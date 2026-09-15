@@ -5,6 +5,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
+from gitlab_mcp import tools
 from gitlab_mcp.backend import InstanceInfo
 from gitlab_mcp.client import GitLabClient, _reset_client
 from gitlab_mcp.config import _reset_settings
@@ -37,6 +38,49 @@ def _seed(backend: str, handler=None) -> GitLabClient:
     import gitlab_mcp.client as client_mod
     client_mod._client = client
     return client
+
+
+class TestJobsAll:
+    def test_pipeline_route_returns_only_selected_jobs(self):
+        selected = [{"id": 101, "stage": "build", "status": "success"}]
+        history = [{"id": 1, "stage": "build", "status": "failed"}]
+        calls = []
+
+        def handler(req):
+            calls.append(req)
+            if req.url.path == "/api/v4/projects/team/project/pipelines/42/jobs":
+                return httpx.Response(200, json=selected)
+            if req.url.path == "/api/v4/projects/team/project/jobs":
+                return httpx.Response(200, json=selected + history)
+            raise AssertionError(f"unexpected request: {req.url}")
+
+        _seed("gitlab", handler)
+        assert tools.jobs_all(
+            project_id="team/project", pipeline_id=42, brief=False,
+            scope=["success"], page=2, per_page=5, include_retried=False,
+        ) == selected
+        assert calls[0].url.raw_path.startswith(
+            b"/api/v4/projects/team%2Fproject/pipelines/42/jobs?"
+        )
+        assert dict(calls[0].url.params) == {
+            "scope": "success", "page": "2", "per_page": "5", "include_retried": "false",
+        }
+        assert tools.jobs_all(
+            project_id="team/project", brief=False, ref="main", page=2, per_page=5,
+        ) == selected + history
+        assert dict(calls[1].url.params) == {"ref": "main", "page": "2", "per_page": "5"}
+
+    @pytest.mark.parametrize("options", [
+        {"include_retried": False},
+        {"pipeline_id": 42, "ref": "main"},
+    ])
+    def test_branch_specific_options_rejected_before_request(self, options):
+        def handler(req):
+            raise AssertionError(f"unexpected request: {req.url}")
+
+        _seed("gitlab", handler)
+        with pytest.raises(ValueError):
+            tools.jobs_all(project_id=1, **options)
 
 
 # ── create_merge_request pre-flight ──────────────────────────────────────

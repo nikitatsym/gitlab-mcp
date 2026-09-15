@@ -72,7 +72,11 @@ ANNOTATIONS: dict[str, str] = {
     "pipelines_create": "Trigger a new pipeline run on a ref (branch/tag).",
     "pipelines_retry": "Retry all failed jobs in a pipeline.",
     "pipelines_cancel": "Cancel a running pipeline.",
-    "jobs_all": "List CI jobs for a project.",
+    "jobs_all": (
+        "List CI jobs for a project, or only one pipeline when pipeline_id is set. "
+        "ref is project-only; include_retried requires pipeline_id. "
+        "page and per_page select a page on either endpoint."
+    ),
     "jobs_show": "Get details of a single job.",
     "jobs_show_log": "Fetch a job's raw trace (log). Use tail=N to get only the last N lines.",
     "jobs_play": "Trigger a manual job (one that's in 'manual' state).",

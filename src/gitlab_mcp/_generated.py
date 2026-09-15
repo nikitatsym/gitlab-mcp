@@ -2051,6 +2051,10 @@ def container_registry_all_repositories(group_id: str | int | _Unset = _UNSET, p
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     if group_id:
+        if tags is not _UNSET:
+            raise ValueError("ContainerRegistry.allRepositories tags is not supported for this path")
+        if tags_count is not _UNSET:
+            raise ValueError("ContainerRegistry.allRepositories tags_count is not supported for this path")
         return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/registry/repositories", params=payload))
     if project_id:
         return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/registry/repositories", params=payload))
@@ -2185,8 +2189,12 @@ def deploy_keys_all(project_id: str | int | _Unset = _UNSET, user_id: str | int 
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     if project_id:
+        if public is not _UNSET:
+            raise ValueError("DeployKeys.all public is not supported for this path")
         return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/deploy_keys", params=payload))
     if user_id:
+        if public is not _UNSET:
+            raise ValueError("DeployKeys.all public is not supported for this path")
         return _ok(_get_client().request("GET", f"/users/{_enc(user_id)}/project_deploy_keys", params=payload))
     return _ok(_get_client().request("GET", f"/deploy_keys", params=payload))
 
@@ -2785,8 +2793,12 @@ def events_all(project_id: str | int | _Unset = _UNSET, user_id: str | int | _Un
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     if project_id:
+        if scope is not _UNSET:
+            raise ValueError("Events.all scope is not supported for this path")
         return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/events", params=payload))
     if user_id:
+        if scope is not _UNSET:
+            raise ValueError("Events.all scope is not supported for this path")
         return _ok(_get_client().request("GET", f"/users/{_enc(user_id)}/events", params=payload))
     return _ok(_get_client().request("GET", f"/events", params=payload))
 
@@ -6121,6 +6133,8 @@ def issues_all(project_id: str | int | _Unset = _UNSET, group_id: str | int | _U
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     if project_id:
+        if non_archived is not _UNSET:
+            raise ValueError("Issues.all non_archived is not supported for this path")
         return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues", params=payload))
     if group_id:
         return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/issues", params=payload))
@@ -6357,13 +6371,13 @@ def issues_reset_time_estimate(project_id: str | int, issue_iid: str | int, sudo
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/reset_time_estimate", json=payload))
 
 
-def issues_show(issue_id: str | int, project_id: str | int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Issues.show (GET issues/${issueId}). Body fields: project_id, sudo."""
+def issues_show(issue_id: int, project_id: str | int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """Issues.show (GET; selector-driven path: if project_id: projects/${projectId}/issues/${issueId}; else: issues/${issueId})."""
     payload: dict = {}
-    if project_id is not _UNSET:
-        payload["project_id"] = project_id
     if sudo is not _UNSET:
         payload["sudo"] = sudo
+    if project_id:
+        return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/issues/{_enc(issue_id)}", params=payload))
     return _ok(_get_client().request("GET", f"/issues/{_enc(issue_id)}", params=payload))
 
 
@@ -6580,8 +6594,8 @@ def job_artifacts_remove(project_id: str | int, job_id: int | _Unset = _UNSET, s
 
 # ── Jobs ──────────────────────────────────────────────────────────────────
 
-def jobs_all(project_id: str | int, scope: list[str] | None | _Unset = _UNSET, ref: str | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, pipeline_id: int | _Unset = _UNSET, include_retried: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, order_by: str | _Unset = _UNSET, sort: Literal["asc", "desc"] | _Unset = _UNSET):
-    """Jobs.all (GET projects/${projectId}/jobs). Body fields: scope, ref, page, per_page, pipeline_id, include_retried, sudo, pagination, max_pages, order_by, sort."""
+def jobs_all(project_id: str | int, pipeline_id: int | _Unset = _UNSET, scope: list[str] | None | _Unset = _UNSET, ref: str | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, include_retried: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET, pagination: Any | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, order_by: str | _Unset = _UNSET, sort: Literal["asc", "desc"] | _Unset = _UNSET):
+    """Jobs.all (GET; selector-driven path: if pipeline_id: projects/${projectId}/pipelines/${pipelineId}/jobs; else: projects/${projectId}/jobs)."""
     payload: dict = {}
     if scope is not _UNSET:
         payload["scope"] = scope
@@ -6591,8 +6605,6 @@ def jobs_all(project_id: str | int, scope: list[str] | None | _Unset = _UNSET, r
         payload["page"] = page
     if per_page is not _UNSET:
         payload["per_page"] = per_page
-    if pipeline_id is not _UNSET:
-        payload["pipeline_id"] = pipeline_id
     if include_retried is not _UNSET:
         payload["include_retried"] = include_retried
     if sudo is not _UNSET:
@@ -6605,6 +6617,12 @@ def jobs_all(project_id: str | int, scope: list[str] | None | _Unset = _UNSET, r
         payload["order_by"] = order_by
     if sort is not _UNSET:
         payload["sort"] = sort
+    if pipeline_id:
+        if ref is not _UNSET:
+            raise ValueError("Jobs.all ref is not supported for this path")
+        return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/pipelines/{_enc(pipeline_id)}/jobs", params=payload))
+    if include_retried is not _UNSET:
+        raise ValueError("Jobs.all include_retried is not supported for this path")
     return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/jobs", params=payload))
 
 
@@ -7614,8 +7632,12 @@ def merge_requests_all(project_id: str | int | _Unset = _UNSET, group_id: str | 
     if sudo is not _UNSET:
         payload["sudo"] = sudo
     if project_id:
+        if non_archived is not _UNSET:
+            raise ValueError("MergeRequests.all non_archived is not supported for this path")
         return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/merge_requests", params=payload))
     if group_id:
+        if iids is not _UNSET:
+            raise ValueError("MergeRequests.all iids is not supported for this path")
         return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/merge_requests", params=payload))
     raise ValueError("MergeRequests.all requires one of: project_id or group_id")
 
@@ -8108,8 +8130,8 @@ def migrations_all(page: int | None | _Unset = _UNSET, per_page: int | None | _U
     return _ok(_get_client().request("GET", f"/bulk_imports", params=payload))
 
 
-def migrations_all_entities(page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, status: Literal["created", "started", "finished", "timeout", "failed", "canceled"] | None | _Unset = _UNSET, bulk_import_id: int | _Unset = _UNSET, pagination: Literal["offset"] | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Migrations.allEntities (GET bulk_imports/entities). Body fields: page, per_page, sort, status, bulk_import_id, pagination, max_pages, sudo."""
+def migrations_all_entities(bulk_import_id: int | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, sort: Literal["asc", "desc"] | None | _Unset = _UNSET, status: Literal["created", "started", "finished", "timeout", "failed", "canceled"] | None | _Unset = _UNSET, pagination: Literal["offset"] | _Unset = _UNSET, max_pages: int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """Migrations.allEntities (GET; selector-driven path: if bulk_import_id: bulk_imports/${bulkImportId}/entities; else: bulk_imports/entities)."""
     payload: dict = {}
     if page is not _UNSET:
         payload["page"] = page
@@ -8119,14 +8141,16 @@ def migrations_all_entities(page: int | None | _Unset = _UNSET, per_page: int | 
         payload["sort"] = sort
     if status is not _UNSET:
         payload["status"] = status
-    if bulk_import_id is not _UNSET:
-        payload["bulk_import_id"] = bulk_import_id
     if pagination is not _UNSET:
         payload["pagination"] = pagination
     if max_pages is not _UNSET:
         payload["max_pages"] = max_pages
     if sudo is not _UNSET:
         payload["sudo"] = sudo
+    if bulk_import_id:
+        if sort is not _UNSET:
+            raise ValueError("Migrations.allEntities sort is not supported for this path")
+        return _ok(_get_client().request("GET", f"/bulk_imports/{_enc(bulk_import_id)}/entities", params=payload))
     return _ok(_get_client().request("GET", f"/bulk_imports/entities", params=payload))
 
 
@@ -8400,6 +8424,8 @@ def packages_all(project_id: str | int | _Unset = _UNSET, group_id: str | int | 
     if max_pages is not _UNSET:
         payload["max_pages"] = max_pages
     if project_id:
+        if exclude_subgroups is not _UNSET:
+            raise ValueError("Packages.all exclude_subgroups is not supported for this path")
         return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/packages", params=payload))
     if group_id:
         return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/packages", params=payload))
@@ -8582,12 +8608,12 @@ def personal_access_tokens_create(user_id: str | int, name: str, scopes: list[st
 
 
 def personal_access_tokens_remove(token_id: str | int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """PersonalAccessTokens.remove (DELETE personal_access_tokens/self). Body fields: token_id, sudo."""
+    """PersonalAccessTokens.remove (DELETE; selector-driven path: if token_id: personal_access_tokens/${tokenId}; else: personal_access_tokens/self)."""
     payload: dict = {}
-    if token_id is not _UNSET:
-        payload["token_id"] = token_id
     if sudo is not _UNSET:
         payload["sudo"] = sudo
+    if token_id:
+        return _ok(_get_client().request("DELETE", f"/personal_access_tokens/{_enc(token_id)}", params=payload))
     return _ok(_get_client().request("DELETE", f"/personal_access_tokens/self", params=payload))
 
 
@@ -8602,12 +8628,12 @@ def personal_access_tokens_rotate(token_id: str | int, expires_at: str | None | 
 
 
 def personal_access_tokens_show(token_id: str | int | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """PersonalAccessTokens.show (GET personal_access_tokens/self). Body fields: token_id, sudo."""
+    """PersonalAccessTokens.show (GET; selector-driven path: if token_id: personal_access_tokens/${tokenId}; else: personal_access_tokens/self)."""
     payload: dict = {}
-    if token_id is not _UNSET:
-        payload["token_id"] = token_id
     if sudo is not _UNSET:
         payload["sudo"] = sudo
+    if token_id:
+        return _ok(_get_client().request("GET", f"/personal_access_tokens/{_enc(token_id)}", params=payload))
     return _ok(_get_client().request("GET", f"/personal_access_tokens/self", params=payload))
 
 
@@ -10952,8 +10978,8 @@ def projects_archive(project_id: str | int, sudo: str | int | _Unset = _UNSET):
     return _ok(_get_client().request("POST", f"/projects/{_enc(project_id)}/archive", json=payload))
 
 
-def projects_create(name: str | None | _Unset = _UNSET, path: str | None | _Unset = _UNSET, default_branch: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, build_git_strategy: Literal["fetch", "clone"] | None | _Unset = _UNSET, build_timeout: int | None | _Unset = _UNSET, auto_cancel_pending_pipelines: Literal["disabled", "enabled"] | None | _Unset = _UNSET, ci_config_path: str | None | _Unset = _UNSET, service_desk_enabled: bool | None | _Unset = _UNSET, issues_enabled: bool | None | _Unset = _UNSET, merge_requests_enabled: bool | None | _Unset = _UNSET, wiki_enabled: bool | None | _Unset = _UNSET, jobs_enabled: bool | None | _Unset = _UNSET, snippets_enabled: bool | None | _Unset = _UNSET, issues_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, repository_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, merge_requests_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, forking_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, wiki_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, builds_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, snippets_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, package_registry_access_level: Literal["disabled", "private", "enabled", "public"] | None | _Unset = _UNSET, pages_access_level: Literal["disabled", "private", "enabled", "public"] | None | _Unset = _UNSET, analytics_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, container_registry_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, security_and_compliance_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, releases_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, environments_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, feature_flags_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, infrastructure_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, monitor_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, model_experiments_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, model_registry_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, emails_disabled: bool | None | _Unset = _UNSET, emails_enabled: bool | None | _Unset = _UNSET, show_default_award_emojis: bool | None | _Unset = _UNSET, show_diff_preview_in_email: bool | None | _Unset = _UNSET, warn_about_potentially_unwanted_characters: bool | None | _Unset = _UNSET, enforce_auth_checks_on_uploads: bool | None | _Unset = _UNSET, shared_runners_enabled: bool | None | _Unset = _UNSET, group_runners_enabled: bool | None | _Unset = _UNSET, resource_group_default_process_mode: Literal["unordered", "oldest_first", "newest_first", "newest_ready_first"] | None | _Unset = _UNSET, resolve_outdated_diff_discussions: bool | None | _Unset = _UNSET, remove_source_branch_after_merge: bool | None | _Unset = _UNSET, packages_enabled: bool | None | _Unset = _UNSET, container_registry_enabled: bool | None | _Unset = _UNSET, container_expiration_policy_attributes: dict | None | _Unset = _UNSET, lfs_enabled: bool | None | _Unset = _UNSET, visibility: Literal["private", "internal", "public"] | None | _Unset = _UNSET, public_builds: bool | None | _Unset = _UNSET, public_jobs: bool | None | _Unset = _UNSET, request_access_enabled: bool | None | _Unset = _UNSET, only_allow_merge_if_pipeline_succeeds: bool | None | _Unset = _UNSET, allow_merge_on_skipped_pipeline: bool | None | _Unset = _UNSET, only_allow_merge_if_all_discussions_are_resolved: bool | None | _Unset = _UNSET, tag_list: list[str] | None | _Unset = _UNSET, topics: list[str] | None | _Unset = _UNSET, avatar: str | None | _Unset = _UNSET, printing_merge_request_link_enabled: bool | None | _Unset = _UNSET, merge_method: Literal["ff", "rebase_merge", "merge"] | None | _Unset = _UNSET, suggestion_commit_message: str | None | _Unset = _UNSET, merge_commit_template: str | None | _Unset = _UNSET, squash_commit_template: str | None | _Unset = _UNSET, issue_branch_template: str | None | _Unset = _UNSET, auto_devops_enabled: bool | None | _Unset = _UNSET, auto_devops_deploy_strategy: Literal["continuous", "manual", "timed_incremental"] | None | _Unset = _UNSET, autoclose_referenced_issues: bool | None | _Unset = _UNSET, repository_storage: str | None | _Unset = _UNSET, squash_option: Literal["never", "always", "default_on", "default_off"] | None | _Unset = _UNSET, mr_default_target_self: bool | None | _Unset = _UNSET, only_allow_merge_if_all_status_checks_passed: bool | None | _Unset = _UNSET, approvals_before_merge: int | None | _Unset = _UNSET, mirror: bool | None | _Unset = _UNSET, mirror_trigger_builds: bool | None | _Unset = _UNSET, external_authorization_classification_label: str | None | _Unset = _UNSET, requirements_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, prevent_merge_without_jira_issue: bool | None | _Unset = _UNSET, auto_duo_code_review_enabled: bool | None | _Unset = _UNSET, duo_remote_flows_enabled: bool | None | _Unset = _UNSET, duo_sast_fp_detection_enabled: bool | None | _Unset = _UNSET, duo_secret_detection_fp_enabled: bool | None | _Unset = _UNSET, duo_sast_vr_workflow_enabled: bool | None | _Unset = _UNSET, spp_repository_pipeline_access: bool | None | _Unset = _UNSET, merge_request_title_regex: str | None | _Unset = _UNSET, merge_request_title_regex_description: str | None | _Unset = _UNSET, repository_object_format: Literal["sha1", "sha256"] | None | _Unset = _UNSET, initialize_with_readme: bool | None | _Unset = _UNSET, use_custom_template: bool | None | _Unset = _UNSET, group_with_project_templates_id: int | None | _Unset = _UNSET, namespace_id: int | None | _Unset = _UNSET, import_url: str | None | _Unset = _UNSET, template_name: str | None | _Unset = _UNSET, template_project_id: int | None | _Unset = _UNSET, user_id: int | _Unset = _UNSET, ci_delete_pipelines_in_seconds: int | _Unset = _UNSET, merge_pipelines_enabled: bool | _Unset = _UNSET, merge_trains_enabled: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET, vcs_type: Literal["git", "hg", "hg_git"] | _Unset = _UNSET):
-    """Projects.create (POST projects). Body fields: name, path, default_branch, description, build_git_strategy, build_timeout, auto_cancel_pending_pipelines, ci_config_path, service_desk_enabled, issues_enabled, merge_requests_enabled, wiki_enabled, jobs_enabled, snippets_enabled, issues_access_level, repository_access_level, merge_requests_access_level, forking_access_level, wiki_access_level, builds_access_level, snippets_access_level, package_registry_access_level, pages_access_level, analytics_access_level, container_registry_access_level, security_and_compliance_access_level, releases_access_level, environments_access_level, feature_flags_access_level, infrastructure_access_level, monitor_access_level, model_experiments_access_level, model_registry_access_level, emails_disabled, emails_enabled, show_default_award_emojis, show_diff_preview_in_email, warn_about_potentially_unwanted_characters, enforce_auth_checks_on_uploads, shared_runners_enabled, group_runners_enabled, resource_group_default_process_mode, resolve_outdated_diff_discussions, remove_source_branch_after_merge, packages_enabled, container_registry_enabled, container_expiration_policy_attributes, lfs_enabled, visibility, public_builds, public_jobs, request_access_enabled, only_allow_merge_if_pipeline_succeeds, allow_merge_on_skipped_pipeline, only_allow_merge_if_all_discussions_are_resolved, tag_list, topics, avatar, printing_merge_request_link_enabled, merge_method, suggestion_commit_message, merge_commit_template, squash_commit_template, issue_branch_template, auto_devops_enabled, auto_devops_deploy_strategy, autoclose_referenced_issues, repository_storage, squash_option, mr_default_target_self, only_allow_merge_if_all_status_checks_passed, approvals_before_merge, mirror, mirror_trigger_builds, external_authorization_classification_label, requirements_access_level, prevent_merge_without_jira_issue, auto_duo_code_review_enabled, duo_remote_flows_enabled, duo_sast_fp_detection_enabled, duo_secret_detection_fp_enabled, duo_sast_vr_workflow_enabled, spp_repository_pipeline_access, merge_request_title_regex, merge_request_title_regex_description, repository_object_format, initialize_with_readme, use_custom_template, group_with_project_templates_id, namespace_id, import_url, template_name, template_project_id, user_id, ci_delete_pipelines_in_seconds, merge_pipelines_enabled, merge_trains_enabled, sudo, vcs_type."""
+def projects_create(user_id: int | _Unset = _UNSET, name: str | None | _Unset = _UNSET, path: str | None | _Unset = _UNSET, default_branch: str | None | _Unset = _UNSET, description: str | None | _Unset = _UNSET, build_git_strategy: Literal["fetch", "clone"] | None | _Unset = _UNSET, build_timeout: int | None | _Unset = _UNSET, auto_cancel_pending_pipelines: Literal["disabled", "enabled"] | None | _Unset = _UNSET, ci_config_path: str | None | _Unset = _UNSET, service_desk_enabled: bool | None | _Unset = _UNSET, issues_enabled: bool | None | _Unset = _UNSET, merge_requests_enabled: bool | None | _Unset = _UNSET, wiki_enabled: bool | None | _Unset = _UNSET, jobs_enabled: bool | None | _Unset = _UNSET, snippets_enabled: bool | None | _Unset = _UNSET, issues_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, repository_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, merge_requests_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, forking_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, wiki_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, builds_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, snippets_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, package_registry_access_level: Literal["disabled", "private", "enabled", "public"] | None | _Unset = _UNSET, pages_access_level: Literal["disabled", "private", "enabled", "public"] | None | _Unset = _UNSET, analytics_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, container_registry_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, security_and_compliance_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, releases_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, environments_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, feature_flags_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, infrastructure_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, monitor_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, model_experiments_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, model_registry_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, emails_disabled: bool | None | _Unset = _UNSET, emails_enabled: bool | None | _Unset = _UNSET, show_default_award_emojis: bool | None | _Unset = _UNSET, show_diff_preview_in_email: bool | None | _Unset = _UNSET, warn_about_potentially_unwanted_characters: bool | None | _Unset = _UNSET, enforce_auth_checks_on_uploads: bool | None | _Unset = _UNSET, shared_runners_enabled: bool | None | _Unset = _UNSET, group_runners_enabled: bool | None | _Unset = _UNSET, resource_group_default_process_mode: Literal["unordered", "oldest_first", "newest_first", "newest_ready_first"] | None | _Unset = _UNSET, resolve_outdated_diff_discussions: bool | None | _Unset = _UNSET, remove_source_branch_after_merge: bool | None | _Unset = _UNSET, packages_enabled: bool | None | _Unset = _UNSET, container_registry_enabled: bool | None | _Unset = _UNSET, container_expiration_policy_attributes: dict | None | _Unset = _UNSET, lfs_enabled: bool | None | _Unset = _UNSET, visibility: Literal["private", "internal", "public"] | None | _Unset = _UNSET, public_builds: bool | None | _Unset = _UNSET, public_jobs: bool | None | _Unset = _UNSET, request_access_enabled: bool | None | _Unset = _UNSET, only_allow_merge_if_pipeline_succeeds: bool | None | _Unset = _UNSET, allow_merge_on_skipped_pipeline: bool | None | _Unset = _UNSET, only_allow_merge_if_all_discussions_are_resolved: bool | None | _Unset = _UNSET, tag_list: list[str] | None | _Unset = _UNSET, topics: list[str] | None | _Unset = _UNSET, avatar: str | None | _Unset = _UNSET, printing_merge_request_link_enabled: bool | None | _Unset = _UNSET, merge_method: Literal["ff", "rebase_merge", "merge"] | None | _Unset = _UNSET, suggestion_commit_message: str | None | _Unset = _UNSET, merge_commit_template: str | None | _Unset = _UNSET, squash_commit_template: str | None | _Unset = _UNSET, issue_branch_template: str | None | _Unset = _UNSET, auto_devops_enabled: bool | None | _Unset = _UNSET, auto_devops_deploy_strategy: Literal["continuous", "manual", "timed_incremental"] | None | _Unset = _UNSET, autoclose_referenced_issues: bool | None | _Unset = _UNSET, repository_storage: str | None | _Unset = _UNSET, squash_option: Literal["never", "always", "default_on", "default_off"] | None | _Unset = _UNSET, mr_default_target_self: bool | None | _Unset = _UNSET, only_allow_merge_if_all_status_checks_passed: bool | None | _Unset = _UNSET, approvals_before_merge: int | None | _Unset = _UNSET, mirror: bool | None | _Unset = _UNSET, mirror_trigger_builds: bool | None | _Unset = _UNSET, external_authorization_classification_label: str | None | _Unset = _UNSET, requirements_access_level: Literal["disabled", "private", "enabled"] | None | _Unset = _UNSET, prevent_merge_without_jira_issue: bool | None | _Unset = _UNSET, auto_duo_code_review_enabled: bool | None | _Unset = _UNSET, duo_remote_flows_enabled: bool | None | _Unset = _UNSET, duo_sast_fp_detection_enabled: bool | None | _Unset = _UNSET, duo_secret_detection_fp_enabled: bool | None | _Unset = _UNSET, duo_sast_vr_workflow_enabled: bool | None | _Unset = _UNSET, spp_repository_pipeline_access: bool | None | _Unset = _UNSET, merge_request_title_regex: str | None | _Unset = _UNSET, merge_request_title_regex_description: str | None | _Unset = _UNSET, repository_object_format: Literal["sha1", "sha256"] | None | _Unset = _UNSET, initialize_with_readme: bool | None | _Unset = _UNSET, use_custom_template: bool | None | _Unset = _UNSET, group_with_project_templates_id: int | None | _Unset = _UNSET, namespace_id: int | None | _Unset = _UNSET, import_url: str | None | _Unset = _UNSET, template_name: str | None | _Unset = _UNSET, template_project_id: int | None | _Unset = _UNSET, ci_delete_pipelines_in_seconds: int | _Unset = _UNSET, merge_pipelines_enabled: bool | _Unset = _UNSET, merge_trains_enabled: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET, vcs_type: Literal["git", "hg", "hg_git"] | _Unset = _UNSET):
+    """Projects.create (POST; selector-driven path: if user_id: projects/user/${userId}; else: projects)."""
     payload: dict = {}
     if name is not _UNSET:
         payload["name"] = name
@@ -11141,8 +11167,6 @@ def projects_create(name: str | None | _Unset = _UNSET, path: str | None | _Unse
         payload["template_name"] = template_name
     if template_project_id is not _UNSET:
         payload["template_project_id"] = template_project_id
-    if user_id is not _UNSET:
-        payload["user_id"] = user_id
     if ci_delete_pipelines_in_seconds is not _UNSET:
         payload["ci_delete_pipelines_in_seconds"] = ci_delete_pipelines_in_seconds
     if merge_pipelines_enabled is not _UNSET:
@@ -11153,6 +11177,8 @@ def projects_create(name: str | None | _Unset = _UNSET, path: str | None | _Unse
         payload["sudo"] = sudo
     if vcs_type is not _UNSET:
         payload["vcs_type"] = vcs_type
+    if user_id:
+        return _ok(_get_client().request("POST", f"/projects/user/{_enc(user_id)}", json=payload))
     return _ok(_get_client().request("POST", f"/projects", json=payload))
 
 
@@ -13439,6 +13465,8 @@ def runners_all(project_id: str | int | _Unset = _UNSET, group_id: str | int | _
     if project_id:
         return _ok(_get_client().request("GET", f"/projects/{_enc(project_id)}/runners", params=payload))
     if group_id:
+        if scope is not _UNSET:
+            raise ValueError("Runners.all scope is not supported for this path")
         return _ok(_get_client().request("GET", f"/groups/{_enc(group_id)}/runners", params=payload))
     if owned:
         return _ok(_get_client().request("GET", f"/runners", params=payload))
@@ -13855,8 +13883,8 @@ def snippet_repository_storage_moves_show(repository_storage_id: str | int, sudo
 
 # ── Snippets ──────────────────────────────────────────────────────────────
 
-def snippets_all(created_after: str | None | _Unset = _UNSET, created_before: str | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, public: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
-    """Snippets.all (GET snippets). Body fields: created_after, created_before, page, per_page, public, sudo."""
+def snippets_all(ppublic: str | int | _Unset = _UNSET, created_after: str | None | _Unset = _UNSET, created_before: str | None | _Unset = _UNSET, page: int | None | _Unset = _UNSET, per_page: int | None | _Unset = _UNSET, public: bool | _Unset = _UNSET, sudo: str | int | _Unset = _UNSET):
+    """Snippets.all (GET; selector-driven path: if ppublic: snippets/public; else: snippets)."""
     payload: dict = {}
     if created_after is not _UNSET:
         payload["created_after"] = created_after
@@ -13870,6 +13898,8 @@ def snippets_all(created_after: str | None | _Unset = _UNSET, created_before: st
         payload["public"] = public
     if sudo is not _UNSET:
         payload["sudo"] = sudo
+    if ppublic:
+        return _ok(_get_client().request("GET", f"/snippets/public", params=payload))
     return _ok(_get_client().request("GET", f"/snippets", params=payload))
 
 
