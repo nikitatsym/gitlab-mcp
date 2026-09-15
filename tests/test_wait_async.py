@@ -25,6 +25,7 @@ from typing import Any
 import httpx
 import pytest
 
+from gitlab_mcp import tools
 from gitlab_mcp.backend import InstanceInfo
 from gitlab_mcp.client import GitLabClient, _reset_client
 from gitlab_mcp.config import _reset_settings
@@ -114,7 +115,7 @@ class TestPipelinesWait:
             "/api/v4/projects/1/pipelines/42": [
                 (200, _pipeline(42, "success")),
             ],
-            "/api/v4/projects/1/jobs": [
+            "/api/v4/projects/1/pipelines/42/jobs": [
                 (200, [_job(101, "success")]),
             ],
         }
@@ -156,7 +157,7 @@ class TestPipelinesWait:
                 (200, _pipeline(42, "running")),
                 (200, _pipeline(42, "running")),  # safety: avoid script underflow
             ],
-            "/api/v4/projects/1/jobs": [(200, [])],
+            "/api/v4/projects/1/pipelines/42/jobs": [(200, [])],
         }
         _seed(_handler(scripts))
         from gitlab_mcp.tools import pipelines_wait
@@ -255,7 +256,7 @@ class TestPipelinesWaitPoll:
                 (200, _pipeline(42, "running")),
                 (200, _pipeline(42, "success")),
             ],
-            "/api/v4/projects/1/jobs": [
+            "/api/v4/projects/1/pipelines/42/jobs": [
                 (200, [_job(101, "success")]),
             ],
         }
@@ -287,7 +288,7 @@ class TestPipelinesWaitPoll:
             "/api/v4/projects/1/pipelines/42": [
                 (200, _pipeline(42, "running")),
             ],
-            "/api/v4/projects/1/jobs": [(200, [])],
+            "/api/v4/projects/1/pipelines/42/jobs": [(200, [])],
         }
         _seed(_handler(scripts))
         from gitlab_mcp.tools import pipelines_wait, pipelines_wait_poll
@@ -384,7 +385,7 @@ class TestPipelinesWaitCancel:
     def test_cancel_on_terminal_is_idempotent(self):
         scripts = {
             "/api/v4/projects/1/pipelines/42": [(200, _pipeline(42, "success"))],
-            "/api/v4/projects/1/jobs": [(200, [])],
+            "/api/v4/projects/1/pipelines/42/jobs": [(200, [])],
         }
         _seed(_handler(scripts))
         from gitlab_mcp.tools import pipelines_wait, pipelines_wait_cancel
@@ -510,7 +511,7 @@ class TestWaitsList:
     def test_lists_both_kinds_and_filters(self):
         scripts = {
             "/api/v4/projects/1/pipelines/42": [(200, _pipeline(42, "success"))],
-            "/api/v4/projects/1/jobs": [(200, [])],
+            "/api/v4/projects/1/pipelines/42/jobs": [(200, [])],
             "/api/v4/projects/1/jobs/101": [(200, _job(101, "running"))],
         }
         _seed(_handler(scripts))
@@ -568,7 +569,7 @@ class TestWaitResource:
     def test_resource_returns_snapshot_json(self):
         scripts = {
             "/api/v4/projects/1/pipelines/42": [(200, _pipeline(42, "success"))],
-            "/api/v4/projects/1/jobs": [(200, [])],
+            "/api/v4/projects/1/pipelines/42/jobs": [(200, [])],
         }
         _seed(_handler(scripts))
         from gitlab_mcp import server
@@ -616,7 +617,7 @@ class TestWaitDispatch:
         the group-assignment note in tools.py)."""
         scripts = {
             "/api/v4/projects/1/pipelines/42": [(200, _pipeline(42, "success"))],
-            "/api/v4/projects/1/jobs": [(200, [])],
+            "/api/v4/projects/1/pipelines/42/jobs": [(200, [])],
         }
         _seed(_handler(scripts))
         from gitlab_mcp import server
@@ -680,7 +681,7 @@ class TestWaitResilience:
                 (502, {"message": "bad gateway"}),  # transient blip
                 (200, _pipeline(42, "success")),
             ],
-            "/api/v4/projects/1/jobs": [
+            "/api/v4/projects/1/pipelines/42/jobs": [
                 (200, [_job(101, "success")]),
             ],
         }
@@ -790,6 +791,54 @@ class TestWaitResilience:
 
 
 class TestStages:
+    def test_pipeline_jobs_exclude_unrelated_project_history(self):
+        pipeline_jobs = [
+            {**_job(100 + i, "running"), "stage": "test" if i < 5 else "build"}
+            for i in range(7)
+        ]
+        history = [
+            {**_job(i, "failed"), "stage": "test" if i < 9 else "build"}
+            for i in range(13)
+        ]
+        paths = []
+        pipeline_polls = 0
+
+        def handler(req):
+            nonlocal pipeline_polls
+            paths.append(req.url.path)
+            if req.url.path == "/api/v4/projects/1/pipelines/42":
+                pipeline_polls += 1
+                status = "running" if pipeline_polls == 1 else "success"
+                return httpx.Response(200, json=_pipeline(42, status))
+            if req.url.path == "/api/v4/projects/1/pipelines/42/jobs":
+                assert "pipeline_id" not in req.url.params
+                status = "running" if pipeline_polls == 1 else "success"
+                return httpx.Response(
+                    200, json=[{**job, "status": status} for job in pipeline_jobs],
+                )
+            if req.url.path == "/api/v4/projects/1/jobs":
+                return httpx.Response(200, json=pipeline_jobs + history)
+            raise AssertionError(f"unexpected request: {req.url}")
+
+        _seed(handler)
+
+        async def flow():
+            start = await tools.pipelines_wait(
+                project_id=1, pipeline_id=42, interval=0.01,
+            )
+            return start, await tools.pipelines_wait_poll(start["wait_id"], max_block=5)
+
+        start, final = asyncio.run(flow())
+        for snapshot, status in ((start, "running"), (final, "success")):
+            assert snapshot["stages"] == [
+                {"name": "test", "status": status, "jobs": 5},
+                {"name": "build", "status": status, "jobs": 2},
+            ]
+        assert final["terminated"] is True
+        assert {job["id"] for job in final["jobs"]} == set(range(100, 107))
+        assert "/api/v4/projects/1/jobs" not in paths
+        assert paths.count("/api/v4/projects/1/pipelines/42/jobs") >= 2
+
     def test_stages_refresh_each_poll_and_show_in_terminal_snapshot(self):
         jobs_running = [
             {"id": 101, "status": "running", "stage": "build", "name": "compile"},
@@ -804,7 +853,7 @@ class TestStages:
                 (200, _pipeline(42, "running")),
                 (200, _pipeline(42, "failed")),
             ],
-            "/api/v4/projects/1/jobs": [(200, jobs_running), (200, jobs_done)],
+            "/api/v4/projects/1/pipelines/42/jobs": [(200, jobs_running), (200, jobs_done)],
         }
         _seed(_handler(scripts))
         from gitlab_mcp.tools import pipelines_wait, pipelines_wait_poll
@@ -829,7 +878,7 @@ class TestEnrichmentAndDiagnostics:
     def test_yaml_validation_diagnostic_warning(self):
         scripts = {
             "/api/v4/projects/1/pipelines/42": [(200, _pipeline(42, "failed"))],
-            "/api/v4/projects/1/jobs": [(200, [])],
+            "/api/v4/projects/1/pipelines/42/jobs": [(200, [])],
         }
         _seed(_handler(scripts))
         from gitlab_mcp.tools import pipelines_wait
@@ -843,7 +892,7 @@ class TestEnrichmentAndDiagnostics:
     def test_enrichment_error_surfaced(self):
         scripts = {
             "/api/v4/projects/1/pipelines/42": [(200, _pipeline(42, "success"))],
-            "/api/v4/projects/1/jobs": [(500, {"message": "boom"})],
+            "/api/v4/projects/1/pipelines/42/jobs": [(500, {"message": "boom"})],
         }
         _seed(_handler(scripts))
         from gitlab_mcp.tools import pipelines_wait

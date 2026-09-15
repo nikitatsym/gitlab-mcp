@@ -71,8 +71,8 @@ can provide only the parameters present in the signature.
 Some gitbeaker methods pick a URL based on which option is set
 (`DeployKeys.all` → `/projects/{id}/deploy_keys` vs
 `/users/{id}/project_deploy_keys` vs `/deploy_keys`). The JS parser detects
-the `let url; if (sel1) ... else if (sel2) ... else ...; return ...(this, url, …)`
-pattern and emits a Python dispatch chain typed on the selector vars:
+the `let url; if (sel1) ... else if (sel2) ... else ...; return ...(this, url, ...)`
+and `const url = selector ? A : B` patterns and emits a Python dispatch chain:
 
 ```python
 def deploy_keys_all(
@@ -93,6 +93,11 @@ def deploy_keys_all(
 Selector vars are typed but optional; pass exactly one to pick a URL, omit
 all to hit the unconditional fallback. Methods without a `else` branch
 raise `ValueError` if no selector matches.
+
+For GET branches, query fields documented on another branch but absent from
+the selected branch are rejected rather than silently forwarded. For example,
+`Jobs.all` uses `pipelineId` to select pipeline jobs: `include_retried` belongs
+to that branch, while `ref` belongs to the project-wide listing.
 
 `sudo` (a real GitLab API param) stays as a typed optional; only the
 gitbeaker-internal middleware (`showExpanded`, `asAdmin`, `asStream`,

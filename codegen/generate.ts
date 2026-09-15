@@ -470,18 +470,11 @@ while ((m = classRe.exec(IMPL)) !== null) {
     // /projects/{id}/deploy_keys vs /users/{id}/project_deploy_keys vs
     // /deploy_keys). For these, emit a Python dispatch chain so the right
     // URL is hit instead of forwarding the selector as a query param.
-    const conditionalPath = hasConditionalUrl(mBody);
-    let conditionalBranches: ConditionalBranch[] | null = null;
-    let conditionalSuffix = "";
-    let conditionalBodyFields: BodyField[] = [];
-    if (conditionalPath) {
-      const parsed = parseConditional(mBody);
-      if (parsed) {
-        conditionalBranches = parsed.branches;
-        conditionalSuffix = parsed.suffix;
-        conditionalBodyFields = parsed.bodyFields;
-      }
-    }
+    const parsed = parseConditional(mBody);
+    const conditionalPath = parsed !== null || hasConditionalUrl(mBody);
+    const conditionalBranches = parsed?.branches ?? null;
+    const conditionalSuffix = parsed?.suffix ?? "";
+    const conditionalBodyFields = parsed?.bodyFields ?? [];
 
     methods.push({
       klass,
@@ -503,19 +496,35 @@ while ((m = classRe.exec(IMPL)) !== null) {
 /**
  * Parse a gitbeaker conditional-URL method into branches.
  *
- * Returns the URL variable's assignment chain in declaration order and any
- * suffix concatenated to it in the RequestHelper call. Walks tokens left-
- * to-right tracking the most-recent `if (X)` / `else if (X)` / `else`, then
- * pairs each assignment with the condition immediately preceding it.
- *
- * Returns null if the body doesn't fit the pattern (no `let URL` decl, no
- * RequestHelper call referencing the var, or no branches).
+ * Recognizes a selector ternary or a URL assignment chain with an optional
+ * suffix in the RequestHelper call. Assignment chains pair each URL with
+ * its preceding `if (X)` / `else if (X)` / `else`.
+ * Returns null for unsupported expressions rather than guessing a selector.
  */
 function parseConditional(mBody: string): {
   branches: ConditionalBranch[];
   suffix: string;
   bodyFields: BodyField[];
 } | null {
+  const call = mBody.match(/RequestHelper\.\w+\(\)\(\s*this,\s*(\w+)\b/);
+  if (call && call.index !== undefined) {
+    const ternary = mBody.match(new RegExp(
+      `\\b(?:const|let)\\s+${call[1]}\\s*=\\s*(\\w+)\\s*\\?\\s*(?:(?:endpoint)?\`([^\`]+)\`|['"]([^'"]*)['"])\\s*:\\s*(?:(?:endpoint)?\`([^\`]+)\`|['"]([^'"]*)['"])\\s*;`,
+    ));
+    if (ternary) {
+      const branches = [
+        { selectorVar: ternary[1], pathTpl: ternary[2] ?? ternary[3] },
+        { selectorVar: null, pathTpl: ternary[4] ?? ternary[5] },
+      ];
+      if (!branches.every((branch) => isSafeTemplate(branch.pathTpl))) return null;
+      return {
+        branches,
+        suffix: "",
+        bodyFields: parseBodyLiteral(mBody, call.index + call[0].length) ?? [],
+      };
+    }
+  }
+
   const letMatch = mBody.match(/\blet\s+(\w+)\b/);
   if (!letMatch) return null;
   const urlVar = letMatch[1];
@@ -1198,6 +1207,7 @@ function emitConditionalDispatch(
     pyPath: string;
     pathVars: Set<string>;
     queryVars: { wire: string; jsVar: string; pyName: string }[];
+    queryFields: Set<string> | null;
   }[] = [];
   for (const b of pm.conditionalBranches) {
     const fullTpl = b.pathTpl + pm.conditionalSuffix;
@@ -1217,6 +1227,12 @@ function emitConditionalDispatch(
       pyPath: py,
       pathVars: argsSet,
       queryVars,
+      queryFields: (() => {
+        const operation = resolveOpenApi(openapi, pm.verb, pathTpl);
+        return operation
+          ? new Set(operation.params.filter((p) => p.location === "query").map((p) => p.name))
+          : null;
+      })(),
     });
   }
 
@@ -1484,6 +1500,20 @@ function emitConditionalDispatch(
     indent: string,
   ): string[] => {
     const out: string[] = [];
+    // Only compare documented fields; Gitbeaker also supplies options absent from OpenAPI.
+    if (httpMethod === "GET" && bp.queryFields) {
+      for (const e of extraOptional) {
+        if (
+          e.selectorParameter ||
+          bp.queryFields.has(e.wireName) ||
+          !branchPaths.some((branch) => branch.queryFields?.has(e.wireName))
+        ) continue;
+        out.push(`${indent}if ${e.pyName} is not _UNSET:`);
+        out.push(
+          `${indent}    raise ValueError("${pm.klass}.${pm.name} ${e.wireName} is not supported for this path")`,
+        );
+      }
+    }
     for (const qv of bp.queryVars) {
       out.push(`${indent}if ${qv.pyName} is not _UNSET:`);
       out.push(`${indent}    payload[${JSON.stringify(qv.wire)}] = ${qv.pyName}`);
