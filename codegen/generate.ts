@@ -496,17 +496,17 @@ while ((m = classRe.exec(IMPL)) !== null) {
 /**
  * Parse a gitbeaker conditional-URL method into branches.
  *
- * Recognizes a selector ternary or a URL assignment chain with an optional
- * suffix in the RequestHelper call. Assignment chains pair each URL with
- * its preceding `if (X)` / `else if (X)` / `else`.
- * Returns null for unsupported expressions rather than guessing a selector.
+ * Recognizes a read-only selector ternary or a URL assignment chain with an
+ * optional suffix in the RequestHelper call. Assignment chains pair each URL
+ * with its preceding `if (X)` / `else if (X)` / `else`.
+ * Write ternaries need branch-specific required-body contracts before dispatch.
  */
 function parseConditional(mBody: string): {
   branches: ConditionalBranch[];
   suffix: string;
   bodyFields: BodyField[];
 } | null {
-  const call = mBody.match(/RequestHelper\.\w+\(\)\(\s*this,\s*(\w+)\b/);
+  const call = mBody.match(/RequestHelper\.get\(\)\(\s*this,\s*(\w+)\b/);
   if (call && call.index !== undefined) {
     const ternary = mBody.match(new RegExp(
       `\\b(?:const|let)\\s+${call[1]}\\s*=\\s*(\\w+)\\s*\\?\\s*(?:(?:endpoint)?\`([^\`]+)\`|['"]([^'"]*)['"])\\s*:\\s*(?:(?:endpoint)?\`([^\`]+)\`|['"]([^'"]*)['"])\\s*;`,
