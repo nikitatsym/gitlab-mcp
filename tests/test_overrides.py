@@ -6,10 +6,10 @@ import httpx
 import pytest
 
 from gitlab_mcp import tools
-from gitlab_mcp.server import _dispatch
 from gitlab_mcp.backend import InstanceInfo
 from gitlab_mcp.client import GitLabClient, _reset_client
 from gitlab_mcp.config import _reset_settings
+from gitlab_mcp.server import _dispatch
 
 
 @pytest.fixture(autouse=True)
