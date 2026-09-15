@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from gitlab_mcp import tools
+from gitlab_mcp.server import _dispatch
 from gitlab_mcp.backend import InstanceInfo
 from gitlab_mcp.client import GitLabClient, _reset_client
 from gitlab_mcp.config import _reset_settings
@@ -55,19 +56,19 @@ class TestJobsAll:
             raise AssertionError(f"unexpected request: {req.url}")
 
         _seed("gitlab", handler)
-        assert tools.jobs_all(
-            project_id="team/project", pipeline_id=42, brief=False,
-            scope=["success"], page=2, per_page=5, include_retried=False,
-        ) == selected
+        assert _dispatch("JobsAll", "gitlab_read", {
+            "project_id": "team/project", "pipeline_id": 42, "brief": False,
+            "scope": ["success"], "page": 2, "per_page": 5, "include_retried": False,
+        }) == selected
         assert calls[0].url.raw_path.startswith(
             b"/api/v4/projects/team%2Fproject/pipelines/42/jobs?"
         )
         assert dict(calls[0].url.params) == {
             "scope": "success", "page": "2", "per_page": "5", "include_retried": "false",
         }
-        assert tools.jobs_all(
-            project_id="team/project", brief=False, ref="main", page=2, per_page=5,
-        ) == selected + history
+        assert _dispatch("JobsAll", "gitlab_read", {
+            "project_id": "team/project", "brief": False, "ref": "main", "page": 2, "per_page": 5,
+        }) == selected + history
         assert dict(calls[1].url.params) == {"ref": "main", "page": "2", "per_page": "5"}
 
     @pytest.mark.parametrize("options", [
