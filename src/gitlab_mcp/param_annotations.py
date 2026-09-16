@@ -14,10 +14,9 @@ Edit and reload — no codegen re-run needed.
 """
 
 PARAM_ANNOTATIONS: dict[str, dict[str, str]] = {
-    # Start empty. Populate as LLM confusion surfaces in real use.
-    # Example shape:
-    # "issues_create": {
-    #     "labels": "Comma-separated label names or list of names.",
-    #     "due_date": "YYYY-MM-DD.",
-    # },
+    "projects_upload_for_reference": {
+        "file_path": "Path on the MCP server, not the caller's machine; exclusive with filename/content_base64.",
+        "filename": "Attachment file name without directories; required with content_base64.",
+        "content_base64": "Standard base64 file bytes, without a data-URL prefix; required with filename.",
+    },
 }

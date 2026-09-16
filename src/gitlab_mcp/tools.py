@@ -11,6 +11,8 @@ Layout:
 """
 
 import asyncio
+import base64
+import binascii
 import inspect
 import logging
 import re
@@ -1036,12 +1038,48 @@ def projects_fork(project_id: str | int, **options):
 
 # ── File upload overrides ───────────────────────────────────────────────────
 #
-# MCP tools communicate via JSON - no binary file transfer. These overrides
-# accept a LOCAL FILE PATH, read it server-side, then select the transport
-# required by the exact endpoint: multipart `files=` for multipart routes or
-# raw `content=` bytes for Workhorse RequestBody routes. This works when the
-# MCP server runs on the same machine as the files (Claude Code, local dev).
-# For remote MCP setups (Claude Desktop), use curl or the GitLab web UI.
+# Uploads need binary HTTP bodies rather than the generated JSON payloads.
+
+@_op(gitlab_write)
+def projects_upload_for_reference(
+    project_id: str | int,
+    file_path: str | None = None,
+    filename: str | None = None,
+    content_base64: str | None = None,
+    sudo: str | int | _Unset = _UNSET,
+):
+    """Upload a project attachment for use in Markdown, including MR descriptions.
+
+    Supply either file_path on the MCP server or filename and content_base64.
+    Returns GitLab's attachment URL and Markdown reference.
+    """
+    if file_path is not None:
+        if filename is not None or content_base64 is not None:
+            raise ValueError("Pass file_path OR filename and content_base64, not both.")
+        p = _Path(file_path).expanduser()
+        if not p.exists():
+            raise ValueError(f"File not found: {file_path}")
+        if not p.is_file():
+            raise ValueError(f"Not a file: {file_path}")
+        filename = p.name
+        content = p.read_bytes()
+    else:
+        if not filename or content_base64 is None:
+            raise ValueError("Pass file_path OR both filename and content_base64.")
+        if "/" in filename or "\\" in filename:
+            raise ValueError("filename must be a file name, not a path.")
+        try:
+            content = base64.b64decode(content_base64, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValueError("content_base64 must be valid standard base64.") from exc
+    r = get_client()._request(
+        "POST",
+        f"/projects/{_enc(project_id)}/uploads",
+        files={"file": (filename, content, "application/octet-stream")},
+        headers={"sudo": str(sudo)} if sudo is not _UNSET else None,
+    )
+    return _ok(None if r.status_code == 204 or not r.content else r.json())
+
 
 @_op(gitlab_write)
 def projects_upload_avatar(project_id: str | int, file_path: str):

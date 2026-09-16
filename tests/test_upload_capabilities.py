@@ -8,6 +8,7 @@ outgoing request rather than inspecting generated source.
 
 from __future__ import annotations
 
+import base64
 import inspect
 import json
 import re
@@ -105,6 +106,57 @@ def _assert_public_file_path_contract(
         {**base_params, "file_path": str(tmp_path)},
     )
     assert "Not a file" in not_a_file["error"]
+
+
+@pytest.mark.parametrize("source", ["file_path", "content_base64"])
+def test_project_attachment_upload_sends_binary_multipart(tmp_path, source):
+    content = b"\x89PNG\r\n\x1a\n\x00\xffattachment"
+    params = {"project_id": "team/project", "sudo": "maintainer"}
+    if source == "file_path":
+        local_file = tmp_path / "navigator.png"
+        local_file.write_bytes(content)
+        params["file_path"] = str(local_file)
+    else:
+        params["filename"] = "navigator.png"
+        params["content_base64"] = base64.b64encode(content).decode("ascii")
+
+    request = _capture_write_request("ProjectsUploadForReference", params)
+
+    assert request.method == "POST"
+    assert request.url.raw_path == b"/api/v4/projects/team%2Fproject/uploads"
+    assert request.headers["sudo"] == "maintainer"
+    assert request.headers["content-type"].startswith("multipart/form-data")
+    assert b'name="file"; filename="navigator.png"' in request.content
+    assert content in request.content
+    assert re.findall(br'Content-Disposition: form-data; name="([^"]+)"', request.content) == [
+        b"file",
+    ]
+
+
+@pytest.mark.parametrize(
+    "source_params",
+    [
+        {},
+        {"filename": "navigator.png"},
+        {"content_base64": "AA=="},
+        {"filename": "navigator.png", "content_base64": "not base64!"},
+        {"filename": "../navigator.png", "content_base64": "AA=="},
+        {"file_path": "unused.png", "filename": "navigator.png", "content_base64": "AA=="},
+        {"file": {"filename": "navigator.png", "content": "old generated contract"}},
+    ],
+)
+def test_project_attachment_upload_rejects_invalid_sources_before_request(source_params, monkeypatch):
+    def unexpected_client():
+        pytest.fail("Invalid upload input must be rejected before accessing the client")
+
+    monkeypatch.setattr("gitlab_mcp.tools.get_client", unexpected_client)
+    server._register_tools()
+
+    result = server._dispatch(
+        "ProjectsUploadForReference", "gitlab_write", {"project_id": 42, **source_params},
+    )
+
+    assert "error" in result
 
 
 @pytest.mark.parametrize(
