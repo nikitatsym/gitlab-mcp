@@ -12,7 +12,7 @@ Full REST API coverage with VCS-aware helpers — one tool surface, two backends
 - **Pre-flight guards** — block `fork` on hg projects, validate hg topic naming on MR creation, detect silently-dropped fields in write responses
 - **Visibility default-deny** — public/internal projects/snippets/groups blocked unless `--allow-public` is passed
 - **Slim list views** — `brief=True` returns trimmed entries for projects/MRs/issues/branches/commits/etc. so the LLM doesn't drown in metadata
-- **Local NPM publishing**: `NpmUploadPackageFile` reads a packument JSON document (including base64 attachments) from `file_path`, not a `.tgz` archive.
+- **Binary uploads** — server-local files or inline base64 for attachments, wikis, avatars, metric images, secure files, imports, and package publishing; correct multipart or raw-body transport for each API.
 - **Long-running waiters** - `pipelines_wait` / `jobs_wait` are non-blocking: they register a background poll task and return a `wait_id` + first snapshot immediately. Observe with `pipelines_wait_poll(wait_id, max_block=...)` (long-poll: blocks up to `max_block` seconds on the registry's `asyncio.Event` until terminal), `jobs_wait_poll`, `waits_list`, or by reading the `gitlab://waits/{id}` MCP resource; stop with `*_wait_cancel`. Snapshots are compact: status, transitions, per-stage view, and on terminal a slim jobs list - the full `pipelines_show` / `jobs_show` payload and per-job log tails are NOT bundled (call `pipelines_show`, `jobs_all`, `jobs_show_log` if you need them). Waits tolerate transient API errors (`max_poll_failures`, default 3 consecutive) and background waits self-terminate after `max_lifetime` (default 2 h). The MCP server->client notification primitives (`notifications/message`, `notifications/progress`, `notifications/resources/updated`) are not used: Claude Code receives them but does not surface them to the agent ([anthropic/claude-code#3174](https://github.com/anthropics/claude-code/issues/3174), [#33679](https://github.com/anthropics/claude-code/issues/33679))
 - Self-service helpers for SSH/GPG keys, emails, and notification settings (which gitbeaker hides behind URL helpers)
 - Zero-config install via `uvx`
@@ -48,6 +48,32 @@ stdio and `--http`) to detect which backend it's talking to.
 `gitlab-mcp --http` serves streamable HTTP at `http://127.0.0.1:8000/mcp` (`--host`, `--port`) instead of stdio, same environment variables. No authentication: put a gateway in front.
 
 The package can also be imported: `mcp`, `Settings`, the client class, and `client_var` (a `ContextVar` the host sets per request) let one process serve several instances.
+
+## Uploads
+
+Binary upload operations accept exactly one source:
+
+- `file_path`: a readable file **on the MCP server**, not on the client machine.
+- `filename` + `content_base64`: a filename without directories and standard base64 bytes, suitable for remote MCP servers. Do not include a data-URL prefix.
+
+This applies to project attachments, project/group wikis, standalone project/group
+avatars, issue metric images, secure files, project/group imports, NuGet, PyPI,
+NPM, RubyGems, and Terraform state uploads.
+
+Project/group/topic/user create and edit operations use the same sources with an
+`avatar_` prefix: `avatar_file_path` or `avatar_filename` + `avatar_content_base64`.
+Without an avatar source, these operations retain their normal JSON behavior.
+Instance appearance uses separate `logo_`, `pwa_icon_`, `header_logo_`, and
+`favicon_` prefixes; multiple images are validated before one update request.
+
+NPM expects a complete packument JSON document, including its base64 attachments,
+not a `.tgz` archive. Terraform expects state JSON; RubyGems expects gem bytes.
+PyPI requires `name` and `version`; its SHA-256 digest is computed from the upload.
+Repository file contents and commit actions remain their API's JSON contracts.
+
+GitLab permissions, license tiers, feature flags, and upload-size limits still
+apply. In particular, group wikis require a supporting tier, appearance changes
+require administrator access, and RubyGems requires its server-side feature flag.
 
 ## Configuration
 

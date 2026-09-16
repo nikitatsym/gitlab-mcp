@@ -10,10 +10,15 @@ reuse the container through session-scoped fixtures.
 from __future__ import annotations
 
 import base64
+import hashlib
+import io
 import time
 import uuid
+import zipfile
 
 import pytest
+
+from gitlab_mcp.client import get_client
 
 pytestmark = pytest.mark.integration
 
@@ -23,6 +28,7 @@ pytestmark = pytest.mark.integration
 _RUN_TAG = uuid.uuid4().hex[:8]
 _PROJECT_NAME = f"integration-test-{_RUN_TAG}"
 _FORK_PATH = f"integration-test-fork-{_RUN_TAG}"
+_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNg6Pj/HwAEmgKHIN7SxQAAAABJRU5ErkJggg=="
 
 
 def _wait_for_pipeline(agent, project_id: int, pipeline_id: int, timeout: int = 60):
@@ -243,6 +249,106 @@ class TestAgentWorkflow:
         """The LLM should be able to query the backend type via gitlab_version."""
         result = agent_gitlab.call("gitlab_version")
         assert result["service"]["backend"] == "gitlab"
+
+    def test_81_upload_images_and_secure_file(self, agent_gitlab, tmp_path):
+        project_id = self.project_id
+        image = base64.b64decode(_PNG_BASE64)
+        local_file = tmp_path / "local.png"
+        local_file.write_bytes(image)
+        for source in (
+            {"file_path": str(local_file)},
+            {"filename": "remote.png", "content_base64": _PNG_BASE64},
+        ):
+            uploaded = agent_gitlab.call("projects_upload_for_reference", project_id=project_id, **source)
+            downloaded = get_client()._request("GET", f"/projects/{project_id}/uploads/{uploaded['id']}")
+            assert downloaded.content == image
+
+        agent_gitlab.call("project_wikis_create", project_id=project_id, title="home", content="Upload fixture")
+        wiki = agent_gitlab.call(
+            "project_wikis_upload_attachment", project_id=project_id,
+            filename="wiki.png", content_base64=_PNG_BASE64,
+        )
+        agent_gitlab.call(
+            "project_wikis_edit", project_id=project_id, slug="home", content=wiki["link"]["markdown"],
+        )
+        page = agent_gitlab.call("project_wikis_show", project_id=project_id, slug="home")
+        assert wiki["file_path"] in page["content"]
+
+        metric = agent_gitlab.call(
+            "issues_upload_metric_image", project_id=project_id, issue_iid=self.issue_iid,
+            filename="metric.png", content_base64=_PNG_BASE64, url_text="Upload metric",
+        )
+        metrics = agent_gitlab.call("issues_all_metric_images", project_id=project_id, issue_iid=self.issue_iid)
+        assert any(item["id"] == metric["id"] and item["url_text"] == "Upload metric" for item in metrics)
+
+        secure = agent_gitlab.call(
+            "secure_files_create", project_id=project_id, name="fixture.png",
+            filename="fixture.png", content_base64=_PNG_BASE64,
+        )
+        assert secure["checksum"] == hashlib.sha256(image).hexdigest()
+        downloaded = get_client()._request("GET", f"/projects/{project_id}/secure_files/{secure['id']}/download")
+        assert downloaded.content == image
+
+        agent_gitlab.call(
+            "projects_upload_avatar", project_id=project_id, filename="project.png", content_base64=_PNG_BASE64,
+        )
+        project = agent_gitlab.call("projects_show", project_id=project_id)
+        assert project["avatar_url"].endswith("/project.png")
+
+    def test_82_publish_pypi_distribution(self, agent_gitlab):
+        package = io.BytesIO()
+        with zipfile.ZipFile(package, "w") as archive:
+            archive.writestr("upload_fixture/__init__.py", "")
+            archive.writestr("upload_fixture-1.0.dist-info/METADATA", "Metadata-Version: 2.1\nName: upload-fixture\nVersion: 1.0\n")
+            archive.writestr("upload_fixture-1.0.dist-info/WHEEL", "Wheel-Version: 1.0\nGenerator: fixture\nRoot-Is-Purelib: true\nTag: py3-none-any\n")
+        content = package.getvalue()
+        filename = "upload_fixture-1.0-py3-none-any.whl"
+        agent_gitlab.call(
+            "py_pi_upload_package_file", project_id=self.project_id, name="upload-fixture", version="1.0",
+            filename=filename, content_base64=base64.b64encode(content).decode("ascii"), requires_python=">=3.10",
+        )
+        digest = hashlib.sha256(content).hexdigest()
+        downloaded = get_client()._request(
+            "GET", f"/projects/{self.project_id}/packages/pypi/files/{digest}/{filename}",
+        )
+        assert downloaded.content == content
+
+    def test_83_create_and_edit_avatars(self, agent_gitlab, tmp_path):
+        tag = uuid.uuid4().hex[:8]
+        local_file = tmp_path / "updated.png"
+        local_file.write_bytes(base64.b64decode(_PNG_BASE64))
+        cases: list[tuple[str, str, dict]] = [
+            ("projects", "project_id", {"name": f"avatar-{tag}", "topics": ["upload-test"]}),
+            ("groups", "group_id", {"name": f"avatar-{tag}", "path": f"avatar-{tag}"}),
+            ("topics", "topic_id", {"name": f"avatar-{tag}", "title": "Avatar"}),
+            ("users", "user_id", {"name": "Avatar", "username": f"avatar-{tag}",
+                                  "email": f"avatar-{tag}@example.com", "password": f"Pass-{tag}-aA!2345",
+                                  "skip_confirmation": True}),
+        ]
+        for resource, id_key, fields in cases:
+            created = agent_gitlab.call(
+                f"{resource}_create", **fields,
+                avatar_filename="created.png", avatar_content_base64=_PNG_BASE64,
+            )
+            identity = {id_key: created["id"]}
+            try:
+                assert created["avatar_url"].endswith("/created.png")
+                edit_fields: dict[str, list[str]] = {"topics": []} if resource == "projects" else {}
+                agent_gitlab.call(
+                    f"{resource}_edit", **identity, **edit_fields, avatar_file_path=str(local_file),
+                )
+                updated = agent_gitlab.call(f"{resource}_show", **identity)
+                assert updated["avatar_url"].endswith("/updated.png")
+                if resource == "projects":
+                    assert updated["topics"] == []
+                if resource == "groups":
+                    agent_gitlab.call(
+                        "groups_upload_avatar", **identity, filename="standalone.png", content_base64=_PNG_BASE64,
+                    )
+                    group = agent_gitlab.call("groups_show", **identity)
+                    assert group["avatar_url"].endswith("/standalone.png")
+            finally:
+                agent_gitlab.call(f"{resource}_remove", **identity)
 
     def test_99_delete_project(self, agent_gitlab):
         agent_gitlab.call("projects_remove", project_id=TestAgentWorkflow.project_id)

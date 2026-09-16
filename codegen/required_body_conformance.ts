@@ -24,7 +24,6 @@ import {
   type ConditionalBranchFieldJudgment,
   type ConcreteDefaultOverride,
   type GitbeakerSourceWireNameJudgment,
-  type PublicUploadOverrideProof,
 } from "./requiredBodyJudgments.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -298,129 +297,6 @@ function concreteDefaultProblem(
   return null;
 }
 
-function publicUploadOverrideProblem(
-  toolsSource: string,
-  proof: PublicUploadOverrideProof,
-  openApiOperation: RawOpenApiOperation,
-): string | null {
-  const source = toolsFunctionSource(toolsSource, proof.functionName);
-  if (!source) return "public override function no longer exists";
-
-  const decorator = new RegExp(
-    `@_op\\(gitlab_write\\)\\s*\\ndef ${escapeRegex(proof.functionName)}\\(`,
-  );
-  if (!decorator.test(toolsSource)) return "public override is no longer registered in gitlab_write";
-
-  const headerEnd = source.indexOf("):\n");
-  if (headerEnd === -1) return "public override header cannot be parsed";
-  const signature = source.slice(source.indexOf("(") + 1, headerEnd);
-  if (signature.includes("**")) return "public override no longer has a closed signature";
-
-  const encodedPath = proof.rawPath
-    .replace(/^\/api\/v4/, "")
-    .replace("{id}", "{_enc(project_id)}")
-    .replace("{issue_iid}", "{_enc(issue_iid)}")
-    .replace("{package_name}", "{_enc(package_name)}")
-    .replace("{name}", "{_enc(name)}");
-  const encodedWirePath = encodedPath + (proof.wirePathSuffix ?? "");
-  if (!source.includes(`f"${encodedWirePath}"`)) {
-    return "does not preserve the encoded OpenAPI path and exact wire suffix";
-  }
-
-  const filePath = parameterDeclaration(signature, "file_path");
-  if (!/^file_path\s*:\s*str$/.test(filePath ?? "")) {
-    return "does not expose a required file_path: str contract";
-  }
-  if (
-    !/\bp\s*=\s*_Path\(file_path\)\.expanduser\(\)/.test(source) ||
-    !/\bif not p\.exists\(\):/.test(source) ||
-    !/\bif not p\.is_file\(\):/.test(source)
-  ) {
-    return "does not guard file_path as an existing regular file";
-  }
-
-  const legacyParameters: Record<string, readonly string[]> = {
-    "Issues.uploadMetricImage": ["metric_image", "file"],
-    "NPM.uploadPackageFile": ["versions", "metadata", "file"],
-    "NuGet.uploadPackageFile": ["package_file", "package"],
-    "NuGet.uploadSymbolPackage": ["package_file", "package"],
-    "ProjectTerraformState.createVersion": ["file"],
-    "RubyGems.uploadGemFile": ["package_file", "file"],
-  };
-  const legacy = legacyParameters[proof.operation] ?? [];
-  if (legacy.some((name) => parameterDeclaration(signature, name))) {
-    return "still exposes an inline-binary or synthetic file parameter";
-  }
-
-  if (proof.serializer === "multipart-file-path") {
-    const multipartPart = new RegExp(
-      `\\bfiles\\s*=\\s*\\{\\s*["']${escapeRegex(proof.property)}["']\\s*:\\s*\\(`,
-    );
-    if (!multipartPart.test(source) || !/\bp\.read_bytes\(\)/.test(source)) {
-      return `does not construct multipart ${proof.property} bytes from file_path`;
-    }
-
-    const dataArguments = source.match(/\bdata\s*=/g) ?? [];
-    if (dataArguments.length > 0) {
-      if (
-        dataArguments.length !== 1 ||
-        !/\bdata\s*=\s*form\b/.test(source) ||
-        !/\bform\s*:\s*dict\[str,\s*str\]\s*=\s*\{\}/.test(source) ||
-        /\bform\s*\[\s*(?!["'])/.test(source) ||
-        /\bform\.(?:update|setdefault)\s*\(/.test(source)
-      ) {
-        return "does not limit multipart auxiliary fields to proven wire names";
-      }
-
-      const provenAuxiliaryFields = new Set(
-        openApiOperation.bodyFields
-          .map((field) => field.name)
-          .filter((field) => field !== proof.property),
-      );
-      const auxiliaryFields = [...source.matchAll(
-        /\bform\s*\[\s*["']([^"']+)["']\s*\]\s*=/g,
-      )].map((match) => match[1]);
-      const unprovenAuxiliaryFields = auxiliaryFields.filter(
-        (field) => !provenAuxiliaryFields.has(field),
-      );
-      if (unprovenAuxiliaryFields.length > 0) {
-        return `serializes unproven multipart auxiliary field(s): ${unprovenAuxiliaryFields.join(", ")}`;
-      }
-    }
-  } else {
-    const contentType = proof.serializer === "raw-json-file-path"
-      ? "application/json"
-      : "application/octet-stream";
-    const contentArguments = source.match(/\bcontent\s*=/g) ?? [];
-    const contentTypeHeader = new RegExp(
-      `\\bheaders\\s*=\\s*\\{[^\\n}]*["']Content-Type["']\\s*:\\s*["']${escapeRegex(contentType)}["']`,
-    );
-    const directContentTypeHeader = new RegExp(
-      `\\._request\\(\\s*"${escapeRegex(proof.verb)}"\\s*,\\s*f"${escapeRegex(encodedWirePath)}"[\\s\\S]*?\\bcontent\\s*=\\s*p\\.read_bytes\\(\\)[\\s\\S]*?\\bheaders\\s*=\\s*\\{[^\\n}]*["']Content-Type["']\\s*:\\s*["']${escapeRegex(contentType)}["']`,
-    );
-    const namedContentTypeHeader = new RegExp(
-      `\\._request\\(\\s*"${escapeRegex(proof.verb)}"\\s*,\\s*f"${escapeRegex(encodedWirePath)}"[\\s\\S]*?\\bcontent\\s*=\\s*p\\.read_bytes\\(\\)[\\s\\S]*?\\bheaders\\s*=\\s*headers\\b`,
-    );
-    if (
-      contentArguments.length !== 1 ||
-      (!directContentTypeHeader.test(source) &&
-        (!contentTypeHeader.test(source) || !namedContentTypeHeader.test(source)))
-    ) {
-      return `does not send raw file_path bytes with Content-Type ${contentType}`;
-    }
-    if (/\bfiles\s*=/.test(source) || /\bjson\s*=/.test(source)) {
-      return "uses multipart or JSON reserialization instead of the raw request body";
-    }
-  }
-
-  const request = new RegExp(
-    `\\._request\\(\\s*"${escapeRegex(proof.verb)}"\\s*,\\s*f"${escapeRegex(encodedWirePath)}"`,
-  );
-  const response = /return _ok\(None if r\.status_code == 204 or not r\.content else r\.json\(\)\)/;
-  return request.test(source) && response.test(source)
-    ? null
-    : "does not preserve the exact HTTP verb, path, and response handling";
-}
 
 function namingOverrideProblem(
   op: GeneratedOperation,
@@ -1009,8 +885,8 @@ for (const operation of generated.operations) {
   }
 }
 
-// A documented source/spec divergence is not enough for an exposed upload:
-// each public replacement must retain its exact closed signature and wire shape.
+// Stale-check upload spec gaps here; public wire behavior is exercised by
+// tests/test_upload_capabilities.py through the validated dispatcher.
 for (const proof of PUBLIC_UPLOAD_OVERRIDE_PROOFS) {
   const operation = generated.operations.find(
     (candidate) =>
@@ -1033,12 +909,6 @@ for (const proof of PUBLIC_UPLOAD_OVERRIDE_PROOFS) {
   }
 
   appliedPublicUploadOverrideProofs.add(bodyFieldJudgmentKey(proof));
-  const problem = publicUploadOverrideProblem(toolsSource, proof, openApiOperation);
-  if (problem) {
-    failures.add(
-      `${proof.operation}: public upload override ${proof.functionName} ${problem} (${proof.verb} ${proof.rawPath})`,
-    );
-  }
 }
 
 // Stale-check exact GitBeaker positional-to-wire mappings and ensure the generated
