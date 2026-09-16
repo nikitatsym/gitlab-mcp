@@ -1199,7 +1199,7 @@ def issues_upload_metric_image(
     sudo: str | int | _Unset = _UNSET,
     filename: str | None = None, content_base64: str | None = None,
 ):
-    """Upload an issue metric image with an optional external URL and label."""
+    """Upload a metric image to an incident; requires Premium/Ultimate, not available for regular issues."""
     fields = {key: value for key, value in {"url": url, "url_text": url_text}.items()
               if value is not _UNSET and value is not None}
     return _multipart_upload(

@@ -57,7 +57,7 @@ Binary upload operations accept exactly one source:
 - `filename` + `content_base64`: a filename without directories and standard base64 bytes, suitable for remote MCP servers. Do not include a data-URL prefix.
 
 This applies to project attachments, project/group wikis, standalone project/group
-avatars, issue metric images, secure files, project/group imports, NuGet, PyPI,
+avatars, incident metric images, secure files, project/group imports, NuGet, PyPI,
 NPM, RubyGems, and Terraform state uploads.
 
 Project/group/topic/user create and edit operations use the same sources with an
@@ -72,8 +72,8 @@ PyPI requires `name` and `version`; its SHA-256 digest is computed from the uplo
 Repository file contents and commit actions remain their API's JSON contracts.
 
 GitLab permissions, license tiers, feature flags, and upload-size limits still
-apply. In particular, group wikis require a supporting tier, appearance changes
-require administrator access, and RubyGems requires its server-side feature flag.
+apply. Group wikis and incident metric images require Premium/Ultimate.
+Appearance changes require administrator access; RubyGems requires its server-side feature flag.
 
 ## Configuration
 

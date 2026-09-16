@@ -274,13 +274,6 @@ class TestAgentWorkflow:
         page = agent_gitlab.call("project_wikis_show", project_id=project_id, slug="home")
         assert wiki["file_path"] in page["content"]
 
-        metric = agent_gitlab.call(
-            "issues_upload_metric_image", project_id=project_id, issue_iid=self.issue_iid,
-            filename="metric.png", content_base64=_PNG_BASE64, url_text="Upload metric",
-        )
-        metrics = agent_gitlab.call("issues_all_metric_images", project_id=project_id, issue_iid=self.issue_iid)
-        assert any(item["id"] == metric["id"] and item["url_text"] == "Upload metric" for item in metrics)
-
         secure = agent_gitlab.call(
             "secure_files_create", project_id=project_id, name="fixture.png",
             filename="fixture.png", content_base64=_PNG_BASE64,
@@ -322,7 +315,7 @@ class TestAgentWorkflow:
             ("groups", "group_id", {"name": f"avatar-{tag}", "path": f"avatar-{tag}"}),
             ("topics", "topic_id", {"name": f"avatar-{tag}", "title": "Avatar"}),
             ("users", "user_id", {"name": "Avatar", "username": f"avatar-{tag}",
-                                  "email": f"avatar-{tag}@example.com", "password": f"Pass-{tag}-aA!2345",
+                                  "email": f"avatar-{tag}@example.com", "password": uuid.uuid4().hex + "!aA8",
                                   "skip_confirmation": True}),
         ]
         for resource, id_key, fields in cases:
@@ -349,6 +342,18 @@ class TestAgentWorkflow:
                     assert group["avatar_url"].endswith("/standalone.png")
             finally:
                 agent_gitlab.call(f"{resource}_remove", **identity)
+
+    def test_84_upload_appearance_images(self, agent_gitlab):
+        appearance = agent_gitlab.call(
+            "application_appearance_edit",
+            logo_filename="ci-logo.png", logo_content_base64=_PNG_BASE64,
+            favicon_filename="ci-favicon.png", favicon_content_base64=_PNG_BASE64,
+        )
+        assert appearance["logo"].endswith("/ci-logo.png")
+        assert appearance["favicon"].endswith("/ci-favicon.png")
+        saved = get_client().get("/application/appearance")
+        assert saved["logo"] == appearance["logo"]
+        assert saved["favicon"] == appearance["favicon"]
 
     def test_99_delete_project(self, agent_gitlab):
         agent_gitlab.call("projects_remove", project_id=TestAgentWorkflow.project_id)
