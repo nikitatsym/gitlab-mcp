@@ -13,6 +13,7 @@ Layout:
 import asyncio
 import base64
 import binascii
+import hashlib
 import inspect
 import logging
 import re
@@ -1040,19 +1041,9 @@ def projects_fork(project_id: str | int, **options):
 #
 # Uploads need binary HTTP bodies rather than the generated JSON payloads.
 
-@_op(gitlab_write)
-def projects_upload_for_reference(
-    project_id: str | int,
-    file_path: str | None = None,
-    filename: str | None = None,
-    content_base64: str | None = None,
-    sudo: str | int | _Unset = _UNSET,
-):
-    """Upload a project attachment for use in Markdown, including MR descriptions.
-
-    Supply either file_path on the MCP server or filename and content_base64.
-    Returns GitLab's attachment URL and Markdown reference.
-    """
+def _resolve_upload(
+    file_path: str | None, filename: str | None, content_base64: str | None,
+) -> tuple[str, bytes]:
     if file_path is not None:
         if filename is not None or content_base64 is not None:
             raise ValueError("Pass file_path OR filename and content_base64, not both.")
@@ -1072,191 +1063,376 @@ def projects_upload_for_reference(
             content = base64.b64decode(content_base64, validate=True)
         except (binascii.Error, ValueError) as exc:
             raise ValueError("content_base64 must be valid standard base64.") from exc
-    r = get_client()._request(
-        "POST",
-        f"/projects/{_enc(project_id)}/uploads",
-        files={"file": (filename, content, "application/octet-stream")},
+    return filename, content
+
+
+def _upload_result(response: httpx.Response):
+    if response.status_code == 204 or not response.content:
+        return {"status": "ok"}
+    if "application/json" in response.headers.get("content-type", ""):
+        return response.json()
+    return response.text
+
+
+def _upload_form(fields: dict) -> dict[str, typing.Any]:
+    form: dict[str, typing.Any] = {}
+
+    def add(key: str, value) -> None:
+        if value is _UNSET:
+            return
+        if isinstance(value, dict):
+            for child, item in value.items():
+                add(f"{key}[{child}]", item)
+        elif isinstance(value, list):
+            if not value:
+                form[key] = ""
+            elif all(isinstance(item, (str, int, float, bool)) for item in value):
+                form[f"{key}[]"] = [
+                    str(item).lower() if isinstance(item, bool) else str(item) for item in value
+                ]
+            else:
+                for index, item in enumerate(value):
+                    add(f"{key}[{index}]", item)
+        else:
+            form[key] = "" if value is None else str(value).lower() if isinstance(value, bool) else str(value)
+
+    for key, value in fields.items():
+        add(key, value)
+    return form
+
+
+def _multipart_upload(
+    method: str, path: str, part: str, upload: tuple[str, bytes],
+    fields: dict | None = None, sudo: str | int | _Unset = _UNSET,
+):
+    filename, content = upload
+    response = get_client()._request(
+        method, path,
+        data=_upload_form(fields or {}),
+        files={part: (filename, content, "application/octet-stream")},
         headers={"sudo": str(sudo)} if sudo is not _UNSET else None,
     )
-    return _ok(None if r.status_code == 204 or not r.content else r.json())
+    return _upload_result(response)
+
+
+def _raw_upload(
+    method: str, path: str, content_type: str, upload: tuple[str, bytes],
+    sudo: str | int | _Unset = _UNSET,
+):
+    headers = {"Content-Type": content_type}
+    if sudo is not _UNSET:
+        headers["sudo"] = str(sudo)
+    return _upload_result(get_client()._request(method, path, content=upload[1], headers=headers))
 
 
 @_op(gitlab_write)
-def projects_upload_avatar(project_id: str | int, file_path: str):
-    """Upload an avatar image for a project from a local file path.
-
-    Accepts PNG, JPG, or GIF. Max 200KB per GitLab defaults.
-    The file is read from the local filesystem and uploaded as multipart form data.
-    """
-    p = _Path(file_path).expanduser()
-    if not p.exists():
-        raise ValueError(f"File not found: {file_path}")
-    client = get_client()
-    files = {"avatar": (p.name, p.read_bytes(), "application/octet-stream")}
-    r = client._request("PUT", f"/projects/{_enc(project_id)}", files=files)
-    if r.status_code == 204 or not r.content:
-        return {"status": "ok"}
-    return r.json()
+def projects_upload_for_reference(
+    project_id: str | int, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
+    sudo: str | int | _Unset = _UNSET,
+):
+    """Upload a project attachment; returns its URL and Markdown reference."""
+    return _multipart_upload(
+        "POST", f"/projects/{_enc(project_id)}/uploads", "file",
+        _resolve_upload(file_path, filename, content_base64), sudo=sudo,
+    )
 
 
 @_op(gitlab_write)
-def groups_upload_avatar(group_id: str | int, file_path: str):
-    """Upload an avatar image for a group from a local file path."""
-    p = _Path(file_path).expanduser()
-    if not p.exists():
-        raise ValueError(f"File not found: {file_path}")
-    client = get_client()
-    files = {"avatar": (p.name, p.read_bytes(), "application/octet-stream")}
-    r = client._request("PUT", f"/groups/{_enc(group_id)}", files=files)
-    if r.status_code == 204 or not r.content:
-        return {"status": "ok"}
-    return r.json()
+def projects_upload_avatar(
+    project_id: str | int, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
+    sudo: str | int | _Unset = _UNSET,
+):
+    """Upload a project avatar; GitLab enforces image format and size limits."""
+    return _multipart_upload(
+        "PUT", f"/projects/{_enc(project_id)}", "avatar",
+        _resolve_upload(file_path, filename, content_base64), sudo=sudo,
+    )
+
+
+@_op(gitlab_write)
+def groups_upload_avatar(
+    group_id: str | int, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
+    sudo: str | int | _Unset = _UNSET,
+):
+    """Upload a group avatar; GitLab enforces image format and size limits."""
+    return _multipart_upload(
+        "PUT", f"/groups/{_enc(group_id)}", "avatar",
+        _resolve_upload(file_path, filename, content_base64), sudo=sudo,
+    )
+
+
+@_op(gitlab_write)
+def project_wikis_upload_attachment(
+    project_id: str | int, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
+    branch: str | None = None, sudo: str | int | _Unset = _UNSET,
+):
+    """Upload a project wiki attachment; an omitted branch uses the wiki default."""
+    return _multipart_upload(
+        "POST", f"/projects/{_enc(project_id)}/wikis/attachments", "file",
+        _resolve_upload(file_path, filename, content_base64),
+        {"branch": branch} if branch is not None else {}, sudo,
+    )
+
+
+@_op(gitlab_write)
+def group_wikis_upload_attachment(
+    group_id: str | int, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
+    branch: str | None = None, sudo: str | int | _Unset = _UNSET,
+):
+    """Upload a group wiki attachment; requires a GitLab tier with group wikis."""
+    return _multipart_upload(
+        "POST", f"/groups/{_enc(group_id)}/wikis/attachments", "file",
+        _resolve_upload(file_path, filename, content_base64),
+        {"branch": branch} if branch is not None else {}, sudo,
+    )
 
 
 @_op(gitlab_write)
 def issues_upload_metric_image(
-    project_id: str | int,
-    issue_iid: str | int,
-    file_path: str,
-    url: str | None | _Unset = _UNSET,
-    url_text: str | None | _Unset = _UNSET,
+    project_id: str | int, issue_iid: str | int, file_path: str | None = None,
+    url: str | None | _Unset = _UNSET, url_text: str | None | _Unset = _UNSET,
+    sudo: str | int | _Unset = _UNSET,
+    filename: str | None = None, content_base64: str | None = None,
+):
+    """Upload an issue metric image with an optional external URL and label."""
+    fields = {key: value for key, value in {"url": url, "url_text": url_text}.items()
+              if value is not _UNSET and value is not None}
+    return _multipart_upload(
+        "POST", f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/metric_images",
+        "file", _resolve_upload(file_path, filename, content_base64), fields, sudo,
+    )
+
+
+@_op(gitlab_write)
+def secure_files_create(
+    project_id: str | int, name: str, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
     sudo: str | int | _Unset = _UNSET,
 ):
-    """Issues.uploadMetricImage (POST projects/${projectId}/issues/${issueIId}/metric_images).
-
-    Upload a metric image from a local file path as multipart form data.
-    """
-    p = _Path(file_path).expanduser()
-    if not p.exists():
-        raise ValueError(f"File not found: {file_path}")
-    if not p.is_file():
-        raise ValueError(f"Not a file: {file_path}")
-    form: dict[str, str] = {}
-    if url is not _UNSET and url is not None:
-        form["url"] = typing.cast(str, url)
-    if url_text is not _UNSET and url_text is not None:
-        form["url_text"] = typing.cast(str, url_text)
-    r = get_client()._request(
-        "POST",
-        f"/projects/{_enc(project_id)}/issues/{_enc(issue_iid)}/metric_images",
-        data=form,
-        files={"file": (p.name, p.read_bytes(), "application/octet-stream")},
-        headers={"sudo": str(sudo)} if sudo is not _UNSET else None,
+    """Create a project secure file; name must be unique and GitLab limits files to 5 MB."""
+    return _multipart_upload(
+        "POST", f"/projects/{_enc(project_id)}/secure_files", "file",
+        _resolve_upload(file_path, filename, content_base64), {"name": name}, sudo,
     )
-    return _ok(None if r.status_code == 204 or not r.content else r.json())
 
 
 @_op(gitlab_write)
-def nu_get_upload_package_file(project_id: str | int, file_path: str):
-    """NuGet.uploadPackageFile (PUT projects/${projectId}/packages/nuget).
-
-    Upload a NuGet package from a local file path as multipart form data.
-    """
-    p = _Path(file_path).expanduser()
-    if not p.exists():
-        raise ValueError(f"File not found: {file_path}")
-    if not p.is_file():
-        raise ValueError(f"Not a file: {file_path}")
-    r = get_client()._request(
-        "PUT",
-        f"/projects/{_enc(project_id)}/packages/nuget/",
-        files={"package": (p.name, p.read_bytes(), "application/octet-stream")},
+def group_import_exports_import(
+    path: str, name: str, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
+    parent_id: int | None = None, organization_id: int | None = None,
+    sudo: str | int | _Unset = _UNSET,
+):
+    """Import a GitLab group export archive into a new group."""
+    fields = {key: value for key, value in {
+        "path": path, "name": name, "parent_id": parent_id, "organization_id": organization_id,
+    }.items() if value is not None}
+    return _multipart_upload(
+        "POST", "/groups/import", "file",
+        _resolve_upload(file_path, filename, content_base64), fields, sudo,
     )
-    return _ok(None if r.status_code == 204 or not r.content else r.json())
 
 
 @_op(gitlab_write)
-def nu_get_upload_symbol_package(project_id: str | int, file_path: str):
-    """NuGet.uploadSymbolPackage (PUT projects/${projectId}/packages/nuget/symbolpackage).
+def project_import_exports_import(
+    path: str, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
+    name: str | None = None, namespace: str | int | None = None,
+    namespace_id: int | None = None, namespace_path: str | None = None,
+    overwrite: bool = False, override_params: dict | None = None,
+    sudo: str | int | _Unset = _UNSET,
+):
+    """Import a GitLab project export archive; overwrite=True replaces an existing project.
 
-    Upload a NuGet symbol package from a local file path as multipart form data.
+    override_params contains project API fields and takes precedence over the archive.
+    Workhorse's internal file.* metadata is not caller input.
     """
-    p = _Path(file_path).expanduser()
-    if not p.exists():
-        raise ValueError(f"File not found: {file_path}")
-    if not p.is_file():
-        raise ValueError(f"Not a file: {file_path}")
-    r = get_client()._request(
-        "PUT",
-        f"/projects/{_enc(project_id)}/packages/nuget/symbolpackage",
-        files={"package": (p.name, p.read_bytes(), "application/octet-stream")},
+    overrides = dict(override_params or {})
+    if "visibility" in overrides:
+        overrides["visibility"] = _enforce_visibility(overrides["visibility"])
+    fields = {key: value for key, value in {
+        "path": path, "name": name, "namespace": namespace, "namespace_id": namespace_id,
+        "namespace_path": namespace_path, "overwrite": overwrite, "override_params": overrides,
+    }.items() if value is not None}
+    return _multipart_upload(
+        "POST", "/projects/import", "file",
+        _resolve_upload(file_path, filename, content_base64), fields, sudo,
     )
-    return _ok(None if r.status_code == 204 or not r.content else r.json())
+
+
+@_op(gitlab_write)
+def nu_get_upload_package_file(
+    project_id: str | int, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
+):
+    """Upload a NuGet .nupkg file through the Workhorse multipart endpoint."""
+    return _multipart_upload(
+        "PUT", f"/projects/{_enc(project_id)}/packages/nuget/", "package",
+        _resolve_upload(file_path, filename, content_base64),
+    )
+
+
+@_op(gitlab_write)
+def nu_get_upload_symbol_package(
+    project_id: str | int, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
+):
+    """Upload a NuGet .snupkg symbol package."""
+    return _multipart_upload(
+        "PUT", f"/projects/{_enc(project_id)}/packages/nuget/symbolpackage", "package",
+        _resolve_upload(file_path, filename, content_base64),
+    )
 
 
 @_op(gitlab_write)
 def project_terraform_state_create_version(
-    project_id: str | int,
-    name: str | int,
-    file_path: str,
+    project_id: str | int, name: str | int, file_path: str | None = None,
     sudo: str | int | _Unset = _UNSET,
+    filename: str | None = None, content_base64: str | None = None,
 ):
-    """ProjectTerraformState.createVersion (POST projects/${projectId}/terraform/state/${name}).
-
-    Upload Terraform state JSON from a local file path as a raw
-    application/json request body.
-    """
-    p = _Path(file_path).expanduser()
-    if not p.exists():
-        raise ValueError(f"File not found: {file_path}")
-    if not p.is_file():
-        raise ValueError(f"Not a file: {file_path}")
-    headers = {"Content-Type": "application/json"}
-    if sudo is not _UNSET:
-        headers["sudo"] = str(sudo)
-    r = get_client()._request(
-        "POST",
-        f"/projects/{_enc(project_id)}/terraform/state/{_enc(name)}",
-        content=p.read_bytes(),
-        headers=headers,
+    """Upload Terraform state as a verbatim application/json body."""
+    return _raw_upload(
+        "POST", f"/projects/{_enc(project_id)}/terraform/state/{_enc(name)}",
+        "application/json", _resolve_upload(file_path, filename, content_base64), sudo,
     )
-    return _ok(None if r.status_code == 204 or not r.content else r.json())
 
 
 @_op(gitlab_write)
-def ruby_gems_upload_gem_file(project_id: str | int, file_path: str):
-    """RubyGems.uploadGemFile (POST projects/${projectId}/packages/rubygems/api/v1/gems).
-
-    Upload a RubyGem from a local file path as a raw application/octet-stream
-    request body.
-    """
-    p = _Path(file_path).expanduser()
-    if not p.exists():
-        raise ValueError(f"File not found: {file_path}")
-    if not p.is_file():
-        raise ValueError(f"Not a file: {file_path}")
-    r = get_client()._request(
-        "POST",
-        f"/projects/{_enc(project_id)}/packages/rubygems/api/v1/gems",
-        content=p.read_bytes(),
-        headers={"Content-Type": "application/octet-stream"},
+def ruby_gems_upload_gem_file(
+    project_id: str | int, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
+):
+    """Upload a .gem as raw bytes; requires GitLab's rubygem_packages feature flag."""
+    return _raw_upload(
+        "POST", f"/projects/{_enc(project_id)}/packages/rubygems/api/v1/gems",
+        "application/octet-stream", _resolve_upload(file_path, filename, content_base64),
     )
-    return _ok(None if r.status_code == 204 or not r.content else r.json())
 
 
 @_op(gitlab_write)
 def npm_upload_package_file(
-    project_id: str | int,
-    package_name: str,
-    file_path: str,
+    project_id: str | int, package_name: str, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
 ):
-    """NPM.uploadPackageFile (PUT projects/${projectId}/packages/npm/${packageName}).
-
-    Upload an NPM packument JSON document (including base64 _attachments) from
-    a local file path as a raw application/json request body, not a .tgz archive.
-    """
-    p = _Path(file_path).expanduser()
-    if not p.exists():
-        raise ValueError(f"File not found: {file_path}")
-    if not p.is_file():
-        raise ValueError(f"Not a file: {file_path}")
-    r = get_client()._request(
-        "PUT",
-        f"/projects/{_enc(project_id)}/packages/npm/{_enc(package_name)}",
-        content=p.read_bytes(),
-        headers={"Content-Type": "application/json"},
+    """Publish a packument JSON document containing base64 _attachments, not a .tgz archive."""
+    return _raw_upload(
+        "PUT", f"/projects/{_enc(project_id)}/packages/npm/{_enc(package_name)}",
+        "application/json", _resolve_upload(file_path, filename, content_base64),
     )
-    return _ok(None if r.status_code == 204 or not r.content else r.json())
+
+
+@_op(gitlab_write)
+def py_pi_upload_package_file(
+    project_id: str | int, name: str, version: str, file_path: str | None = None,
+    filename: str | None = None, content_base64: str | None = None,
+    requires_python: str | None = None, metadata_version: str | None = None,
+    author_email: str | None = None, description: str | None = None,
+    description_content_type: str | None = None, summary: str | None = None,
+    keywords: str | None = None,
+):
+    """Publish a PyPI distribution with package metadata; SHA256 is computed from the file."""
+    upload = _resolve_upload(file_path, filename, content_base64)
+    fields = {key: value for key, value in {
+        "name": name, "version": version, "requires_python": requires_python,
+        "metadata_version": metadata_version, "author_email": author_email,
+        "description": description, "description_content_type": description_content_type,
+        "summary": summary, "keywords": keywords, "sha256_digest": hashlib.sha256(upload[1]).hexdigest(),
+    }.items() if value is not None}
+    return _multipart_upload(
+        "POST", f"/projects/{_enc(project_id)}/packages/pypi", "content", upload, fields,
+    )
+
+
+@_op(gitlab_write)
+def application_appearance_edit(
+    logo_file_path: str | None = None, logo_filename: str | None = None,
+    logo_content_base64: str | None = None,
+    pwa_icon_file_path: str | None = None, pwa_icon_filename: str | None = None,
+    pwa_icon_content_base64: str | None = None,
+    header_logo_file_path: str | None = None, header_logo_filename: str | None = None,
+    header_logo_content_base64: str | None = None,
+    favicon_file_path: str | None = None, favicon_filename: str | None = None,
+    favicon_content_base64: str | None = None,
+    sudo: str | int | _Unset = _UNSET,
+):
+    """Upload instance appearance images in one request; requires administrator access.
+
+    Supply at least one image. Each image has its own local-file or base64 source.
+    """
+    files: dict[str, tuple[str, bytes, str]] = {}
+    for part, source in (
+        ("logo", (logo_file_path, logo_filename, logo_content_base64)),
+        ("pwa_icon", (pwa_icon_file_path, pwa_icon_filename, pwa_icon_content_base64)),
+        ("header_logo", (header_logo_file_path, header_logo_filename, header_logo_content_base64)),
+        ("favicon", (favicon_file_path, favicon_filename, favicon_content_base64)),
+    ):
+        if any(value is not None for value in source):
+            filename, content = _resolve_upload(*source)
+            files[part] = (filename, content, "application/octet-stream")
+    if not files:
+        raise ValueError("Supply at least one appearance image source.")
+    return _upload_result(get_client()._request(
+        "PUT", "/application/appearance", files=files,
+        headers={"sudo": str(sudo)} if sudo is not _UNSET else None,
+    ))
+
+
+_AVATAR_PARAMS = [
+    inspect.Parameter(name, inspect.Parameter.KEYWORD_ONLY, default=None, annotation=str | None)
+    for name in ("avatar_file_path", "avatar_filename", "avatar_content_base64")
+]
+
+
+def _pop_avatar_upload(options: dict) -> tuple[str, bytes] | None:
+    source = tuple(options.pop(name, None) for name in (
+        "avatar_file_path", "avatar_filename", "avatar_content_base64",
+    ))
+    return _resolve_upload(*source) if any(value is not None for value in source) else None
+
+
+@_op(gitlab_write)
+@_strict_proxy(_generated.topics_create, drop_params={"avatar"}, add_params=_AVATAR_PARAMS)
+def topics_create(**options):
+    """Create a topic, optionally uploading an avatar in the same request."""
+    upload = _pop_avatar_upload(options)
+    if upload is not None:
+        return _multipart_upload("POST", "/topics", "avatar", upload, options, options.pop("sudo", _UNSET))
+    return _generated.topics_create(**options)
+
+
+@_op(gitlab_write)
+@_strict_proxy(_generated.topics_edit, drop_params={"avatar"}, add_params=_AVATAR_PARAMS)
+def topics_edit(topic_id: str | int, **options):
+    """Edit a topic, optionally replacing its avatar in the same request."""
+    upload = _pop_avatar_upload(options)
+    if upload is not None:
+        return _multipart_upload("PUT", f"/topics/{_enc(topic_id)}", "avatar", upload, options, options.pop("sudo", _UNSET))
+    return _generated.topics_edit(topic_id=topic_id, **options)
+
+
+@_op(gitlab_write)
+@_strict_proxy(_generated.users_create, drop_params={"avatar"}, add_params=_AVATAR_PARAMS)
+def users_create(**options):
+    """Create a user, optionally uploading an avatar in the same request."""
+    upload = _pop_avatar_upload(options)
+    if upload is not None:
+        return _multipart_upload("POST", "/users", "avatar", upload, options, options.pop("sudo", _UNSET))
+    return _generated.users_create(**options)
+
+
+@_op(gitlab_write)
+@_strict_proxy(_generated.users_edit, drop_params={"avatar"}, add_params=_AVATAR_PARAMS)
+def users_edit(user_id: str | int, **options):
+    """Edit a user, optionally replacing their avatar in the same request."""
+    upload = _pop_avatar_upload(options)
+    if upload is not None:
+        return _multipart_upload("PUT", f"/users/{_enc(user_id)}", "avatar", upload, options, options.pop("sudo", _UNSET))
+    return _generated.users_edit(user_id=user_id, **options)
 
 
 # ── Visibility guards (default: private only) ─────────────────────────────
@@ -1267,7 +1443,7 @@ def npm_upload_package_file(
 
 
 @_op(gitlab_write)
-@_strict_proxy(_generated.projects_create)
+@_strict_proxy(_generated.projects_create, drop_params={"avatar"}, add_params=_AVATAR_PARAMS)
 def projects_create(visibility: Visibility = "private", **options):
     """Create a new project. Defaults to visibility='private'.
 
@@ -1275,32 +1451,44 @@ def projects_create(visibility: Visibility = "private", **options):
     --allow-public. Pass `visibility='private'` explicitly to be safe.
     """
     options["visibility"] = _enforce_visibility(visibility)
+    upload = _pop_avatar_upload(options)
+    if upload is not None:
+        return _multipart_upload("POST", "/projects", "avatar", upload, options, options.pop("sudo", _UNSET))
     return _generated.projects_create(**options)
 
 
 @_op(gitlab_write)
-@_strict_proxy(_generated.projects_edit)
+@_strict_proxy(_generated.projects_edit, drop_params={"avatar"}, add_params=_AVATAR_PARAMS)
 def projects_edit(project_id: str | int, visibility: Visibility | None = None, **options):
     """Edit a project. If `visibility` is given it must be 'private' unless --allow-public."""
     if visibility is not None:
         options["visibility"] = _enforce_visibility(visibility)
+    upload = _pop_avatar_upload(options)
+    if upload is not None:
+        return _multipart_upload("PUT", f"/projects/{_enc(project_id)}", "avatar", upload, options, options.pop("sudo", _UNSET))
     return _generated.projects_edit(project_id=project_id, **options)
 
 
 @_op(gitlab_write)
-@_strict_proxy(_generated.groups_create)
+@_strict_proxy(_generated.groups_create, drop_params={"avatar"}, add_params=_AVATAR_PARAMS)
 def groups_create(visibility: Visibility = "private", **options):
     """Create a new group. Defaults to visibility='private'."""
     options["visibility"] = _enforce_visibility(visibility)
+    upload = _pop_avatar_upload(options)
+    if upload is not None:
+        return _multipart_upload("POST", "/groups", "avatar", upload, options, options.pop("sudo", _UNSET))
     return _generated.groups_create(**options)
 
 
 @_op(gitlab_write)
-@_strict_proxy(_generated.groups_edit)
+@_strict_proxy(_generated.groups_edit, drop_params={"avatar"}, add_params=_AVATAR_PARAMS)
 def groups_edit(group_id: str | int, visibility: Visibility | None = None, **options):
     """Edit a group. If `visibility` is given it must be 'private' unless --allow-public."""
     if visibility is not None:
         options["visibility"] = _enforce_visibility(visibility)
+    upload = _pop_avatar_upload(options)
+    if upload is not None:
+        return _multipart_upload("PUT", f"/groups/{_enc(group_id)}", "avatar", upload, options, options.pop("sudo", _UNSET))
     return _generated.groups_edit(group_id=group_id, **options)
 
 

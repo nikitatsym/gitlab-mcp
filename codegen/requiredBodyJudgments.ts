@@ -8,8 +8,8 @@
  * cover the exact pinned implementation mappings absent from OpenAPI. allowNull
  * is permitted only where evidence proves a required field can be null.
  * DOCUMENTED_SPEC_GAPS identify a spec-required field the pinned Gitbeaker JSON
- * contract cannot represent. PUBLIC_UPLOAD_OVERRIDE_PROOFS verify every exposed
- * replacement upload remains usable despite its exact retained spec gap.
+ * contract cannot represent. PUBLIC_UPLOAD_OVERRIDE_PROOFS retain the exact
+ * gaps handled by public upload overrides; dispatcher tests cover their wire behavior.
  * CONCRETE_DEFAULT_OVERRIDES identify a hand-written wrapper that always supplies
  * a documented concrete default. CONDITIONAL_BRANCH_FIELD_JUDGMENTS identify an
  * optional field that belongs only to one selector path.
@@ -332,7 +332,7 @@ export const DOCUMENTED_SPEC_GAPS: readonly DocumentedSpecGap[] = [
 /**
  * Exact user-facing upload contracts restoring operations that the generated
  * JSON surface cannot faithfully expose. Every proof must pair with a current,
- * exact DOCUMENTED_SPEC_GAPS entry and is source-checked by conformance.
+ * exact DOCUMENTED_SPEC_GAPS entry and is stale-checked by conformance.
  */
 export const PUBLIC_UPLOAD_OVERRIDE_PROOFS: readonly PublicUploadOverrideProof[] = [
   {

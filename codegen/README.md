@@ -155,14 +155,11 @@ non-omittable, null-accurate, guarded, and serialized.
   usable by themselves.
 - `CONCRETE_DEFAULT_OVERRIDES` record a handwritten wrapper that always sends
   one concrete value.
-- `PUBLIC_UPLOAD_OVERRIDE_PROOFS` pair each exposed replacement upload surface
-  with its exact gap and stale-check its closed `file_path` signature plus the
-  evidence-selected serializer in `tools.py`: `multipart-file-path`,
-  `raw-json-file-path`, or `raw-binary-file-path`. Multipart parts derive from
-  `property`; raw proofs require verbatim `content=p.read_bytes()`, the exact
-  `Content-Type`, and no `files=` or `json=`.
-  A Workhorse-only path suffix must use `wirePathSuffix` together with its
-  mandatory rationale; the OpenAPI `rawPath` remains the gap-pairing key.
+- `PUBLIC_UPLOAD_OVERRIDE_PROOFS` pair handwritten upload transports with
+  their exact OpenAPI gaps. This gate stale-checks those pairings.
+  `tests/test_upload_capabilities.py` verifies public dispatch, multipart
+  fields, raw bodies, and Workhorse path suffixes for both server-local files
+  and base64 input; it does not pin the Python implementation text.
 - `allowNull` permits a required field to accept `None` only with specific
   evidence.
 - `CONDITIONAL_BRANCH_FIELD_JUDGMENTS` add an audited optional field to one
@@ -176,7 +173,7 @@ unrelated fields by name.
 Every judgment is keyed by operation, verb, raw path, and property or source
 parameter. The conformance gate stale-checks each list and validates
 rationale-specific pinned-source evidence, so a judgment cannot outlive its
-source condition or hide a broken public upload override.
+source condition. Public upload behavior is covered by the request-contract tests.
 
 ## What the parser handles
 
