@@ -1,13 +1,13 @@
 # gitlab-mcp
 
 MCP server for **GitLab** and **Heptapod** (the Mercurial-friendly GitLab fork).
-Full REST API coverage with VCS-aware helpers — one tool surface, two backends.
+VCS-aware helpers over the GitLab v4 REST API — one tool surface, two backends.
 
 ## Features
 
-- **800+ tools** generated from `@gitbeaker/rest` TypeScript types covering the full GitLab v4 REST API
-- **6 risk-graded groups** — `gitlab_read`, `gitlab_write`, `gitlab_execute`, `gitlab_delete`, `gitlab_admin_read`, `gitlab_admin_write`
-- **Heptapod transparent** — detects the backend on first use; the 4 hg-specific operations (`hg_get_config`, `hg_set_config`, `hg_get_raw_hgrc`, `hg_create_topic_mr`) are rejected with a clear error against plain GitLab
+- **Generated tool surface** — built from `@gitbeaker/rest` TypeScript types over the GitLab v4 REST API
+- **Risk-graded groups** — `gitlab_read`, `gitlab_write`, `gitlab_execute`, `gitlab_delete`, `gitlab_admin_read`, `gitlab_admin_write`
+- **Heptapod transparent** — detects the backend on first use; the hg-specific operations (`hg_get_config`, `hg_set_config`, `hg_get_raw_hgrc`, `hg_create_topic_mr`) are rejected with a clear error against plain GitLab
 - **Mercurial refs preserved verbatim** — `branch/<name>` and `topic/<target>/<name>` pass through unchanged; commit IDs not assumed to be git SHAs
 - **Pre-flight guards** — block `fork` on hg projects, validate hg topic naming on MR creation, detect silently-dropped fields in write responses
 - **Visibility default-deny** — public/internal projects/snippets/groups blocked unless `--allow-public` is passed
@@ -93,7 +93,7 @@ Appearance changes require administrator access; RubyGems requires its server-si
 
 ## Heptapod handling
 
-Against a Heptapod instance, four `hg_*` operations do real work; on plain GitLab each one
+Against a Heptapod instance, the `hg_*` operations do real work; on plain GitLab each one
 fails with `... is Heptapod-only; this instance is gitlab`:
 
 - `hg_get_config(project_id)` — read structured Mercurial settings
