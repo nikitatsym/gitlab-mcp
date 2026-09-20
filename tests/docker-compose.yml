@@ -1,6 +1,11 @@
+# Upstream image pins. A floating tag turns an unrelated commit red the day
+# upstream ships: 19.4.0 added a `?v=<updated_at>` cache buster to avatar URLs
+# and broke CI on a docs-only change. Bump a pin deliberately, in its own
+# commit. Override for a one-off check with the matching variable, e.g.
+# GITLAB_CE_VERSION=19.3.2-ce.0 docker compose -f tests/docker-compose.yml up -d gitlab
 services:
   gitlab:
-    image: gitlab/gitlab-ce:latest
+    image: gitlab/gitlab-ce:${GITLAB_CE_VERSION:-19.4.0-ce.0}
     hostname: gitlab.test
     ports:
       - "8929:8929"
@@ -32,7 +37,7 @@ services:
   # docker-in-docker / socket-mount complexity. Registered against the
   # GitLab service by scripts/register_runner.py after GitLab is ready.
   gitlab-runner:
-    image: gitlab/gitlab-runner:alpine
+    image: gitlab/gitlab-runner:${GITLAB_RUNNER_VERSION:-alpine-v19.4.0}
     container_name: tests-gitlab-runner
     depends_on:
       gitlab:
@@ -53,7 +58,7 @@ services:
     # `octobus/heptapod` stopped past 17.0.6; the live image lineage moved
     # to `heptapod/heptapod` on Hub. Pin to a concrete tag so CI is
     # reproducible; bump when a newer minor lands.
-    image: heptapod/heptapod:18-7-latest
+    image: heptapod/heptapod:${HEPTAPOD_VERSION:-18-7-latest}
     hostname: heptapod.test
     ports:
       - "8930:80"

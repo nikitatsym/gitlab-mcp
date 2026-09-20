@@ -15,6 +15,8 @@ import io
 import time
 import uuid
 import zipfile
+from pathlib import PurePosixPath
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -40,6 +42,15 @@ def _wait_for_pipeline(agent, project_id: int, pipeline_id: int, timeout: int = 
             return p
         time.sleep(2)
     return p
+
+
+def _served_name(url: str) -> str:
+    """File name the server serves at this URL.
+
+    GitLab appends `?v=<updated_at>` to avatar URLs since 19.4.0, so the query
+    string is cache metadata, not part of the upload's identity.
+    """
+    return PurePosixPath(urlsplit(url).path).name
 
 
 class TestAgentWorkflow:
@@ -286,7 +297,7 @@ class TestAgentWorkflow:
             "projects_upload_avatar", project_id=project_id, filename="project.png", content_base64=_PNG_BASE64,
         )
         project = agent_gitlab.call("projects_show", project_id=project_id)
-        assert project["avatar_url"].endswith("/project.png")
+        assert _served_name(project["avatar_url"]) == "project.png"
 
     def test_82_publish_pypi_distribution(self, agent_gitlab):
         package = io.BytesIO()
@@ -325,13 +336,13 @@ class TestAgentWorkflow:
             )
             identity = {id_key: created["id"]}
             try:
-                assert created["avatar_url"].endswith("/created.png")
+                assert _served_name(created["avatar_url"]) == "created.png"
                 edit_fields: dict[str, list[str]] = {"topics": []} if resource == "projects" else {}
                 agent_gitlab.call(
                     f"{resource}_edit", **identity, **edit_fields, avatar_file_path=str(local_file),
                 )
                 updated = agent_gitlab.call(f"{resource}_show", **identity)
-                assert updated["avatar_url"].endswith("/updated.png")
+                assert _served_name(updated["avatar_url"]) == "updated.png"
                 if resource == "projects":
                     assert updated["topics"] == []
                 if resource == "groups":
@@ -339,7 +350,7 @@ class TestAgentWorkflow:
                         "groups_upload_avatar", **identity, filename="standalone.png", content_base64=_PNG_BASE64,
                     )
                     group = agent_gitlab.call("groups_show", **identity)
-                    assert group["avatar_url"].endswith("/standalone.png")
+                    assert _served_name(group["avatar_url"]) == "standalone.png"
             finally:
                 agent_gitlab.call(f"{resource}_remove", **identity)
 
@@ -349,8 +360,8 @@ class TestAgentWorkflow:
             logo_filename="ci-logo.png", logo_content_base64=_PNG_BASE64,
             favicon_filename="ci-favicon.png", favicon_content_base64=_PNG_BASE64,
         )
-        assert appearance["logo"].endswith("/ci-logo.png")
-        assert appearance["favicon"].endswith("/ci-favicon.png")
+        assert _served_name(appearance["logo"]) == "ci-logo.png"
+        assert _served_name(appearance["favicon"]) == "ci-favicon.png"
         saved = get_client().get("/application/appearance")
         assert saved["logo"] == appearance["logo"]
         assert saved["favicon"] == appearance["favicon"]
