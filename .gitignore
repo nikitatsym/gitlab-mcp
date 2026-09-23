@@ -9,3 +9,4 @@ docs/*.whl
 docs/*.tar.gz
 tests/.env
 node_modules/
+.worktrees/
