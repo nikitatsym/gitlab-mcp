@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from .config import Settings, get_settings
+from .registry import _UNSET
 
 if TYPE_CHECKING:
     from .backend import InstanceInfo
@@ -32,6 +33,46 @@ class GitLabError(Exception):
         if hint:
             msg += hint
         super().__init__(msg)
+
+
+def rack_fields(fields: dict) -> dict[str, Any]:
+    """Flatten fields into the Rack nested-key form GitLab's Grape API parses.
+
+    Used for query strings and multipart forms. Rack keeps only the last
+    value of a repeated plain key, so scalar lists become `key[]`, dicts
+    become `key[child]`, and lists of dicts become `key[index][child]`. An
+    empty list is sent as an empty `key` so GitLab reads it as cleared.
+    """
+    form: dict[str, Any] = {}
+
+    def add(key: str, value) -> None:
+        if value is _UNSET:
+            return
+        if isinstance(value, dict):
+            for child, item in value.items():
+                add(f"{key}[{child}]", item)
+        elif isinstance(value, (list, tuple)):
+            if not value:
+                form[key] = ""
+            elif all(isinstance(item, (str, int, float, bool)) for item in value):
+                form[f"{key}[]"] = [_scalar(item) for item in value]
+            else:
+                for index, item in enumerate(value):
+                    add(f"{key}[{index}]", item)
+        else:
+            form[key] = _scalar(value)
+
+    for key, value in fields.items():
+        add(key, value)
+    return form
+
+
+def _scalar(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return str(value).lower()
+    return str(value)
 
 
 class GitLabClient:
@@ -108,6 +149,8 @@ class GitLabClient:
     # ── low-level ──────────────────────────────────────────────
 
     def _request(self, method: str, path: str, **kwargs) -> httpx.Response:
+        if kwargs.get("params"):
+            kwargs["params"] = rack_fields(kwargs["params"])
         start = time.perf_counter()
         r = self._http.request(method, path, **kwargs)
         duration_ms = int((time.perf_counter() - start) * 1000)

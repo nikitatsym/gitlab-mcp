@@ -64,7 +64,7 @@ class TestJobsAll:
             b"/api/v4/projects/team%2Fproject/pipelines/42/jobs?"
         )
         assert dict(calls[0].url.params) == {
-            "scope": "success", "page": "2", "per_page": "5", "include_retried": "false",
+            "scope[]": "success", "page": "2", "per_page": "5", "include_retried": "false",
         }
         assert _dispatch("JobsAll", "gitlab_read", {
             "project_id": "team/project", "brief": False, "ref": "main", "page": 2, "per_page": 5,

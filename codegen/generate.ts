@@ -539,9 +539,14 @@ function parseConditional(mBody: string): {
   const branches: ConditionalBranch[] = [];
   let pendingVar: string | null = null;
   let pendingIsElse = false;
+  // `let prefix = ""; if (a) prefix = ...; else if (b) prefix = ...;` keeps
+  // the initializer when no branch matches, so it is the fallback path.
+  let initializer: string | null = null;
+  let sawBranch = false;
   let m: RegExpExecArray | null;
   while ((m = tokenRe.exec(mBody)) !== null) {
     if (m[1]) {
+      sawBranch = true;
       const kind = m[1].trim().replace(/\s+/g, " ");
       if (kind === "if" || kind === "else if") {
         pendingVar = m[2] ?? null;
@@ -557,10 +562,15 @@ function parseConditional(mBody: string): {
           selectorVar: pendingVar,
           pathTpl: path,
         });
+      } else if (!sawBranch && initializer === null) {
+        initializer = path;
       }
       pendingVar = null;
       pendingIsElse = false;
     }
+  }
+  if (initializer !== null && !branches.some((b) => b.selectorVar === null)) {
+    branches.push({ selectorVar: null, pathTpl: initializer });
   }
 
   if (branches.length < 2) return null;

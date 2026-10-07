@@ -637,6 +637,51 @@ class TestConditionalDispatchPayload:
         assert paths[1] == "/api/v4/runners"
         assert paths[2] == "/api/v4/runners/all"
 
+    @pytest.mark.parametrize(
+        ("operation", "params", "path", "query"),
+        [
+            (
+                "MergeRequestsAll",
+                {"project_id": 7, "iids": [52, 76], "in_": "title", "not_": {"labels": ["a", "b"]}},
+                "/api/v4/projects/7/merge_requests",
+                [
+                    ("iids[]", "52"), ("iids[]", "76"), ("in", "title"),
+                    ("not[labels][]", "a"), ("not[labels][]", "b"),
+                ],
+            ),
+            (
+                "MergeRequestsAll",
+                {"state": "opened", "labels": ["x", "y"]},
+                "/api/v4/merge_requests",
+                [("labels[]", "x"), ("labels[]", "y"), ("state", "opened")],
+            ),
+            (
+                "IssuesAll",
+                {"iids": [1, 2], "not_iids": [3], "confidential": False},
+                "/api/v4/issues",
+                [("confidential", "false"), ("iids[]", "1"), ("iids[]", "2"), ("not[iids][]", "3")],
+            ),
+        ],
+    )
+    def test_list_query_uses_rack_keys(self, operation, params, path, query):
+        """GitLab keeps only the last value of a repeated plain query key:
+        lists must be `key[]`, dicts `key[child]`, renamed fields their wire
+        names.
+        """
+        sent: list[httpx.Request] = []
+
+        def handler(req):
+            sent.append(req)
+            return httpx.Response(200, json=[])
+
+        _seed_and_register("gitlab", handler)
+        from gitlab_mcp import server
+
+        result = server._dispatch(operation, "gitlab_read", params)
+        assert result == []
+        assert sent[0].url.path == path
+        assert sorted(sent[0].url.params.multi_items()) == sorted(query)
+
     def test_renamed_required_positionals_use_only_canonical_wire_keys(self):
         bodies: list[dict] = []
 

@@ -31,7 +31,7 @@ from . import _generated
 from ._generated import *  # re-export all generated ops
 from ._generated_groups import DEFAULT_GROUPS
 from .annotations import ANNOTATIONS
-from .client import GitLabError, get_client
+from .client import GitLabError, get_client, rack_fields
 from .param_annotations import PARAM_ANNOTATIONS
 from .prepare import (
     Visibility,
@@ -612,50 +612,26 @@ def projects_all(brief: bool = True, **options):
 
 @_op(gitlab_read)
 @_strict_proxy(_generated.merge_requests_all, add_params=[_BRIEF_PARAM])
-def merge_requests_all(
-    project_id: str | int | None = None,
-    group_id: str | int | None = None,
-    brief: bool = True,
-    **options,
-):
+def merge_requests_all(brief: bool = True, **options):
     """List merge requests.
 
     Without `project_id` or `group_id` this hits the global `/merge_requests`
     endpoint which returns MRs scoped to the current user. Pass `project_id=N`
     to list all MRs in a project, or `group_id=N` for a group.
     """
-    if project_id is not None:
-        path = f"/projects/{_enc(project_id)}/merge_requests"
-    elif group_id is not None:
-        path = f"/groups/{_enc(group_id)}/merge_requests"
-    else:
-        path = "/merge_requests"
-    raw = get_client().get(path, params=options)
-    return _maybe_slim(raw, _slim_mr, brief)
+    return _maybe_slim(_generated.merge_requests_all(**options), _slim_mr, brief)
 
 
 @_op(gitlab_read)
 @_strict_proxy(_generated.issues_all, add_params=[_BRIEF_PARAM])
-def issues_all(
-    project_id: str | int | None = None,
-    group_id: str | int | None = None,
-    brief: bool = True,
-    **options,
-):
+def issues_all(brief: bool = True, **options):
     """List issues.
 
     Without `project_id` or `group_id` this hits the global `/issues` endpoint
     which returns issues scoped to the current user. Pass `project_id=N` to
     list all issues in a project, or `group_id=N` for a group.
     """
-    if project_id is not None:
-        path = f"/projects/{_enc(project_id)}/issues"
-    elif group_id is not None:
-        path = f"/groups/{_enc(group_id)}/issues"
-    else:
-        path = "/issues"
-    raw = get_client().get(path, params=options)
-    return _maybe_slim(raw, _slim_issue, brief)
+    return _maybe_slim(_generated.issues_all(**options), _slim_issue, brief)
 
 
 @_op(gitlab_read)
@@ -1074,33 +1050,6 @@ def _upload_result(response: httpx.Response):
     return response.text
 
 
-def _upload_form(fields: dict) -> dict[str, typing.Any]:
-    form: dict[str, typing.Any] = {}
-
-    def add(key: str, value) -> None:
-        if value is _UNSET:
-            return
-        if isinstance(value, dict):
-            for child, item in value.items():
-                add(f"{key}[{child}]", item)
-        elif isinstance(value, list):
-            if not value:
-                form[key] = ""
-            elif all(isinstance(item, (str, int, float, bool)) for item in value):
-                form[f"{key}[]"] = [
-                    str(item).lower() if isinstance(item, bool) else str(item) for item in value
-                ]
-            else:
-                for index, item in enumerate(value):
-                    add(f"{key}[{index}]", item)
-        else:
-            form[key] = "" if value is None else str(value).lower() if isinstance(value, bool) else str(value)
-
-    for key, value in fields.items():
-        add(key, value)
-    return form
-
-
 def _multipart_upload(
     method: str, path: str, part: str, upload: tuple[str, bytes],
     fields: dict | None = None, sudo: str | int | _Unset = _UNSET,
@@ -1108,7 +1057,7 @@ def _multipart_upload(
     filename, content = upload
     response = get_client()._request(
         method, path,
-        data=_upload_form(fields or {}),
+        data=rack_fields(fields or {}),
         files={part: (filename, content, "application/octet-stream")},
         headers={"sudo": str(sudo)} if sudo is not _UNSET else None,
     )

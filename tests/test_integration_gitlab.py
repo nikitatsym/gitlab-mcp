@@ -186,6 +186,16 @@ class TestAgentWorkflow:
         first = next(m for m in result if m["iid"] == TestAgentWorkflow.mr_iid)
         assert "description" not in first
 
+    def test_33_list_mrs_by_several_iids(self, agent_gitlab):
+        # GitLab keeps only the last value of a repeated plain key, so a
+        # misencoded list would filter by the absent iid alone.
+        result = agent_gitlab.call(
+            "merge_requests_all",
+            project_id=TestAgentWorkflow.project_id,
+            iids=[TestAgentWorkflow.mr_iid, 999999],
+        )
+        assert [m["iid"] for m in result] == [TestAgentWorkflow.mr_iid]
+
     def test_40_create_issue(self, agent_gitlab):
         result = agent_gitlab.call(
             "issues_create",
@@ -206,6 +216,17 @@ class TestAgentWorkflow:
         ours = [i for i in result if i["iid"] == TestAgentWorkflow.issue_iid]
         assert len(ours) == 1
         assert "bug" in ours[0]["labels"]
+
+    def test_42_list_issues_by_iids_and_negated_labels(self, agent_gitlab):
+        project_id = TestAgentWorkflow.project_id
+        issue_iid = TestAgentWorkflow.issue_iid
+        by_iids = agent_gitlab.call("issues_all", project_id=project_id, iids=[issue_iid, 999999])
+        assert [i["iid"] for i in by_iids] == [issue_iid]
+        # not[labels][] must reach GitLab, or the labelled issue stays listed.
+        negated = agent_gitlab.call(
+            "issues_all", project_id=project_id, iids=[issue_iid], not_={"labels": ["bug"]},
+        )
+        assert negated == []
 
     def test_50_fork_on_git_is_allowed(self, agent_gitlab):
         # Fork guard should only fire for hg projects — on plain GitLab it's a no-op.
