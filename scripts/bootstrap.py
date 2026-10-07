@@ -50,12 +50,40 @@ ROOT_PASSWORD = "X9!Zq-Integration-Tkn42"
 TEST_PAT = "glpat-integration-test-token"
 
 
-def _compose_exec(service: str, profile: str | None, *args: str) -> subprocess.CompletedProcess:
+def _compose(profile: str | None, *args: str) -> subprocess.CompletedProcess:
     cmd = ["docker", "compose", "-f", str(COMPOSE_FILE)]
     if profile:
         cmd += ["--profile", profile]
-    cmd += ["exec", "-T", service, *args]
-    return subprocess.run(cmd, capture_output=True, text=True, check=False)
+    return subprocess.run([*cmd, *args], capture_output=True, text=True, check=False)
+
+
+def _compose_exec(service: str, profile: str | None, *args: str) -> subprocess.CompletedProcess:
+    return _compose(profile, "exec", "-T", service, *args)
+
+
+def wait_for_reconfigure(service: str, profile: str | None, timeout: int) -> None:
+    """Wait until the container's boot-time `gitlab-ctl reconfigure` finishes.
+
+    The API answers well before reconfigure ends, and its tail HUPs Gitaly:
+    project creation in that window fails with 502 or a dropped connection.
+    Only logs since the current container start count, so a restarted
+    container is not mistaken for ready by its previous boot.
+    """
+    container = _compose(profile, "ps", "-q", service).stdout.strip()
+    if not container:
+        raise TimeoutError(f"no running container for service {service!r}")
+    started = subprocess.run(
+        ["docker", "inspect", "-f", "{{.State.StartedAt}}", container],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        logs = _compose(profile, "logs", "--no-color", "--since", started, service).stdout
+        if "gitlab Reconfigured!" in logs:
+            print("[bootstrap] reconfigure finished")
+            return
+        time.sleep(5)
+    raise TimeoutError(f"{service} reconfigure did not finish in {timeout}s")
 
 
 def wait_for_ready(url: str, timeout: int) -> None:
@@ -76,8 +104,6 @@ def wait_for_ready(url: str, timeout: int) -> None:
             if r.status_code in (200, 401):
                 elapsed = int(timeout - (deadline - time.time()))
                 print(f"[bootstrap] ready after {elapsed}s ({attempts} attempts)")
-                # Extra grace period — API may answer before rails fully accepts writes.
-                time.sleep(5)
                 return
             last_error = f"HTTP {r.status_code}"
         except httpx.HTTPError as e:
@@ -149,6 +175,7 @@ def main() -> int:
     print(f"[bootstrap] target: {url}")
 
     try:
+        wait_for_reconfigure(inst["service"], inst["compose_profile"], inst["readiness_timeout"])
         wait_for_ready(url, inst["readiness_timeout"])
     except TimeoutError as e:
         print(f"[bootstrap] FAILED: {e}", file=sys.stderr)
