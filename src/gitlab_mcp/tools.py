@@ -2141,8 +2141,9 @@ async def jobs_wait_cancel(wait_id: str):
     return handle.snapshot()
 
 
+# Async without an await: dispatch then keeps it on the loop that mutates the handles.
 @_op(gitlab_read)
-def waits_list(
+async def waits_list(
     kind: Annotated[
         str | None,
         Field(description="Filter by kind: 'pipeline' or 'job'. None lists both."),

@@ -7,6 +7,8 @@ MCP-tool call), and that fully-typed generated ops correctly reject extras.
 
 from __future__ import annotations
 
+import asyncio
+
 import httpx
 import pytest
 
@@ -60,40 +62,40 @@ class TestOverridePreFlightGuardsViaDispatch:
         _seed_and_register("gitlab")
         from gitlab_mcp import server
 
-        result = server._dispatch(
+        result = asyncio.run(server._dispatch(
             "ProjectsCreate", "gitlab_write",
             {"name": "x", "visibility": "public"},
-        )
+        ))
         assert "Public/internal projects not allowed" in result["error"]
 
     def test_groups_create_visibility_guard(self):
         _seed_and_register("gitlab")
         from gitlab_mcp import server
 
-        result = server._dispatch(
+        result = asyncio.run(server._dispatch(
             "GroupsCreate", "gitlab_write",
             {"name": "x", "path": "x", "visibility": "public"},
-        )
+        ))
         assert "Public/internal" in result["error"]
 
     def test_snippets_create_visibility_guard(self):
         _seed_and_register("gitlab")
         from gitlab_mcp import server
 
-        result = server._dispatch(
+        result = asyncio.run(server._dispatch(
             "SnippetsCreate", "gitlab_write",
             {"title": "x", "visibility": "public"},
-        )
+        ))
         assert "Public/internal" in result["error"]
 
     def test_projects_edit_visibility_guard(self):
         _seed_and_register("gitlab")
         from gitlab_mcp import server
 
-        result = server._dispatch(
+        result = asyncio.run(server._dispatch(
             "ProjectsEdit", "gitlab_write",
             {"project_id": 1, "visibility": "public"},
-        )
+        ))
         assert "Public/internal" in result["error"]
 
     def test_merge_requests_create_requires_git(self):
@@ -105,7 +107,7 @@ class TestOverridePreFlightGuardsViaDispatch:
         # The override looks up the project's vcs_type. Patch the lookup to return 'hg'.
         assert client_mod._client is not None
         client_mod._client.project_vcs_type = lambda project_id: "hg"  # type: ignore[method-assign]
-        result = server._dispatch(
+        result = asyncio.run(server._dispatch(
             "MergeRequestsCreate", "gitlab_write",
             {
                 "project_id": 1,
@@ -113,7 +115,7 @@ class TestOverridePreFlightGuardsViaDispatch:
                 "target_branch": "y",
                 "title": "z",
             },
-        )
+        ))
         assert "Mercurial" in result["error"]
 
     def test_projects_all_brief_default(self):
@@ -125,7 +127,7 @@ class TestOverridePreFlightGuardsViaDispatch:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        out = server._dispatch("ProjectsAll", "gitlab_read", {})
+        out = asyncio.run(server._dispatch("ProjectsAll", "gitlab_read", {}))
         assert isinstance(out, list)
         assert "junk" not in out[0]  # slimmed
         assert out[0]["id"] == 1
@@ -145,9 +147,9 @@ class TestHgOpsViaDispatch:
         _seed_and_register("heptapod", handler)
         from gitlab_mcp import server
 
-        result = server._dispatch(
+        result = asyncio.run(server._dispatch(
             "HgGetConfig", "gitlab_read", {"project_id": 42},
-        )
+        ))
         assert result == {"vcs_type": "hg"}
         # hg_get_config -> /hgrc (structured config with defaults).
         # /hg_heptapod_config (overrides only) is hg_get_raw_hgrc's endpoint.
@@ -166,10 +168,10 @@ class TestStrictRejectionOnTypedGeneratedOp:
         _seed_and_register("gitlab")
         from gitlab_mcp import server
 
-        result = server._dispatch(
+        result = asyncio.run(server._dispatch(
             "BranchesShow", "gitlab_read",
             {"project_id": 1, "branch_name": "main", "foo": "bar"},
-        )
+        ))
         assert "Extra inputs are not permitted" in result["error"]
 
     def test_merge_requests_create_typed_args_accepted(self):
@@ -186,7 +188,7 @@ class TestStrictRejectionOnTypedGeneratedOp:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "MergeRequestsCreate", "gitlab_write",
             {
                 "project_id": 1,
@@ -194,7 +196,7 @@ class TestStrictRejectionOnTypedGeneratedOp:
                 "target_branch": "main",
                 "title": "T",
             },
-        )
+        ))
         assert body["source_branch"] == "feat"
         assert body["target_branch"] == "main"
         assert body["title"] == "T"
@@ -213,7 +215,7 @@ class TestStrictRejectionOnTypedGeneratedOp:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "MergeRequestsCreate", "gitlab_write",
             {
                 "project_id": 1,
@@ -221,7 +223,7 @@ class TestStrictRejectionOnTypedGeneratedOp:
                 "target_branch": "main",
                 "title": "T",
             },
-        )
+        ))
         assert "description" not in body
         assert "assignee_id" not in body
 
@@ -253,7 +255,7 @@ class TestCanonicalSearchWireContracts:
 
         fn = getattr(_generated, function_name)
 
-        result = server._dispatch(operation, "gitlab_read", {"search": needle})
+        result = asyncio.run(server._dispatch(operation, "gitlab_read", {"search": needle}))
         if isinstance(result, dict) and "error" in result:
             pytest.fail(
                 f"{operation} ({path}) missing canonical search contract: "
@@ -278,9 +280,9 @@ class TestCanonicalSearchWireContracts:
         assert f"{operation}(search: str" in help_text
         assert obsolete_field not in help_text
 
-        rejected = server._dispatch(
+        rejected = asyncio.run(server._dispatch(
             operation, "gitlab_read", {obsolete_field: needle}
-        )
+        ))
         assert "Extra inputs are not permitted" in rejected["error"]
 
 
@@ -298,9 +300,9 @@ class TestCodegenSignatureRegressions:
         from gitlab_mcp import server
 
         # Must not raise "Field required" for `simple`.
-        result = server._dispatch(
+        result = asyncio.run(server._dispatch(
             "GroupsAllProjects", "gitlab_read", {"group_id": 1},
-        )
+        ))
         assert result == []
 
     def test_search_all_accepts_all_scopes(self):
@@ -316,20 +318,20 @@ class TestCodegenSignatureRegressions:
             "snippet_titles", "wiki_blobs", "commits", "blobs",
             "notes", "users",
         ):
-            result = server._dispatch(
+            result = asyncio.run(server._dispatch(
                 "SearchAll", "gitlab_read",
                 {"scope": scope, "search": "x"},
-            )
+            ))
             assert result == [], f"scope={scope!r} rejected"
 
     def test_search_all_rejects_unknown_scope(self):
         _seed_and_register("gitlab", lambda req: httpx.Response(200, json=[]))
         from gitlab_mcp import server
 
-        result = server._dispatch(
+        result = asyncio.run(server._dispatch(
             "SearchAll", "gitlab_read",
             {"scope": "bogus", "search": "x"},
-        )
+        ))
         assert "Input should be" in result["error"]
 
     def test_deploy_keys_all_routes_by_selector(self):
@@ -347,13 +349,13 @@ class TestCodegenSignatureRegressions:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "DeployKeysAll", "gitlab_read", {"project_id": 42},
-        )
-        server._dispatch(
+        ))
+        asyncio.run(server._dispatch(
             "DeployKeysAll", "gitlab_read", {"user_id": 7},
-        )
-        server._dispatch("DeployKeysAll", "gitlab_read", {})
+        ))
+        asyncio.run(server._dispatch("DeployKeysAll", "gitlab_read", {}))
 
         assert paths[0] == "/api/v4/projects/42/deploy_keys"
         assert paths[1] == "/api/v4/users/7/project_deploy_keys"
@@ -372,10 +374,10 @@ class TestCodegenSignatureRegressions:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "UsersShowStatus", "gitlab_read", {"i_dor_username": "alice"},
-        )
-        server._dispatch("UsersShowStatus", "gitlab_read", {})
+        ))
+        asyncio.run(server._dispatch("UsersShowStatus", "gitlab_read", {}))
 
         assert paths[0] == "/api/v4/users/alice/status"
         assert paths[1] == "/api/v4/user/status"
@@ -396,18 +398,18 @@ class TestCodegenSignatureRegressions:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "SearchAll", "gitlab_read",
             {"scope": "projects", "search": "x", "project_id": 5},
-        )
-        server._dispatch(
+        ))
+        asyncio.run(server._dispatch(
             "SearchAll", "gitlab_read",
             {"scope": "issues", "search": "y", "group_id": 9},
-        )
-        server._dispatch(
+        ))
+        asyncio.run(server._dispatch(
             "SearchAll", "gitlab_read",
             {"scope": "users", "search": "z"},
-        )
+        ))
 
         assert paths[0] == "/api/v4/projects/5/search"
         assert paths[1] == "/api/v4/groups/9/search"
@@ -429,10 +431,10 @@ class TestCodegenSignatureRegressions:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "BranchesShow", "gitlab_read",
             {"project_id": 1, "branch_name": "main", "sudo": "alice"},
-        )
+        ))
         assert b"sudo=alice" in params_seen[0]
 
 
@@ -454,10 +456,10 @@ class TestConditionalDispatchPayload:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "JobArtifactsRemove", "gitlab_delete",
             {"project_id": 7, "job_id": 42},
-        )
+        ))
         path, qs = sent[0]
         assert path == "/api/v4/projects/7/jobs/42/artifacts"
         assert b"project_id" not in qs
@@ -476,7 +478,7 @@ class TestConditionalDispatchPayload:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "MergeRequestApprovalsCreateApprovalRule", "gitlab_write",
             {
                 "project_id": 5,
@@ -484,7 +486,7 @@ class TestConditionalDispatchPayload:
                 "approvals_required": 2,
                 "mergerequest_iid": 11,
             },
-        )
+        ))
         body = bodies[0]
         assert body == {"name": "rule-1", "approvals_required": 2}
 
@@ -501,14 +503,14 @@ class TestConditionalDispatchPayload:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "PyPiDownloadPackageFile", "gitlab_read",
             {
                 "sha": "abc123",
                 "file_identifier": "pkg-1.0.tar.gz",
                 "project_id": 9,
             },
-        )
+        ))
         path, qs = sent[0]
         assert path == "/api/v4/projects/9/packages/pypi/files/abc123/pkg-1.0.tar.gz"
         assert b"sha" not in qs
@@ -532,20 +534,20 @@ class TestConditionalDispatchPayload:
         from gitlab_mcp import server
 
         # Token-based reset: URL has no token, body MUST include it.
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "RunnersResetRegistrationToken", "gitlab_execute",
             {"token": "tk-1"},
-        )
+        ))
         assert paths[0] == "/api/v4/runners/reset_registration_token"
         assert bodies[0] == {"token": "tk-1"}
 
         # Runner-id reset: URL has runner_id, body still includes whatever
         # token caller passed (matches gitbeaker's body literal). TS declares
         # runnerId as string only, hence the str value here.
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "RunnersResetRegistrationToken", "gitlab_execute",
             {"runner_id": "9", "token": "tk-2"},
-        )
+        ))
         assert paths[1] == "/api/v4/runners/9/reset_registration_token"
         assert bodies[1] == {"token": "tk-2"}
 
@@ -563,12 +565,12 @@ class TestConditionalDispatchPayload:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "RunnersRemove", "gitlab_delete", {"runner_id": 9},
-        )
-        server._dispatch(
+        ))
+        asyncio.run(server._dispatch(
             "RunnersRemove", "gitlab_delete", {"token": "tk-x"},
-        )
+        ))
         assert paths[0] == "/api/v4/runners/9"
         assert paths[1] == "/api/v4/runners"
 
@@ -588,10 +590,10 @@ class TestConditionalDispatchPayload:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "KeysShow", "gitlab_read",
             {"fingerprint": "aa:bb", "sudo": "root"},
-        )
+        ))
         path, qs = sent[0]
         assert path == "/api/v4/keys"
         # Both fingerprint and sudo must reach the wire as query params.
@@ -599,9 +601,9 @@ class TestConditionalDispatchPayload:
         assert b"sudo=root" in qs
 
         # Keyed branch stays clean — no fingerprint anywhere.
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "KeysShow", "gitlab_read", {"key_id": 7},
-        )
+        ))
         path2, qs2 = sent[1]
         assert path2 == "/api/v4/keys/7"
         assert b"fingerprint" not in qs2
@@ -623,15 +625,15 @@ class TestConditionalDispatchPayload:
         from gitlab_mcp import server
 
         # owned=False is falsy → /runners/all (the catch-all admin route).
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "RunnersAll", "gitlab_read", {"owned": False},
-        )
+        ))
         # owned=True is truthy → /runners (the "owned by current user" route).
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "RunnersAll", "gitlab_read", {"owned": True},
-        )
+        ))
         # No selectors at all → fallback /runners/all.
-        server._dispatch("RunnersAll", "gitlab_read", {})
+        asyncio.run(server._dispatch("RunnersAll", "gitlab_read", {}))
 
         assert paths[0] == "/api/v4/runners/all"
         assert paths[1] == "/api/v4/runners"
@@ -677,7 +679,7 @@ class TestConditionalDispatchPayload:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        result = server._dispatch(operation, "gitlab_read", params)
+        result = asyncio.run(server._dispatch(operation, "gitlab_read", params))
         assert result == []
         assert sent[0].url.path == path
         assert sorted(sent[0].url.params.multi_items()) == sorted(query)
@@ -694,7 +696,7 @@ class TestConditionalDispatchPayload:
         _seed_and_register("gitlab", handler)
         from gitlab_mcp import server
 
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "ImportImportGithubRepository",
             "gitlab_write",
             {
@@ -702,8 +704,8 @@ class TestConditionalDispatchPayload:
                 "repo_id": 42,
                 "target_namespace": "team",
             },
-        )
-        server._dispatch(
+        ))
+        asyncio.run(server._dispatch(
             "ImportImportBitbucketServerRepository",
             "gitlab_write",
             {
@@ -713,12 +715,12 @@ class TestConditionalDispatchPayload:
                 "bitbucket_server_project": "project",
                 "bitbucket_server_repo": "repository",
             },
-        )
-        server._dispatch(
+        ))
+        asyncio.run(server._dispatch(
             "SuggestionsEditBatch",
             "gitlab_write",
             {"ids": [1, 2]},
-        )
+        ))
 
         assert bodies == [
             {
@@ -752,7 +754,7 @@ class TestConditionalDispatchPayload:
             "ProjectsCreatePullMirror",
             "ProjectRemoteMirrorsCreatePullMirror",
         ):
-            server._dispatch(
+            asyncio.run(server._dispatch(
                 operation,
                 "gitlab_write",
                 {
@@ -760,7 +762,7 @@ class TestConditionalDispatchPayload:
                     "url": "https://mirror.example.test/repository.git",
                     "mirror": True,
                 },
-            )
+            ))
 
         assert bodies == [
             {
@@ -792,16 +794,16 @@ class TestConditionalDispatchPayload:
             "approvals_required": 2,
             "approval_project_rule_id": 77,
         }
-        server._dispatch(
+        asyncio.run(server._dispatch(
             "MergeRequestApprovalsCreateApprovalRule",
             "gitlab_write",
             {**common, "mergerequest_iid": 11},
-        )
-        rejected = server._dispatch(
+        ))
+        rejected = asyncio.run(server._dispatch(
             "MergeRequestApprovalsCreateApprovalRule",
             "gitlab_write",
             common,
-        )
+        ))
         assert (
             "approval_project_rule_id requires mergerequest_iid"
             in rejected["error"]

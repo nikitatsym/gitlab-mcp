@@ -81,7 +81,7 @@ def _data_result(result):
 def test_api_error_keeps_status_method_path_and_body():
     server = _seed_and_register(_responding(404, {"message": "404 Project Not Found"}))
 
-    result = server._dispatch("ProjectsShow", "gitlab_read", {"project_id": 999})
+    result = asyncio.run(server._dispatch("ProjectsShow", "gitlab_read", {"project_id": 999}))
 
     assert result == {
         "error": (
@@ -94,9 +94,9 @@ def test_api_error_keeps_status_method_path_and_body():
 def test_transport_error_names_request_without_query():
     server = _seed_and_register(_refusing(httpx.ConnectError("Connection refused")))
 
-    result = server._dispatch(
+    result = asyncio.run(server._dispatch(
         "ProjectsAll", "gitlab_read", {"search": "must-not-leak"},
-    )
+    ))
 
     assert result == {
         "error": (
@@ -110,7 +110,7 @@ def test_transport_error_names_request_without_query():
 def test_missing_required_param_is_reported():
     server = _seed_and_register(_responding(200, {}))
 
-    result = server._dispatch("ProjectsShow", "gitlab_read", {})
+    result = asyncio.run(server._dispatch("ProjectsShow", "gitlab_read", {}))
 
     assert "project_id" in result["error"]
 
@@ -126,17 +126,12 @@ def test_registered_group_reports_invalid_help_input():
 
 
 def test_async_op_failure_maps_at_await_time():
-    """An async op's body runs only once awaited - outside `_dispatch`'s own guard."""
+    """An async op's failure, raised when awaited, maps like a sync op's."""
     server = _seed_and_register(_responding(200, {}))
 
-    async def flow():
-        coro = server._dispatch(
-            "PipelinesWaitPoll", "gitlab_read", {"wait_id": "wp-nope"},
-        )
-        assert asyncio.iscoroutine(coro)
-        return await coro
-
-    result = asyncio.run(flow())
+    result = asyncio.run(server._dispatch(
+        "PipelinesWaitPoll", "gitlab_read", {"wait_id": "wp-nope"},
+    ))
 
     assert "Unknown wait_id" in result["error"]
 
@@ -175,7 +170,7 @@ def test_programming_error_still_propagates(monkeypatch):
     monkeypatch.setitem(server._group_ops["gitlab_read"], "ProjectsShow", boom)
 
     with pytest.raises(AttributeError):
-        server._dispatch("ProjectsShow", "gitlab_read", {"project_id": 1})
+        asyncio.run(server._dispatch("ProjectsShow", "gitlab_read", {"project_id": 1}))
 
 
 def test_cancellation_still_propagates_from_registered_group(monkeypatch):

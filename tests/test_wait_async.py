@@ -19,6 +19,7 @@ in tens of milliseconds.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 from typing import Any
 
@@ -506,7 +507,7 @@ class TestWaitsList:
     def test_empty_when_no_waits(self):
         _seed(_handler({}))
         from gitlab_mcp.tools import waits_list
-        assert waits_list() == []
+        assert asyncio.run(waits_list()) == []
 
     def test_lists_both_kinds_and_filters(self):
         scripts = {
@@ -537,29 +538,29 @@ class TestWaitsList:
         p_snap, j_snap = asyncio.run(flow())
 
         # Unfiltered: both kinds.
-        all_entries = waits_list()
+        all_entries = asyncio.run(waits_list())
         assert len(all_entries) == 2
         ids = {e["wait_id"] for e in all_entries}
         assert ids == {p_snap["wait_id"], j_snap["wait_id"]}
 
         # Filter by kind.
         from gitlab_mcp.tools import waits_list as wl
-        assert {e["wait_id"] for e in wl(kind="pipeline")} == {p_snap["wait_id"]}
-        assert {e["wait_id"] for e in wl(kind="job")} == {j_snap["wait_id"]}
+        assert {e["wait_id"] for e in asyncio.run(wl(kind="pipeline"))} == {p_snap["wait_id"]}
+        assert {e["wait_id"] for e in asyncio.run(wl(kind="job"))} == {j_snap["wait_id"]}
 
         # Filter by terminated.
         # Pipeline finished on its sync first poll → terminated=True.
         # Job was cancelled → terminated=False (error path).
-        terminated_ids = {e["wait_id"] for e in wl(terminated=True)}
+        terminated_ids = {e["wait_id"] for e in asyncio.run(wl(terminated=True))}
         assert terminated_ids == {p_snap["wait_id"]}
-        not_terminated_ids = {e["wait_id"] for e in wl(terminated=False)}
+        not_terminated_ids = {e["wait_id"] for e in asyncio.run(wl(terminated=False))}
         assert not_terminated_ids == {j_snap["wait_id"]}
 
     def test_rejects_invalid_kind(self):
         _seed(_handler({}))
         from gitlab_mcp.tools import waits_list
         with pytest.raises(ValueError, match="kind must be"):
-            waits_list(kind="weird")
+            asyncio.run(waits_list(kind="weird"))
 
 
 # ── Resource: gitlab://waits/{wait_id} ───────────────────────────────────
@@ -624,21 +625,16 @@ class TestWaitDispatch:
         server._register_tools()
 
         async def flow():
-            start_coro = server._dispatch(
+            start_snap = await server._dispatch(
                 "PipelinesWait",
                 "gitlab_read",
                 {"project_id": 1, "pipeline_id": 42, "interval": 0.01},
             )
-            assert asyncio.iscoroutine(start_coro)
-            start_snap = await start_coro
-
-            poll_coro = server._dispatch(
+            poll_snap = await server._dispatch(
                 "PipelinesWaitPoll",
                 "gitlab_read",
                 {"wait_id": start_snap["wait_id"], "max_block": 0},
             )
-            assert asyncio.iscoroutine(poll_coro)
-            poll_snap = await poll_coro
             return start_snap, poll_snap
 
         start_snap, poll_snap = asyncio.run(flow())
@@ -652,19 +648,20 @@ class TestWaitDispatch:
         _seed(_handler({}))
         from gitlab_mcp import server
         server._register_tools()
-        result = server._dispatch(
+        result = asyncio.run(server._dispatch(
             "PipelinesWait", "gitlab_execute",
             {"project_id": 1, "pipeline_id": 42},
-        )
+        ))
         assert "belongs to 'gitlab_read'" in result["error"]
 
-    def test_waits_list_is_synchronous(self):
-        """waits_list isn't async; dispatch must return its value directly,
-        not a coroutine."""
+    def test_waits_list_runs_on_the_loop(self):
+        """waits_list reads handles the poll tasks mutate on the loop, so it
+        must be async: dispatch would run a sync op in a worker thread."""
         _seed(_handler({}))
         from gitlab_mcp import server
         server._register_tools()
-        result = server._dispatch("WaitsList", "gitlab_read", {})
+        assert inspect.iscoroutinefunction(server._group_ops["gitlab_read"]["WaitsList"])
+        result = asyncio.run(server._dispatch("WaitsList", "gitlab_read", {}))
         assert result == []
 
 

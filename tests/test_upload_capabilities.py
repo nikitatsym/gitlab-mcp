@@ -8,6 +8,7 @@ outgoing request rather than inspecting generated source.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -56,7 +57,7 @@ def _capture_write_request(operation: str, params: dict) -> httpx.Request:
     client_mod._client = client
 
     server._register_tools()
-    result = server._dispatch(operation, "gitlab_write", params)
+    result = asyncio.run(server._dispatch(operation, "gitlab_write", params))
     assert not (isinstance(result, dict) and "error" in result), result
 
     assert len(captured) == 1
@@ -204,9 +205,9 @@ def test_invalid_upload_sources_fail_before_accessing_client(source_params, monk
 
     monkeypatch.setattr("gitlab_mcp.tools.get_client", unexpected_client)
     server._register_tools()
-    result = server._dispatch(
+    result = asyncio.run(server._dispatch(
         "ProjectsUploadForReference", "gitlab_write", {"project_id": 42, **source_params},
-    )
+    ))
     assert "error" in result
 
 
@@ -218,9 +219,9 @@ def test_upload_path_must_be_existing_regular_file(tmp_path, path_kind, monkeypa
     monkeypatch.setattr("gitlab_mcp.tools.get_client", unexpected_client)
     server._register_tools()
     path = tmp_path / "missing" if path_kind == "missing" else tmp_path
-    result = server._dispatch(
+    result = asyncio.run(server._dispatch(
         "ProjectsUploadForReference", "gitlab_write", {"project_id": 42, "file_path": str(path)},
-    )
+    ))
     assert "error" in result
 
 
@@ -236,19 +237,19 @@ def test_incomplete_avatar_source_is_not_silently_ignored(monkeypatch):
 
     monkeypatch.setattr("gitlab_mcp.tools.get_client", unexpected_client)
     server._register_tools()
-    result = server._dispatch(
+    result = asyncio.run(server._dispatch(
         "ProjectsEdit", "gitlab_write", {"project_id": 42, "avatar_filename": "image.png"},
-    )
+    ))
     assert "error" in result
 
 
 def test_avatar_upload_cannot_bypass_private_visibility(monkeypatch):
     monkeypatch.setattr("gitlab_mcp.prepare.allow_public", lambda: False)
     server._register_tools()
-    result = server._dispatch("ProjectsCreate", "gitlab_write", {
+    result = asyncio.run(server._dispatch("ProjectsCreate", "gitlab_write", {
         "name": "example", "visibility": "public",
         "avatar_filename": "image.png", "avatar_content_base64": "AA==",
-    })
+    }))
     assert "error" in result
 
 
@@ -273,10 +274,10 @@ def test_invalid_appearance_image_prevents_partial_upload(monkeypatch):
 
     monkeypatch.setattr("gitlab_mcp.tools.get_client", unexpected_client)
     server._register_tools()
-    result = server._dispatch("ApplicationAppearanceEdit", "gitlab_write", {
+    result = asyncio.run(server._dispatch("ApplicationAppearanceEdit", "gitlab_write", {
         "logo_filename": "logo.png", "logo_content_base64": "AA==",
         "favicon_filename": "favicon.png", "favicon_content_base64": "invalid!",
-    })
+    }))
     assert "error" in result
 
 

@@ -309,7 +309,7 @@ def test_pipelines_wait_and_poll_full_flow(agent_gitlab):
         assert parsed["status"] == "failed"
 
         # waits_list should enumerate this wait.
-        listings = agent_gitlab.call("waits_list")
+        listings = asyncio.run(agent_gitlab._tools["waits_list"]())
         ids = {entry["wait_id"] for entry in listings}
         assert start_snap["wait_id"] in ids
 

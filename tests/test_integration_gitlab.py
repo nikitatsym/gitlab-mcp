@@ -9,6 +9,7 @@ reuse the container through session-scoped fixtures.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import io
@@ -397,7 +398,7 @@ class TestHeptapodOnlyToolsGuarded:
     def test_hg_op_refused_on_gitlab(self, agent_gitlab):
         from gitlab_mcp.server import _dispatch
 
-        result = _dispatch("HgGetConfig", "gitlab_read", {"project_id": 1})
+        result = asyncio.run(_dispatch("HgGetConfig", "gitlab_read", {"project_id": 1}))
         assert result == {"error": "HgGetConfig is Heptapod-only; this instance is gitlab"}
 
     def test_fork_guard_noop_on_gitlab(self, agent_gitlab):

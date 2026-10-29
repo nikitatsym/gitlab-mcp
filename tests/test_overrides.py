@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import httpx
 import pytest
 
@@ -56,19 +58,19 @@ class TestJobsAll:
             raise AssertionError(f"unexpected request: {req.url}")
 
         _seed("gitlab", handler)
-        assert _dispatch("JobsAll", "gitlab_read", {
+        assert asyncio.run(_dispatch("JobsAll", "gitlab_read", {
             "project_id": "team/project", "pipeline_id": 42, "brief": False,
             "scope": ["success"], "page": 2, "per_page": 5, "include_retried": False,
-        }) == selected
+        })) == selected
         assert calls[0].url.raw_path.startswith(
             b"/api/v4/projects/team%2Fproject/pipelines/42/jobs?"
         )
         assert dict(calls[0].url.params) == {
             "scope[]": "success", "page": "2", "per_page": "5", "include_retried": "false",
         }
-        assert _dispatch("JobsAll", "gitlab_read", {
+        assert asyncio.run(_dispatch("JobsAll", "gitlab_read", {
             "project_id": "team/project", "brief": False, "ref": "main", "page": 2, "per_page": 5,
-        }) == selected + history
+        })) == selected + history
         assert dict(calls[1].url.params) == {"ref": "main", "page": "2", "per_page": "5"}
 
     @pytest.mark.parametrize("options", [

@@ -8,12 +8,14 @@ Adapted from komodo-mcp's server.py with two extensions:
    is rejected unless the calling client's backend is Heptapod.
 """
 
+import asyncio
 import functools
 import inspect
 import re
 import string
 import types as _types
 import typing
+from collections.abc import Callable
 from typing import Annotated, Any, Literal
 from urllib.parse import urlsplit, urlunsplit
 
@@ -524,20 +526,19 @@ def _error_result(exc: Exception) -> dict[str, str]:
     return {"error": _redact_error_text(exc)}
 
 
-async def _await_op(coro):
-    """Await an async op, mapping the same failures `_dispatch` maps.
+async def _run_op(fn: Callable[..., Any], call: Callable[[], Any]) -> Any:
+    """Invoke an op: a sync op in a worker thread, an async op on the event loop.
 
-    An async op's body doesn't run until awaited, so `_dispatch`'s own guard
-    never sees its failures. Cancellation is a BaseException and still
-    propagates, leaving waiter cancellation semantics untouched.
+    Sync ops block on HTTP; on the loop they would stall every request the
+    process serves. `asyncio.to_thread` copies the context, so the bound
+    `client_var` follows the call into the thread.
     """
-    try:
-        return await coro
-    except _EXPECTED_FAILURES as exc:
-        return _error_result(exc)
+    if inspect.iscoroutinefunction(fn):
+        return await call()
+    return await asyncio.to_thread(call)
 
 
-def _dispatch(operation: str, group_name: str, params: dict, ctx: Context | None = None):
+async def _dispatch(operation: str, group_name: str, params: dict, ctx: Context | None = None):
     """Dispatch an operation call to the right function.
 
     Bad params, an unknown operation, a GitLabError, and a transport failure
@@ -546,13 +547,6 @@ def _dispatch(operation: str, group_name: str, params: dict, ctx: Context | None
 
     A Heptapod-only op called against GitLab is rejected here, in the same
     `{"error": ...}` shape.
-
-    Synchronous ops are called directly. Async ops (e.g. pipelines_wait,
-    jobs_wait) return a coroutine, wrapped so a failure raised at await time
-    maps identically — the meta-tool `tool_fn` awaits it. Calling `_dispatch`
-    directly from a sync caller against an async op therefore yields an
-    awaitable, not a value; callers in that situation should
-    `asyncio.run(...)` the result.
     """
     try:
         if operation == "help":
@@ -577,17 +571,16 @@ def _dispatch(operation: str, group_name: str, params: dict, ctx: Context | None
         # Registration is process-global, so the backend can only be checked
         # per call: the bound client decides whether an hg op is legal.
         if getattr(fn, "_heptapod_only", False):
-            backend = get_client().instance.backend
+            # The first `instance` access probes the server over HTTP.
+            backend = await asyncio.to_thread(lambda: get_client().instance.backend)
             if backend != "heptapod":
                 raise ValueError(
                     f"{operation} is Heptapod-only; this instance is {backend}"
                 )
 
-        result = _coerce_call(fn, params, ctx)
+        result = await _run_op(fn, functools.partial(_coerce_call, fn, params, ctx))
     except _EXPECTED_FAILURES as exc:
         return _error_result(exc)
-    if inspect.iscoroutine(result):
-        return _await_op(result)
     return result
 
 
@@ -599,8 +592,6 @@ def _make_tool(group_name: str, group_doc: str):
 
     Async by design so tools that need the MCP Context (progress / log)
     can `await ctx.report_progress(...)` from inside their dispatch path.
-    Sync ops still work — `_coerce_call` returns whatever the op returns,
-    and we only `await` when the result is actually a coroutine.
 
     The `ctx` parameter is typed `Context` so MCPServer injects the live
     request context; it never appears in the tool's JSON schema for callers.
@@ -611,10 +602,7 @@ def _make_tool(group_name: str, group_doc: str):
         ctx: Context | None = None,
     ):
         params = params or {}
-        result = _dispatch(operation, group_name, params, ctx)
-        if inspect.iscoroutine(result):
-            result = await result
-        return result
+        return await _dispatch(operation, group_name, params, ctx)
     tool_fn.__name__ = group_name
     tool_fn.__qualname__ = group_name
     tool_fn.__doc__ = group_doc
@@ -717,6 +705,7 @@ def _register_wait_resource() -> None:
 
     from .wait_registry import WAIT_REGISTRY as _WAIT_REGISTRY
 
+    # Async without an await: the SDK runs a sync resource in a worker thread, off the handles' loop.
     @mcp.resource(
         "gitlab://waits/{wait_id}",
         name="GitLab wait snapshot",
@@ -727,7 +716,7 @@ def _register_wait_resource() -> None:
         ),
         mime_type="application/json",
     )
-    def _read_wait(wait_id: str) -> str:
+    async def _read_wait(wait_id: str) -> str:
         handle = _WAIT_REGISTRY.get(wait_id)
         if handle is None:
             return _json.dumps({

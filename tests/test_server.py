@@ -3,12 +3,15 @@
 import asyncio
 import inspect
 import json
+import threading
 from typing import Any, Literal, cast
 
 import httpx
 import pytest
 from mcp.types import TextContent
 
+import gitlab_mcp.client as client_mod
+from gitlab_mcp import server
 from gitlab_mcp.backend import InstanceInfo
 from gitlab_mcp.client import GitLabClient, _reset_client
 from gitlab_mcp.config import _reset_settings
@@ -265,7 +268,7 @@ class TestMakeTool:
 
         captured: list[int] = []
 
-        def fake_dispatch(operation, group_name, params, ctx=None):
+        async def fake_dispatch(operation, group_name, params, ctx=None):
             captured.append(len(params))
             params["leaked"] = "mutation"
 
@@ -314,7 +317,7 @@ class TestHeptapodOnlyGuard:
         server._register_tools()
         # Registered on any backend: registration is process-global.
         assert "HgProbeSynthetic" in server._group_ops.get("gitlab_read", {})
-        assert server._dispatch("HgProbeSynthetic", "gitlab_read", {}) == {
+        assert asyncio.run(server._dispatch("HgProbeSynthetic", "gitlab_read", {})) == {
             "error": "HgProbeSynthetic is Heptapod-only; this instance is gitlab"
         }
 
@@ -334,7 +337,31 @@ class TestHeptapodOnlyGuard:
         monkeypatch.setattr(tools, "hg_probe_synthetic", hg_probe_synthetic, raising=False)
 
         server._register_tools()
-        assert server._dispatch("HgProbeSynthetic", "gitlab_read", {}) == "hg"
+        assert asyncio.run(server._dispatch("HgProbeSynthetic", "gitlab_read", {})) == "hg"
+
+    def test_backend_probe_runs_off_the_loop(self, monkeypatch):
+        """The guard's first `instance` access probes over HTTP; the loop must not block on it."""
+        probe_threads: list[threading.Thread] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            probe_threads.append(threading.current_thread())
+            if request.url.path.endswith("/metadata"):
+                return httpx.Response(200, json={"version": "18.6.0"})
+            return httpx.Response(404, json={"message": "404 Not Found"})
+
+        def hg_probe_synthetic():
+            """Synthetic hg-only tool."""
+            return "hg"
+
+        cast(Any, hg_probe_synthetic)._heptapod_only = True
+        monkeypatch.setitem(server._group_ops["gitlab_read"], "HgProbeSynthetic", hg_probe_synthetic)
+        client_mod._client = GitLabClient(transport=httpx.MockTransport(handler))
+
+        assert asyncio.run(server._dispatch("HgProbeSynthetic", "gitlab_read", {})) == {
+            "error": "HgProbeSynthetic is Heptapod-only; this instance is gitlab"
+        }
+        assert probe_threads
+        assert threading.current_thread() not in probe_threads
 
     def test_non_heptapod_tools_always_registered(self, monkeypatch):
         import gitlab_mcp.client as client_mod
@@ -554,7 +581,7 @@ class TestDispatchWrongGroup:
         server._all_grouped["Existing"] = "fake_read"
         server._all_grouped["OnlyHere"] = "fake_write"
         try:
-            result = server._dispatch("OnlyHere", "fake_read", {})
+            result = asyncio.run(server._dispatch("OnlyHere", "fake_read", {}))
             assert "belongs to 'fake_write'" in result["error"]
         finally:
             server._group_ops.clear()
@@ -566,7 +593,7 @@ class TestDispatchWrongGroup:
         server._group_ops.clear()
         server._group_ops["fake_read"] = {"Existing": lambda: None}
         try:
-            result = server._dispatch("Mystery", "fake_read", {})
+            result = asyncio.run(server._dispatch("Mystery", "fake_read", {}))
             assert "Unknown operation 'Mystery'" in result["error"]
         finally:
             server._group_ops.clear()
