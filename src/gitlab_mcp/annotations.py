@@ -41,7 +41,7 @@ ANNOTATIONS: dict[str, str] = {
 
     # ── Issues ──────────────────────────────────────────────────────────
     "issues_all": "List issues. Pass project_id for project-scoped, group_id for group, or neither for global (current user).",
-    "issues_show": "Get full details of a single issue by global issue_id.",
+    "issues_show": "Get full details of a single issue by global issue_id, or by per-project iid (#N) when project_id is given.",
     "issues_create": "Create a new issue. Required: project_id, title. Optional body fields (pass as top-level params): description, assignee_ids, confidential, labels, milestone_id, due_date, issue_type ('issue'/'incident'/'test_case'/'task'), weight, discussion_to_resolve, merge_request_to_resolve_discussions_of.",
     "issues_edit": "Update an issue. Optional body fields (pass as top-level params, not nested): title, description, labels, add_labels, remove_labels, assignee_ids, milestone_id, state_event ('close'/'reopen'), due_date, confidential, discussion_locked, issue_type, weight.",
 
